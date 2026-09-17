@@ -298,6 +298,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      # Every artifact, the plan included: the country list and title live there and nowhere
+      # else, which is why the first index.json this factory wrote had `"countries": []`.
       - uses: actions/download-artifact@v4
         with:
           path: incoming

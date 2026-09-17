@@ -27,6 +27,21 @@ def main(incoming: str, manifest: str) -> int:
     }
     assets = json.loads((root / "assets.json").read_text(encoding="utf-8"))
 
+    # A package is TWO artifacts and the car needs both: the graph it routes on and the basemap
+    # it draws. §13's rule is explicit — "a region counts as installed only when both are
+    # present; a region is stale when EITHER is" — and the first version of this file promoted
+    # only the graph, so index.json described a country to route across with no map under it.
+    # The halves are promoted independently, because they come from different upstreams and
+    # change at different times, and `complete` says whether the pair is whole.
+    plans = {}
+    for plan_path in sorted(root.rglob("*.json")):
+        try:
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        except Exception:                          # noqa: BLE001
+            continue
+        if "probes" in plan and "package" in plan:
+            plans[plan["package"]] = plan
+
     promoted = []
     for meta_path in sorted(root.rglob("*-graph.json")):
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -44,7 +59,11 @@ def main(incoming: str, manifest: str) -> int:
             continue
 
         entry = index["packages"].setdefault(package, {})
-        entry["countries"] = entry.get("countries") or meta.get("countries", [])
+        # The country list comes from the plan the run was built to, not from the graph manifest,
+        # which never knew it. An empty list here was the first index.json's other defect.
+        entry["countries"] = (plans.get(package, {}).get("countries")
+                              or entry.get("countries") or meta.get("countries", []))
+        entry["title"] = plans.get(package, {}).get("title") or entry.get("title")
         entry["regions"] = meta["regions"]
         entry["graph"] = {
             "url": RELEASE + f"{package}.tar",
@@ -57,6 +76,48 @@ def main(incoming: str, manifest: str) -> int:
             "engineVersion": meta["engineVersion"],
         }
         promoted.append(package)
+
+    # ── the other half ──────────────────────────────────────────────────────────────────────
+    for meta_path in sorted(root.rglob("*-basemap.json")):
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        package = meta["package"]
+        asset = assets.get(f"{package}.pmtiles")
+        if asset is None:
+            print(f"{package}: basemap built but not uploaded, skipped")
+            continue
+
+        entry = index["packages"].setdefault(package, {})
+        entry["basemap"] = {
+            "url": RELEASE + f"{package}.pmtiles",
+            "bytes": asset["bytes"],
+            "sha256": asset["sha256"],
+            "parts": asset["parts"] or None,
+            "dataDate": meta["dataDate"],
+            # SCHEMA IS LOAD-BEARING: a style pointed at the wrong one renders NOTHING and
+            # reports no error (§13). The car refuses a basemap whose schema its styles cannot
+            # read, rather than showing a blank screen with a working route line on it.
+            "schema": meta.get("schema"),
+            "maxzoom": meta.get("maxzoom"),
+            "bbox": meta.get("bbox"),
+            "upstreamBuild": meta.get("build"),
+        }
+        if package not in promoted:
+            promoted.append(package)
+
+    # VINTAGE SKEW IS A REAL FAILURE MODE (§13): the two halves come from different snapshots
+    # unless deliberately paired, and the symptom — a road drawn that the router refuses, or a
+    # route down a road that is not drawn — reads as "the app is broken" rather than as "these
+    # files are six weeks apart". So it is stated per package rather than left to be discovered.
+    for package, entry in index["packages"].items():
+        halves = [half for half in ("graph", "basemap") if half in entry]
+        entry["complete"] = len(halves) == 2
+        if entry["complete"]:
+            dates = sorted(entry[half]["dataDate"] for half in halves)
+            entry["vintageSkewDays"] = (
+                datetime.fromisoformat(dates[1]) - datetime.fromisoformat(dates[0])).days
+        else:
+            print(f"{package}: only {halves[0] if halves else 'nothing'} — "
+                  f"NOT a complete package")
 
     index["release"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     out.write_text(json.dumps(index, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
