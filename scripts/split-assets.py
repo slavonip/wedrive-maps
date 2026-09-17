@@ -86,7 +86,7 @@ def main(root: str) -> int:
     base = pathlib.Path(root)
     report = {}
     for path in sorted(base.rglob("*")):
-        if path.name.endswith("-places.json") and path.is_file():
+        if path.name.endswith("-index.json") and path.is_file():
             # Small, so never split and never dated: the manifest carries its hash and a car
             # that finds a mismatch simply fetches it again. A dated name would only add a
             # second thing to keep in step with the package it belongs to.

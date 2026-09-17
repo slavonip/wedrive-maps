@@ -114,26 +114,33 @@ print(json.dumps({
 }, indent=2))
 META
 
-# ── the third artifact: a searchable index of place names ───────────────────────────────────
+# ── the third artifact: everything a driver can search for ──────────────────────────────────
 #
-# The names are already inside the basemap, and until now nothing could look them up: MapLibre
-# queries only what is currently rendered, so a destination off-screen was unfindable and the
-# search screen had to say "not built" (§8a level 3).
+# Places, STREETS and POIs. Searching only settlements is a third of what a driver needs, and the
+# other two thirds were in the basemap all along.
 #
-# DECODED HERE rather than on the head unit. A PMTiles and MVT reader in Kotlin is a few hundred
-# lines to own forever, running on the slowest computer in the arrangement every time someone
-# types a letter. One pass on a runner produces a flat file the car scans instantly — measured
-# on Moldova: 5040 places, 353 KB, small villages included, and typing "Ia" puts Iași first
-# because the index carries population.
-echo '==> place index'
-# Beside THIS script, not under $WORK. The graph job copies scripts/ into /data and the
-# basemap job does not — $WORK there is the runner's temp directory, which has never held
-# them. Same shape of mistake as the /data permission failure earlier today: a path that
-# is right in one job and wrong in the next.
+# TWO ZOOMS, ON PURPOSE (owner, 2026-09-17: "только POI имеет смысл с 15"). Settlements are
+# complete at z10 — villages of two thousand people are present — while POIs at z14 are a sample
+# rather than a set: measured over Chișinău, charging stations go from 0 to 34 and pharmacies
+# from 2 to 465 between z14 and z15.
+#
+# So a SECOND archive is extracted at z15, read once, and thrown away. Cutting the shipped
+# basemap at 15 would double it — 664 MB to ~1.3 GB for md-ro — and the car would pay that every
+# month. This way the runner pays the download and the car gets 1.3 MB of index for a whole city.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-python3 "$HERE/build-places.py" "$BASEMAP" "$W,$S,$E,$N"   "$OUT_DIR/$PACKAGE-places.json" --pmtiles "$PMTILES" --zoom 10
+DETAIL="$WORK/detail-$PACKAGE.pmtiles"
 
-python3 - "$OUT_DIR/$PACKAGE-places.json" "$PACKAGE" <<'PLACES' > "$OUT_DIR/$PACKAGE-places-meta.json"
+echo "==> detail extract at z15 (for the index only; discarded afterwards)"
+"$PMTILES" extract "https://build.protomaps.com/$BUILD" "$DETAIL"   --bbox="$W,$S,$E,$N" --maxzoom=15 --download-threads=8
+
+echo '==> search index'
+python3 "$HERE/build-index.py" "$OUT_DIR/$PACKAGE-index.json"   --places "$BASEMAP" --detail "$DETAIL" --bbox "$W,$S,$E,$N" --pmtiles "$PMTILES"
+
+# The detail archive is a gigabyte-scale intermediate on a runner with a finite disk, and the
+# next package in the matrix needs that space.
+rm -f "$DETAIL"
+
+python3 - "$OUT_DIR/$PACKAGE-index.json" "$PACKAGE" <<'INDEXMETA' > "$OUT_DIR/$PACKAGE-index-meta.json"
 import hashlib
 import json
 import os
@@ -147,14 +154,15 @@ with open(path, "rb") as handle:
 index = json.load(open(path, encoding="utf-8"))
 print(json.dumps({
     "package": package,
-    "artifact": "places",
-    "count": index["count"],
-    "zoom": index["zoom"],
+    "artifact": "index",
+    "schema": index["schema"],
+    "counts": index["counts"],
+    "categories": index["categories"],
     "bytes": os.path.getsize(path),
     "sha256": digest.hexdigest(),
 }, indent=2))
-PLACES
+INDEXMETA
 
 echo "==> done: $BASEMAP"
 cat "$OUT_DIR/$PACKAGE-basemap.json"
-cat "$OUT_DIR/$PACKAGE-places-meta.json"
+cat "$OUT_DIR/$PACKAGE-index-meta.json"

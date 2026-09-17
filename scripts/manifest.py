@@ -106,22 +106,27 @@ def main(incoming: str, manifest: str) -> int:
 
     # ── the third artifact: names to search ─────────────────────────────────────────────────
     #
-    # Small enough to be unremarkable (353 KB for Moldova) and the difference between a search
-    # box that works offline and one that says "not built". Promoted independently of the other
-    # two: a package whose index failed to build still routes and still draws.
-    for meta_path in sorted(root.rglob("*-places-meta.json")):
+    # Places, streets and POIs. Small enough to be unremarkable — 1.3 MB for a whole city — and
+    # the difference between a search box that works offline and one that says "not built".
+    # Promoted independently of the other two: a package whose index failed still routes and
+    # still draws, it simply cannot be searched.
+    for meta_path in sorted(root.rglob("*-index-meta.json")):
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         package = meta["package"]
-        asset = assets.get(f"{package}-places.json")
+        asset = assets.get(f"{package}-index.json")
         if asset is None:
-            print(f"{package}: place index built but not uploaded, skipped")
+            print(f"{package}: search index built but not uploaded, skipped")
             continue
         entry = index["packages"].setdefault(package, {})
-        entry["places"] = {
-            "url": RELEASE + f"{package}-places.json",
+        entry["index"] = {
+            "url": RELEASE + f"{package}-index.json",
             "bytes": asset["bytes"],
             "sha256": asset["sha256"],
-            "count": meta.get("count"),
+            "schema": meta.get("schema"),
+            "counts": meta.get("counts"),
+            # Which category buttons this package can actually answer. A screen that offers a
+            # button with nothing behind it is worse than one that offers fewer buttons.
+            "categories": meta.get("categories"),
         }
         if package not in promoted:
             promoted.append(package)
