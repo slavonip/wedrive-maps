@@ -41,17 +41,36 @@ def stages(path):
 
 
 def peaks(path):
-    memory = disk = 0
+    """Peak memory, peak disk, the disk BASELINE and where the memory figure came from.
+
+    Disk is sampled filesystem-wide, and a runner starts with ~59 GB already used — so a raw
+    peak of 66.6 GB on a two-country build says almost nothing about what the build needs. The
+    first sample is the baseline and the growth above it is this build's own footprint, which is
+    the number that answers "will a bigger master fit".
+
+    The memory source matters for the same reason in the other direction: a cgroup reading is
+    this container, while the /proc/meminfo fallback is the whole machine.
+    """
+    memory = disk = baseline = 0
     samples = 0
+    source = "unknown"
     try:
-        with open(path, newline="") as handle:
-            for row in csv.DictReader(handle):
-                samples += 1
-                memory = max(memory, int(row["mem_bytes"] or 0))
-                disk = max(disk, int(row["disk_kb"] or 0) * 1024)
+        lines = open(path, newline="").read().splitlines()
+        if lines and lines[0].startswith("#"):
+            source = lines[0].split(":", 1)[-1].strip()
+            lines = lines[1:]
+        for row in csv.DictReader(lines):
+            if not row.get("epoch"):
+                continue
+            samples += 1
+            memory = max(memory, int(row["mem_bytes"] or 0))
+            used = int(row["disk_kb"] or 0) * 1024
+            if baseline == 0:
+                baseline = used
+            disk = max(disk, used)
     except FileNotFoundError:
-        return None, None, 0
-    return memory, disk, samples
+        return None, None, 0, 0, source
+    return memory, disk, samples, baseline, source
 
 
 # WHAT ACTUALLY PREDICTS THE COST OF A BUILD. Gigabytes of PBF are a weak proxy: Austria takes
@@ -111,7 +130,8 @@ def main() -> int:
     args = parser.parse_args()
 
     timings = stages(args.stages)
-    peak_memory, peak_disk, samples = peaks(args.samples)
+    peak_memory, peak_disk, samples, disk_baseline, memory_source = peaks(args.samples)
+    disk_growth = (peak_disk - disk_baseline) if peak_disk else None
     counted = counters(args.log)
     tiles, tile_bytes = count(args.tile_dir)
     cut_tiles, cut_bytes = count(args.cuts_dir)
@@ -159,8 +179,17 @@ def main() -> int:
         "peak": {
             "memoryBytes": peak_memory,
             "memoryGb": round(peak_memory / 1e9, 2) if peak_memory else None,
+            # WHERE the memory figure came from, because a cgroup reading is this container and
+            # the meminfo fallback is the whole machine. Without it the number is unusable.
+            "memorySource": memory_source,
+            # This build's OWN disk footprint. The raw peak is filesystem-wide and a runner
+            # starts ~59 GB used, so the absolute alone would have suggested a two-country build
+            # needs 66 GB.
+            "diskGrowthBytes": disk_growth,
+            "diskGrowthGb": round(disk_growth / 1e9, 2) if disk_growth else None,
             "diskBytes": peak_disk,
             "diskGb": round(peak_disk / 1e9, 2) if peak_disk else None,
+            "diskBaselineGb": round(disk_baseline / 1e9, 2) if disk_baseline else None,
             "samples": samples,
         },
         # The numbers that actually extrapolate. Rates are per GB of SOURCE, and are reported for
@@ -204,8 +233,9 @@ def main() -> int:
             print(f"      {name:10s} {hours(timings[name])}", file=sys.stderr)
     print(f"      {'TOTAL':10s} {hours(args.elapsed)}", file=sys.stderr)
     if peak_memory:
-        print(f"   peak memory {report['peak']['memoryGb']} GB · "
-              f"peak disk {report['peak']['diskGb']} GB", file=sys.stderr)
+        print(f"   peak memory {report['peak']['memoryGb']} GB (from {memory_source}) · "
+              f"disk grew {report['peak']['diskGrowthGb']} GB "
+              f"(filesystem {report['peak']['diskGb']} GB of 145)", file=sys.stderr)
     if report["rates"]["tileSecondsPerSourceGb"]:
         print(f"   {report['rates']['tileSecondsPerSourceGb']} s/GB building tiles, "
               f"{report['rates']['totalSecondsPerSourceGb']} s/GB for the whole job",

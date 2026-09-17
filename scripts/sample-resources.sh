@@ -26,7 +26,16 @@ mem_now() {
   fi
 }
 
-echo "epoch,mem_bytes,disk_kb" > "$CSV"
+# WHICH SOURCE the memory came from, recorded once, because the number means different things.
+# A cgroup reading is THIS CONTAINER. The /proc/meminfo fallback is the WHOLE MACHINE, and on a
+# shared runner that includes whatever else is on it. A peak of 4.5 GB is a fact about our build
+# only if we know which one answered.
+if [ -r /sys/fs/cgroup/memory.current ]; then MEM_SOURCE=cgroup2
+elif [ -r /sys/fs/cgroup/memory/memory.usage_in_bytes ]; then MEM_SOURCE=cgroup1
+else MEM_SOURCE=meminfo-hostwide
+fi
+echo "# memory source: $MEM_SOURCE" > "$CSV"
+echo "epoch,mem_bytes,disk_kb" >> "$CSV"
 while :; do
   printf '%s,%s,%s\n' "$(date +%s)" "$(mem_now)" \
     "$(df -k --output=used "$WATCH" 2>/dev/null | tail -1 | tr -d ' ')" >> "$CSV"
