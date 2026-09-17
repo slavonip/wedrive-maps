@@ -27,8 +27,21 @@ Several points per country separate "the whole country" from "this one coordinat
 difference between a build-time assignment fault and a bad probe coordinate. A country known to
 pass is included as a control: a diagnostic that reports a problem everywhere is measuring itself.
 
-This DIAGNOSES; it never gates. It prints what it saw and exits 0 whatever it finds, because a
-diagnostic that can fail a build invites being made to pass.
+TWO LEVELS, AND THEY ARE NOT DUPLICATES. The route-based probe in `probe.py` and this one ask
+different questions, and Vienna is the case that proved it:
+
+    graph integrity    node.time_zone == Europe/Vienna       does the DATA hold the right zone?
+    runtime behaviour  a route with date_time names it       does the whole path to a navigation
+                                                             answer work?
+
+The first localises a defect precisely and cannot be confused by an unroutable coordinate; the
+second is the only one that proves what a driver would actually be told. Vienna had the first
+correct and the second failing, and a factory with only the route-level check spent three
+rebuilds not knowing which.
+
+BY DEFAULT IT DIAGNOSES AND NEVER GATES — a diagnostic able to fail a build invites being made to
+pass. With `--gate` it becomes a check in its own right, which is how `eu-core` runs it: there the
+graph-level reading is cheap, direct, and stronger than the inference through a route.
 """
 import argparse
 import json
@@ -115,6 +128,8 @@ def main() -> int:
     parser.add_argument("--label", default="")
     parser.add_argument("--points", default=None)
     parser.add_argument("--only", default=None, help="restrict to one country code")
+    parser.add_argument("--gate", action="store_true",
+                        help="fail when the GRAPH disagrees with what is expected")
     args = parser.parse_args()
 
     here = pathlib.Path(__file__).resolve().parent.parent
@@ -130,6 +145,7 @@ def main() -> int:
     print(f"\n=== {args.label or args.tile_dir} ===")
     print(f"   {'point':26s} {'graph node':22s} {'route reports':22s} detail")
 
+    wrong = []
     for point in points:
         if args.only and point["country"] != args.only:
             continue
@@ -142,7 +158,23 @@ def main() -> int:
         print(f"{mark}{point['name']:26s} {str(graph_zone):22s} {str(route_zone):22s} "
               f"{graph_detail}; {route_detail}{agree}")
 
+        # ONLY a graph that holds the WRONG zone counts as a failure. A point where
+        # `trace_attributes` matched no edges is this tool's own limitation — the three-point
+        # shape is too short to map-match in some places, measured at Graz, Linz, Budapest and
+        # Chișinău, where routes from the same points work and report the right zone. Treating
+        # that as a defect would make the gate fail on itself.
+        if args.gate and graph_zone is not None and graph_zone != expected:
+            wrong.append(f"{point['name']}: the graph holds {graph_zone}, expected {expected}")
+
     print("   (expected per point is in diagnostics/timezone-points.json)")
+
+    if wrong:
+        print("GRAPH INTEGRITY FAILED — the tiles hold the wrong timezone:", file=sys.stderr)
+        for line in wrong:
+            print(f"   - {line}", file=sys.stderr)
+        print("   This is the data, not the probe: the zone is written into every node at build "
+              "time and cannot be corrected afterwards.", file=sys.stderr)
+        return 1
     return 0
 
 

@@ -51,7 +51,7 @@ def peaks(path):
     The memory source matters for the same reason in the other direction: a cgroup reading is
     this container, while the /proc/meminfo fallback is the whole machine.
     """
-    memory = disk = baseline = 0
+    memory = anon = disk = baseline = 0
     samples = 0
     source = "unknown"
     try:
@@ -64,13 +64,16 @@ def peaks(path):
                 continue
             samples += 1
             memory = max(memory, int(row["mem_bytes"] or 0))
+            # `anon_bytes` is absent from samples taken before 2026-09-17; a missing column is
+            # not zero, and 0 here simply means "this build did not measure it".
+            anon = max(anon, int(row.get("anon_bytes") or 0))
             used = int(row["disk_kb"] or 0) * 1024
             if baseline == 0:
                 baseline = used
             disk = max(disk, used)
     except FileNotFoundError:
-        return None, None, 0, 0, source
-    return memory, disk, samples, baseline, source
+        return None, None, 0, 0, source, 0
+    return memory, disk, samples, baseline, source, anon
 
 
 # WHAT ACTUALLY PREDICTS THE COST OF A BUILD. Gigabytes of PBF are a weak proxy: Austria takes
@@ -130,7 +133,7 @@ def main() -> int:
     args = parser.parse_args()
 
     timings = stages(args.stages)
-    peak_memory, peak_disk, samples, disk_baseline, memory_source = peaks(args.samples)
+    peak_memory, peak_disk, samples, disk_baseline, memory_source, peak_anon = peaks(args.samples)
     disk_growth = (peak_disk - disk_baseline) if peak_disk else None
     counted = counters(args.log)
     tiles, tile_bytes = count(args.tile_dir)
@@ -152,6 +155,7 @@ def main() -> int:
     missing = [name for name, value in (
         ("samples", samples or None),
         ("peakMemory", peak_memory or None),
+        ("peakAnon", peak_anon or None),
         ("peakDisk", peak_disk or None),
         ("buildSeconds", args.elapsed or None),
         ("tileSeconds", tile_seconds or None),
@@ -177,18 +181,34 @@ def main() -> int:
         },
         "seconds": {**timings, "total": args.elapsed},
         "peak": {
+            # `memory.current` — anon + PAGE CACHE + kernel. Valhalla writes gigabytes of
+            # temporary sequence files and every byte of them lands in cache and counts here,
+            # so this overstates what the build needs, sometimes greatly.
             "memoryBytes": peak_memory,
             "memoryGb": round(peak_memory / 1e9, 2) if peak_memory else None,
+            # THE NUMBER THAT PREDICTS AN OOM. Anonymous memory cannot be reclaimed; page cache
+            # is released under pressure instead of killing the process. "Does a bigger master
+            # fit in this runner" is a question about THIS figure, not the one above.
+            "anonBytes": peak_anon or None,
+            "anonGb": round(peak_anon / 1e9, 2) if peak_anon else None,
+            "cacheGb": round((peak_memory - peak_anon) / 1e9, 2)
+                       if peak_memory and peak_anon else None,
             # WHERE the memory figure came from, because a cgroup reading is this container and
             # the meminfo fallback is the whole machine. Without it the number is unusable.
             "memorySource": memory_source,
-            # This build's OWN disk footprint. The raw peak is filesystem-wide and a runner
-            # starts ~59 GB used, so the absolute alone would have suggested a two-country build
-            # needs 66 GB.
-            "diskGrowthBytes": disk_growth,
-            "diskGrowthGb": round(disk_growth / 1e9, 2) if disk_growth else None,
-            "diskBytes": peak_disk,
-            "diskGb": round(peak_disk / 1e9, 2) if peak_disk else None,
+            # THREE DISK NUMBERS, because they answer three different questions and one of them
+            # alone is misleading:
+            #
+            #   diskPeakDeltaGb     what OUR factory needs — the number that scales with a master
+            #   diskPeakAbsoluteGb  whether a given runner survives this build at all
+            #   diskBaselineGb      why two identical builds can report different absolutes
+            #
+            # Read alone, the absolute suggested a two-country build needs 66 GB. It does not;
+            # it needs 7.8 GB on a volume that already had 60 GB in it.
+            "diskPeakDeltaBytes": disk_growth,
+            "diskPeakDeltaGb": round(disk_growth / 1e9, 2) if disk_growth else None,
+            "diskPeakAbsoluteBytes": peak_disk,
+            "diskPeakAbsoluteGb": round(peak_disk / 1e9, 2) if peak_disk else None,
             "diskBaselineGb": round(disk_baseline / 1e9, 2) if disk_baseline else None,
             "samples": samples,
         },
@@ -209,6 +229,10 @@ def main() -> int:
             "peakMemoryPerMillionDirectedEdges": round(
                 peak_memory / (counted["directedEdges"] / 1e6) / 1e9, 3)
                 if peak_memory and counted.get("directedEdges") else None,
+            # The same slope against the figure that actually binds.
+            "anonPerMillionDirectedEdges": round(
+                peak_anon / (counted["directedEdges"] / 1e6) / 1e9, 3)
+                if peak_anon and counted.get("directedEdges") else None,
             "tileSecondsPerMillionDirectedEdges": round(
                 tile_seconds / (counted["directedEdges"] / 1e6), 1)
                 if tile_seconds and counted.get("directedEdges") else None,
@@ -233,9 +257,14 @@ def main() -> int:
             print(f"      {name:10s} {hours(timings[name])}", file=sys.stderr)
     print(f"      {'TOTAL':10s} {hours(args.elapsed)}", file=sys.stderr)
     if peak_memory:
+        if report["peak"]["anonGb"]:
+            print(f"   peak anon   {report['peak']['anonGb']} GB  <- what must fit in RAM "
+                  f"({report['peak']['cacheGb']} GB of the total was reclaimable cache)",
+                  file=sys.stderr)
         print(f"   peak memory {report['peak']['memoryGb']} GB (from {memory_source}) · "
-              f"disk grew {report['peak']['diskGrowthGb']} GB "
-              f"(filesystem {report['peak']['diskGb']} GB of 145)", file=sys.stderr)
+              f"disk +{report['peak']['diskPeakDeltaGb']} GB ours, "
+              f"{report['peak']['diskPeakAbsoluteGb']} GB absolute "
+              f"over a {report['peak']['diskBaselineGb']} GB baseline", file=sys.stderr)
     if report["rates"]["tileSecondsPerSourceGb"]:
         print(f"   {report['rates']['tileSecondsPerSourceGb']} s/GB building tiles, "
               f"{report['rates']['totalSecondsPerSourceGb']} s/GB for the whole job",

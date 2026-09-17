@@ -136,7 +136,9 @@ jobs:
               sys.exit(f"TELEMETRY INVALID: missing {report.get('telemetryMissing')}")
           peak = report["peak"]
           print(f"rung {os.environ['RUNG']}: telemetry VALID — "
-                f"{peak['memoryGb']} GB peak memory, {peak['diskGb']} GB peak disk")
+                f"{peak['memoryGb']} GB peak memory (from {peak['memorySource']}), "
+                f"+{peak['diskPeakDeltaGb']} GB disk of our own "
+                f"({peak['diskPeakAbsoluteGb']} GB absolute)")
           VERDICT
 
       - uses: actions/upload-artifact@v4

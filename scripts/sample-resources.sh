@@ -26,6 +26,29 @@ mem_now() {
   fi
 }
 
+# ── THE NUMBER THAT PREDICTS AN OOM IS NOT `memory.current` ─────────────────────────────────
+# In cgroup v2 `memory.current` is anon + page cache + kernel, and Valhalla's build writes
+# GIGABYTES of temporary sequence files. Every one of those bytes lands in page cache and counts
+# toward `memory.current` — and every one is RECLAIMABLE, so it is released under pressure
+# instead of killing the process.
+#
+# Measured on the four-country rung: 12.83 GB of a 15.6 GB runner, which read alone says a master
+# twice that size cannot exist. If most of it is cache, that conclusion is wrong by a factor of
+# three, and the split-master decision would have been made on it.
+#
+# `anon` from memory.stat is the part that cannot be reclaimed. Both are sampled, because the
+# question "does this fit" is about anon and the question "what is this machine doing" is about
+# current.
+anon_now() {
+  if [ -r /sys/fs/cgroup/memory.stat ]; then
+    awk '/^anon /{print $2; found=1} END{if(!found) print 0}' /sys/fs/cgroup/memory.stat
+  elif [ -r /sys/fs/cgroup/memory/memory.stat ]; then
+    awk '/^rss /{print $2; found=1} END{if(!found) print 0}' /sys/fs/cgroup/memory/memory.stat
+  else
+    awk '/MemTotal/{t=$2} /MemFree/{f=$2} /Cached/{c=$2} END{print (t-f-c)*1024}' /proc/meminfo
+  fi
+}
+
 # WHICH SOURCE the memory came from, recorded once, because the number means different things.
 # A cgroup reading is THIS CONTAINER. The /proc/meminfo fallback is the WHOLE MACHINE, and on a
 # shared runner that includes whatever else is on it. A peak of 4.5 GB is a fact about our build
@@ -35,9 +58,9 @@ elif [ -r /sys/fs/cgroup/memory/memory.usage_in_bytes ]; then MEM_SOURCE=cgroup1
 else MEM_SOURCE=meminfo-hostwide
 fi
 echo "# memory source: $MEM_SOURCE" > "$CSV"
-echo "epoch,mem_bytes,disk_kb" >> "$CSV"
+echo "epoch,mem_bytes,anon_bytes,disk_kb" >> "$CSV"
 while :; do
-  printf '%s,%s,%s\n' "$(date +%s)" "$(mem_now)" \
+  printf '%s,%s,%s,%s\n' "$(date +%s)" "$(mem_now)" "$(anon_now)" \
     "$(df -k --output=used "$WATCH" 2>/dev/null | tail -1 | tr -d ' ')" >> "$CSV"
   sleep 5
 done

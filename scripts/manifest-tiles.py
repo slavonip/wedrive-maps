@@ -63,19 +63,26 @@ def main(incoming: str, manifest: str) -> int:
     #   admins     admins.adminsGate              YES      driving side, access defaults and
     #                                                      country-crossing costs. Routes still
     #                                                      come back, so nothing else notices
-    #   freshness  osm.freshnessGate              NO       an unreadable PBF header makes a graph
-    #                                                      UNVERIFIED, not WRONG. A FAIL already
-    #                                                      stopped the build long before here, so
-    #                                                      what reaches this point is only ever
-    #                                                      "we could not confirm it was newer" —
-    #                                                      which must not stop the car getting maps
+    #   freshness  osm.freshnessGate              YES      see below — the build is kept, the
+    #                                                      promotion is refused
+    #
+    # FRESHNESS BLOCKS PROMOTION BUT NOT THE BUILD, and the distinction is the whole point.
+    # An unreadable replication timestamp does not prove the graph is bad, so throwing away an
+    # hour of runner time would be wrong — the artifacts stay as a candidate. But making it
+    # CURRENT without evidence that it is at least as new as what it replaces reopens exactly the
+    # silent-failure path the gate exists to close: osmium breaks one month, every extract comes
+    # back `UNCHECKED: cannot read replication timestamp`, the job goes green, and the car is
+    # handed data of unknown age under a fresh-looking release date.
+    #
+    # An earlier version of this table had freshness merely ANNOTATING, on the reasoning that
+    # "unverified is not wrong". That reasoning is sound and argues for keeping the build; it
+    # says nothing about promoting it.
     BLOCKING = {
         "timezone": ("timezones", "compatibilityGate"),
         "admins": ("admins", "adminsGate"),
-    }
-    ANNOTATING = {
         "freshness": ("osm", "freshnessGate"),
     }
+    ANNOTATING = {}
 
     def verdict_of(meta, field, key):
         found = meta.get(field)
@@ -106,6 +113,10 @@ def main(incoming: str, manifest: str) -> int:
     if refused:
         for line in refused:
             print(f"{build_id}: {line}, NOT promoted")
+        # Said explicitly, because "not promoted" and "lost" are different outcomes and the
+        # difference is worth an hour of runner time: the archives and their manifests are
+        # already uploaded and can be promoted by hand once the verdict is understood.
+        print(f"{build_id}: the artifacts are kept as a candidate — nothing was discarded")
         return 0
 
     index = {

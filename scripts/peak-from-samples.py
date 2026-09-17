@@ -39,6 +39,7 @@ def main() -> int:
         return 1
 
     memory = [(int(r["mem_bytes"] or 0), int(r["epoch"])) for r in rows]
+    anon = [(int(r.get("anon_bytes") or 0), int(r["epoch"])) for r in rows]
     disk = [(int(r["disk_kb"] or 0) * 1024, int(r["epoch"])) for r in rows]
 
     # DISK IS MEASURED FILESYSTEM-WIDE, and the runner starts with ~59 GB already used. A raw
@@ -57,7 +58,12 @@ def main() -> int:
 
     head = f"{args.label}: " if args.label else ""
     print(f"{head}sampled for {span // 60}m{span % 60:02d}s over {len(rows)} samples")
-    print(f"   peak memory {peak_memory / 1e9:6.2f} GB  ({when(at_memory)}, from {source})")
+    peak_anon, at_anon = max(anon)
+    if peak_anon:
+        print(f"   peak anon   {peak_anon / 1e9:6.2f} GB  ({when(at_anon)}) "
+              f"— what must fit in RAM")
+    print(f"   peak memory {peak_memory / 1e9:6.2f} GB  ({when(at_memory)}, from {source}) "
+          f"— includes reclaimable page cache")
     print(f"   disk grew   {(peak_disk - baseline) / 1e9:6.2f} GB  ({when(at_disk)}) "
           f"— this build's own footprint")
     print(f"   peak disk   {peak_disk / 1e9:6.2f} GB  filesystem-wide, "
