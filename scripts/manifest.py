@@ -37,6 +37,12 @@ def main(incoming: str, manifest: str) -> int:
             print(f"{package}: no asset, skipped")
             continue
 
+        if not meta.get("timezones", True):
+            # Routes would be right and arrival times wrong the moment the car left its own
+            # timezone — which is a worse failure than no update, because nobody is told.
+            print(f"{package}: built without timezones, NOT promoted")
+            continue
+
         entry = index["packages"].setdefault(package, {})
         entry["countries"] = entry.get("countries") or meta.get("countries", [])
         entry["regions"] = meta["regions"]

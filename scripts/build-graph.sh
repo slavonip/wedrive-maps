@@ -51,12 +51,20 @@ valhalla_build_config \
   --mjolnir-timezone "$TILEDIR/timezones.sqlite" \
   --mjolnir-admin "$TILEDIR/admins.sqlite" > "$CONF"
 
+TIMEZONES=true
 if [ -f /data/vendor/timezones.sqlite ]; then
   echo '==> timezones (vendored)'
   cp /data/vendor/timezones.sqlite "$TILEDIR/timezones.sqlite"
+elif valhalla_build_timezones > "$TILEDIR/timezones.sqlite" 2>/dev/null && [ -s "$TILEDIR/timezones.sqlite" ]; then
+  echo '==> timezones (built; this needed the network and may not next time)'
 else
-  echo '==> timezones (building; needs network — see the note above)'
-  valhalla_build_timezones > "$TILEDIR/timezones.sqlite"
+  # NOT fatal, and NOT silent. Without timezones the graph still routes correctly — the loss is
+  # arrival times once the car crosses into another zone, which this car does. So the build goes
+  # on, the flag goes into the metadata, and the manifest refuses to promote a package carrying
+  # it. A missing timezone database must cost a release, never a wrong ETA nobody was told about.
+  echo '==> timezones UNAVAILABLE — continuing; this package will not be promoted'
+  rm -f "$TILEDIR/timezones.sqlite"
+  TIMEZONES=false
 fi
 
 echo '==> admins'
@@ -79,6 +87,8 @@ cat > "$WORK/out/$PACKAGE-graph.json" <<META
   "engineVersion": "$(valhalla_build_tiles --version 2>&1 | awk '{print $2}')",
   "regions": [$(printf '"%s",' "${REGIONS[@]}" | sed 's/,$//')],
   "dataDate": "$(date -u +%Y-%m-%d)",
+  "timezones": $TIMEZONES,
+  "tzdataVersion": "$(dpkg-query -W -f='${Version}' tzdata 2>/dev/null || echo unknown)",
   "bytes": $(stat -c%s "$EXTRACT"),
   "sha256": "$(sha256sum "$EXTRACT" | cut -d' ' -f1)"
 }
