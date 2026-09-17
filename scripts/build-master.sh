@@ -86,6 +86,8 @@ stage() {
   STAGE_STARTED=$now
 }
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # ── osmium, for the merge ───────────────────────────────────────────────────────────────────
 # From Ubuntu's own archive rather than a third party's release, which is a different risk class
 # from the timezone shapefile that failed us — but it is still a fetch at 02:17, and if it ever
@@ -99,6 +101,7 @@ osmium --version | head -1
 stage download
 PBFS=()
 CUT_ARGS=()
+FRESHNESS_ARGS=()
 for member in "${MEMBERS[@]}"; do
   code="${member%%:*}"
   region="${member#*:}"
@@ -110,6 +113,7 @@ for member in "${MEMBERS[@]}"; do
     curl -fsSL -o "$pbf" "https://download.geofabrik.de/${region}-latest.osm.pbf"
   fi
   PBFS+=("$pbf")
+  FRESHNESS_ARGS+=(--pbf "$code=$pbf")
 
   # The BOUNDARY, not the bounding box. Cutting md-ro by bounding box put 100% of the build in
   # Romania's set, because Moldova sits inside Romania's rectangle — and past two countries that
@@ -118,6 +122,19 @@ for member in "${MEMBERS[@]}"; do
   [ -f "$poly" ] || curl -fsSL -o "$poly" "https://download.geofabrik.de/${region}.poly"
   CUT_ARGS+=("$code:$poly")
 done
+
+# ── IS THE OSM DATA AN IMPROVEMENT? ──────────────────────────────────────────────────────────
+# Not "did the download succeed" — that was never in doubt. A mirror can serve a months-old file,
+# or roll back to one older than what we already published, and both produce a release that looks
+# newer by its date while containing older roads. The PBF header carries the replication
+# timestamp of the OSM state it was cut from, so the real age can be read rather than assumed.
+#
+# The backwards case is the one an age limit cannot see, and it is the one that would replace a
+# good graph with a worse one.
+OSM_VERDICT="$WORK/osm.verdict.json"
+rm -f "$OSM_VERDICT"
+python3 "$HERE/check-osm-freshness.py" "${FRESHNESS_ARGS[@]}" \
+  --index "${OSM_INDEX:-$WORK/index-tiles.json}" --record "$OSM_VERDICT"
 
 SOURCE_BYTES=$(du -cb "${PBFS[@]}" | tail -1 | cut -f1)
 echo "==> sources: $(du -ch "${PBFS[@]}" | tail -1 | cut -f1) across ${#PBFS[@]} countries"
@@ -149,8 +166,6 @@ config = json.load(open(path))
 config["mjolnir"].pop("tile_extract", None)
 json.dump(config, open(path, "w"), indent=2)
 PY
-
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # The gate writes its own verdict here and the manifest embeds it verbatim, so what a graph
 # claims about its timezone data is what the gate actually observed — not a shell variable
@@ -258,16 +273,25 @@ for member in "${MEMBERS[@]}"; do
   # countries independently: a tile is deleted only when no installed country still claims it,
   # and a month later only the tiles whose hash changed are fetched. Content addressing turns
   # both reference counting and delta updates into the same one mechanism.
-  python3 - "$CUTS/$code" "$code" "$BUILD_ID" "$REGION" "$ENGINE" "$archive" "$TZ_VERDICT" \
-    <<'META' > "$OUT/$code-tiles.json"
+  python3 - "$CUTS/$code" "$code" "$BUILD_ID" "$REGION" "$ENGINE" "$archive" \
+    "$TZ_VERDICT" "$OSM_VERDICT" <<'META' > "$OUT/$code-tiles.json"
 import hashlib
 import json
 import os
 import pathlib
 import sys
 
-cut, code, build_id, region, engine, archive, verdict_path = sys.argv[1:8]
-timezones = json.load(open(verdict_path))
+cut, code, build_id, region, engine, archive, tz_path, osm_path = sys.argv[1:9]
+timezones = json.load(open(tz_path))
+try:
+    osm = json.load(open(osm_path))
+    # Per country, because each extract has its own replication state: a mirror can be stale for
+    # one country and current for another.
+    osm = {"snapshot": osm.get("snapshots", {}).get(code),
+           "freshnessGate": osm.get("freshnessGate"),
+           "maxAgeDays": osm.get("maxAgeDays")}
+except Exception:                                  # noqa: BLE001
+    osm = {"snapshot": None, "freshnessGate": "UNCHECKED"}
 root = pathlib.Path(cut)
 tiles = []
 for path in sorted(root.rglob("*.gph")):
@@ -309,6 +333,10 @@ print(json.dumps({
     #                      444 zones where every previous one carried 304 shows up here at a
     #                      glance, before anyone opens a CI log.
     "timezones": timezones,
+    # WHICH OSM STATE THIS GRAPH IS, which is not the same fact as when it was built. A build
+    # that ran this morning can be routing on data from three months ago, and the download time
+    # cannot tell you which.
+    "osm": osm,
     "tileCount": len(tiles),
     "bytes": os.path.getsize(archive),
     "sha256": whole.hexdigest(),

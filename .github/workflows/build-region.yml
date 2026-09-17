@@ -133,6 +133,12 @@ jobs:
       # for the four-country abort: a master build hands Valhalla a single file, so the
       # multi-input path that fails is never taken (docs/map-factory.md §12).
       - name: build and cut
+        env:
+          # The freshness gate compares each extract against what the LAST PROMOTED release
+          # recorded, and that lives in the checked-out index rather than under /data. Without
+          # this it would silently have nothing to compare against and every build would look
+          # like a country's first.
+          OSM_INDEX: ${{ github.workspace }}/index-tiles.json
         run: |
           mkdir -p /data
           cp -r scripts /data/scripts
