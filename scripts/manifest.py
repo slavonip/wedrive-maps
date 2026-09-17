@@ -46,7 +46,7 @@ def main(incoming: str, manifest: str) -> int:
     for meta_path in sorted(root.rglob("*-graph.json")):
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         package = meta["package"]
-        asset = assets.get(f"{package}.tar")
+        asset = assets.get(f"{package}-{meta['dataDate']}.tar")
         if asset is None:
             # Built but not uploaded: nothing to point a car at, so nothing to promote.
             print(f"{package}: no asset, skipped")
@@ -66,7 +66,7 @@ def main(incoming: str, manifest: str) -> int:
         entry["title"] = plans.get(package, {}).get("title") or entry.get("title")
         entry["regions"] = meta["regions"]
         entry["graph"] = {
-            "url": RELEASE + f"{package}.tar",
+            "url": RELEASE + f"{package}-{meta['dataDate']}.tar",
             "bytes": asset["bytes"],
             "sha256": asset["sha256"],
             "parts": asset["parts"] or None,
@@ -81,14 +81,14 @@ def main(incoming: str, manifest: str) -> int:
     for meta_path in sorted(root.rglob("*-basemap.json")):
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         package = meta["package"]
-        asset = assets.get(f"{package}.pmtiles")
+        asset = assets.get(f"{package}-{meta['dataDate']}.pmtiles")
         if asset is None:
             print(f"{package}: basemap built but not uploaded, skipped")
             continue
 
         entry = index["packages"].setdefault(package, {})
         entry["basemap"] = {
-            "url": RELEASE + f"{package}.pmtiles",
+            "url": RELEASE + f"{package}-{meta['dataDate']}.pmtiles",
             "bytes": asset["bytes"],
             "sha256": asset["sha256"],
             "parts": asset["parts"] or None,

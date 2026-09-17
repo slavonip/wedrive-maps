@@ -304,11 +304,11 @@ jobs:
         with:
           path: incoming
 
-      # A release asset is capped at 2 GiB while a release itself has no size or bandwidth
-      # limit, so anything bigger ships as parts and the car reassembles them. The whole file's
-      # sha256 is what gates activation; each part carries its own so a resumed download can be
-      # checked piece by piece.
-      - name: split oversized assets
+      # Names every artifact `<package>-<dataDate>.<ext>` first, which is what makes §17's
+      # rollback possible at all — `--clobber` on a fixed name ate the previous build, so there
+      # was nothing to roll back to. Then cuts anything over GitHub's 2 GiB per-asset cap into
+      # parts; a release has no total size or bandwidth limit, so only the per-asset one is real.
+      - name: name and split assets
         run: python3 scripts/split-assets.py incoming
 
       - name: upload to the rolling release
@@ -336,3 +336,11 @@ jobs:
           git add index.json
           git diff --cached --quiet || git commit -m "maps: $(date -u +%Y-%m-%d)"
           git push
+
+      # Three months of history: enough for a rollback, short enough that the release page stays
+      # readable. Runs AFTER the manifest is committed, so whatever index.json points at is by
+      # definition safe from it.
+      - name: prune old builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/prune-release.py 3

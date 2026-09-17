@@ -1,4 +1,15 @@
-"""Cut anything over GitHub's per-asset limit into parts the car can reassemble.
+"""Name every artifact by its data date, then cut anything over GitHub's per-asset limit.
+
+THE DATE IN THE NAME IS WHAT MAKES ROLLBACK POSSIBLE, and it was the first thing this factory
+got wrong. Assets were uploaded as `md-ro.tar` with `--clobber`, so a new build ATE the previous
+one: last month's package simply ceased to exist, and §17's rule — keep the last known-good
+artifact so a bad update costs a reinstall rather than a car — could not be honoured at all. A
+release has no total size limit, so keeping several months is free; only the per-asset cap below
+is real.
+
+With `md-ro-2026-09-17.tar` on the release and `index.json` naming which date is current, a
+rollback is one commit to `index.json` and no rebuild whatsoever (scripts/rollback.py).
+
 
 A release asset is capped at just under 2 GiB, while a release itself has no size limit and no
 bandwidth limit — so the cap is the only thing standing between us and shipping Germany. Parts
@@ -48,15 +59,51 @@ def split(path: pathlib.Path) -> dict:
     return whole
 
 
+def data_date_beside(path: pathlib.Path) -> str | None:
+    """The dataDate from whichever manifest describes this artifact.
+
+    Taken from the manifest rather than from the clock, because the date that matters is the
+    OSM snapshot the artifact was built from — a rebuild in October from September data is
+    September's package, and naming it October's would make two different files claim the same
+    vintage.
+    """
+    suffix = "-graph.json" if path.suffix == ".tar" else "-basemap.json"
+    manifest = path.with_name(path.stem + suffix)
+    if not manifest.exists():
+        # Artifacts and manifests are uploaded together but land in per-job directories; look
+        # for it anywhere under the same root before giving up.
+        candidates = list(path.parents[1].rglob(path.stem + suffix))
+        if not candidates:
+            return None
+        manifest = candidates[0]
+    try:
+        return json.loads(manifest.read_text(encoding="utf-8")).get("dataDate")
+    except Exception:                              # noqa: BLE001
+        return None
+
+
 def main(root: str) -> int:
     base = pathlib.Path(root)
     report = {}
     for path in sorted(base.rglob("*")):
-        if path.suffix in {".tar", ".pmtiles"} and path.is_file():
-            report[path.name] = split(path)
-            parts = len(report[path.name]["parts"])
-            print(f"{path.name}: {report[path.name]['bytes']} bytes"
-                  + (f", {parts} parts" if parts else ""))
+        if path.suffix not in {".tar", ".pmtiles"} or not path.is_file():
+            continue
+
+        date = data_date_beside(path)
+        if date:
+            dated = path.with_name(f"{path.stem}-{date}{path.suffix}")
+            path.rename(dated)
+            path = dated
+        else:
+            # Undated means unrollbackable, so say so rather than quietly publishing a name that
+            # the next build will overwrite.
+            print(f"::warning::{path.name} has no dataDate; it will be overwritten by the next "
+                  f"build and cannot be rolled back to")
+
+        report[path.name] = split(path)
+        parts = len(report[path.name]["parts"])
+        print(f"{path.name}: {report[path.name]['bytes']} bytes"
+              + (f", {parts} parts" if parts else ""))
     (base / "assets.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return 0
 
