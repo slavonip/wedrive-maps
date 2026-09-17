@@ -9,21 +9,21 @@
         "europe/moldova"
       ],
       "graph": {
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md.tar",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md-2026-09-17.tar",
         "bytes": 118435840,
-        "sha256": "b8cab46d09ac62628bc04c5f76fffaf18da57368bb546a6d3a1489a5995ed98b",
+        "sha256": "e962aa7c95a94ae2543170a097d20c84ed6f80e3275de3951aacc22c1e0bcde4",
         "parts": null,
         "dataDate": "2026-09-17",
         "engineVersion": "3.5.1"
       },
       "title": "Moldova",
       "basemap": {
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md.pmtiles",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md-2026-09-17.pmtiles",
         "bytes": 156744547,
         "sha256": "d150d63eb23ca9a91040b86025824ba19c1a00928deb410c005f8f976ae8571b",
         "parts": null,
         "dataDate": "2026-09-17",
-        "schema": "protomaps-basemap",
+        "schema": "protomaps-v4",
         "maxzoom": 14,
         "bbox": [
           26.61,
@@ -47,20 +47,20 @@
         "europe/romania"
       ],
       "graph": {
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md-ro.tar",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md-ro-2026-09-17.tar",
         "bytes": 514969600,
-        "sha256": "bedea44697d502330ed06c990b89372bbbb531abbb1b366890025e71b8a35e5c",
+        "sha256": "d43b81cdd92c608b22411008642d0515cef22e5cede40d5f2c1784a8326440e0",
         "parts": null,
         "dataDate": "2026-09-17",
         "engineVersion": "3.5.1"
       },
       "basemap": {
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md-ro.pmtiles",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md-ro-2026-09-17.pmtiles",
         "bytes": 696405357,
         "sha256": "fd7d03431dcc5ce7e02b8f5b5e3fabcfecb307f9282aec45fa400bd67ddd3844",
         "parts": null,
         "dataDate": "2026-09-17",
-        "schema": "protomaps-basemap",
+        "schema": "protomaps-v4",
         "maxzoom": 14,
         "bbox": [
           20.24,
@@ -74,5 +74,9 @@
       "vintageSkewDays": 0
     }
   },
-  "release": "2026-09-17"
+  "release": "2026-09-17",
+  "countries": {
+    "MD": "Moldova",
+    "RO": "Romania"
+  }
 }
