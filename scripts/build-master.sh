@@ -99,11 +99,28 @@ config["mjolnir"].pop("tile_extract", None)
 json.dump(config, open(path, "w"), indent=2)
 PY
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 TIMEZONES=true
 TZ_DATASET=unknown
+TZ_RUNTIME=unknown
 if [ -f /data/vendor/timezones.sqlite ]; then
   TZ_DATASET="$(cat /data/vendor/timezones.version 2>/dev/null || echo vendored)"
   echo "==> timezones (vendored, $TZ_DATASET)"
+
+  # THE TIMEZONE DATASET IS A VERSIONED INPUT, CHECKED BEFORE USE — not a file vendored once and
+  # trusted forever. The one we trusted for weeks was built from timezone-boundary-builder 2024a
+  # and still carried five Balkan zones that tzdata has since merged into Europe/Belgrade; the
+  # runtime refuses such an identifier outright, half an hour into tile building, and it does so
+  # with two unrelated-looking messages depending on which path reaches it first.
+  #
+  # `set -e` is on, so a refusal stops the build here. That is the entire point: the alternative
+  # is an abort with a core dump and nothing to bisect.
+  rm -f "$WORK/tzdata.runtime"
+  python3 "$HERE/check-timezones.py" /data/vendor/timezones.sqlite \
+    --expect-dataset "$TZ_DATASET" --record "$WORK/tzdata.runtime"
+  if [ -f "$WORK/tzdata.runtime" ]; then TZ_RUNTIME="$(cat "$WORK/tzdata.runtime")"; fi
+
   cp /data/vendor/timezones.sqlite "$TILEDIR/timezones.sqlite"
 else
   echo '::warning::no timezone database; this region cannot be promoted'
@@ -121,7 +138,6 @@ valhalla_build_tiles -c "$CONF" "$MASTER"
 rm -f "$MASTER"
 
 echo '==> cutting along national boundaries'
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 python3 "$HERE/cut-by-country.py" "$TILEDIR" "$CUTS" "${CUT_ARGS[@]}"
 
 # ── THE PROPERTY THE WHOLE DESIGN RESTS ON ──────────────────────────────────────────────────
@@ -182,7 +198,7 @@ import os
 import pathlib
 import sys
 
-cut, code, build_id, region, engine, timezones, tzdata, archive = sys.argv[1:9]
+cut, code, build_id, region, engine, timezones, tzdata, archive, tzruntime = sys.argv[1:10]
 root = pathlib.Path(cut)
 tiles = []
 for path in sorted(root.rglob("*.gph")):
@@ -212,8 +228,13 @@ print(json.dumps({
     "dataDate": build_id.rsplit("-", 3)[-3] + "-" + build_id.rsplit("-", 2)[-2] + "-"
                 + build_id.rsplit("-", 1)[-1],
     "timezones": timezones == "true",
-    # Recorded so that in six months it is possible to say which rules a graph was built under.
+    # WHICH RULES THIS GRAPH WAS BUILT UNDER, on both sides of the question. The zone is written
+    # into every node at build time and can never be corrected afterwards, so in six months the
+    # only way to know whether a graph predates a zone merge is to have written it down here:
+    # `tzdata` is the polygon dataset (timezone-boundary-builder), `tzdataRuntime` the tzdata of
+    # the image whose library accepted those identifiers.
     "tzdata": tzdata,
+    "tzdataRuntime": tzruntime,
     "tileCount": len(tiles),
     "bytes": os.path.getsize(archive),
     "sha256": whole.hexdigest(),

@@ -95,6 +95,24 @@ jobs:
             echo "::warning::no vendored timezone database; this region cannot be promoted"
           fi
 
+      # ── THE GATE, AND IT IS DELIBERATELY ITS OWN STEP ───────────────────────────────────────
+      # A deprecated zone identifier does not fail the build where it is fed in. It fails half an
+      # hour later, inside tile building, and it wears two different faces — one message about
+      # time, one `vector::_M_range_check` that mentions nothing of the sort. That cost a week and
+      # eight bisecting runs. Asked here the same question costs a second, and the failure email
+      # names THIS step rather than "build and cut".
+      #
+      # `build-master.sh` asks it again, because a local build must not be able to skip it. This
+      # copy exists purely so the answer arrives before the expensive part starts.
+      - name: timezone gate
+        run: |
+          if [ ! -f /data/vendor/timezones.sqlite ]; then
+            echo "no timezone database to check; the build will run without one and cannot be promoted"
+            exit 0
+          fi
+          claimed="$(cat /data/vendor/timezones.version 2>/dev/null || echo unknown)"
+          python3 scripts/check-timezones.py /data/vendor/timezones.sqlite --expect-dataset "$claimed"
+
       # ONE PBF, merged before the build. Both the shape the design wants and a candidate fix
       # for the four-country abort: a master build hands Valhalla a single file, so the
       # multi-input path that fails is never taken (docs/map-factory.md §12).
