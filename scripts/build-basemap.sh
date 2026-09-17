@@ -126,7 +126,12 @@ META
 # on Moldova: 5040 places, 353 KB, small villages included, and typing "Ia" puts Iași first
 # because the index carries population.
 echo '==> place index'
-python3 "$WORK/scripts/build-places.py" "$BASEMAP" "$W,$S,$E,$N"   "$OUT_DIR/$PACKAGE-places.json" --pmtiles "$PMTILES" --zoom 10
+# Beside THIS script, not under $WORK. The graph job copies scripts/ into /data and the
+# basemap job does not — $WORK there is the runner's temp directory, which has never held
+# them. Same shape of mistake as the /data permission failure earlier today: a path that
+# is right in one job and wrong in the next.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python3 "$HERE/build-places.py" "$BASEMAP" "$W,$S,$E,$N"   "$OUT_DIR/$PACKAGE-places.json" --pmtiles "$PMTILES" --zoom 10
 
 python3 - "$OUT_DIR/$PACKAGE-places.json" "$PACKAGE" <<'PLACES' > "$OUT_DIR/$PACKAGE-places-meta.json"
 import hashlib
