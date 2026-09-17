@@ -52,10 +52,19 @@ def snapshot_of(pbf: str) -> str | None:
         done = subprocess.run(["osmium", "fileinfo", "-g", TIMESTAMP_KEY, pbf],
                               capture_output=True, text=True, timeout=120)
     except FileNotFoundError:
+        print("   osmium is not installed, so no extract can be checked", file=sys.stderr)
         return None
     text = (done.stdout or "").strip()
     match = re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", text)
-    return match.group(0) if match else None
+    if match:
+        return match.group(0)
+    # SAY WHY. "Unchecked" is a fair verdict but a useless one if nobody can tell whether the
+    # header is absent, the key is spelled differently in this osmium, or the call failed — and
+    # a gate that quietly checks nothing is the failure mode this whole file exists to prevent.
+    reason = (done.stderr or "").strip().splitlines()
+    print(f"      osmium said: {reason[-1][:100] if reason else text[:100] or 'nothing'}",
+          file=sys.stderr)
+    return None
 
 
 def parse(stamp: str) -> datetime.datetime:
