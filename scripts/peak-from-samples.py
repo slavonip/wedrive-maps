@@ -24,10 +24,11 @@ def main() -> int:
     try:
         rows = [row for row in csv.DictReader(open(args.samples, newline="")) if row.get("epoch")]
     except FileNotFoundError:
-        print(f"no samples at {args.samples} — the sampler never started", file=sys.stderr)
+        print(f"TELEMETRY INVALID: no samples at {args.samples} — the sampler never started",
+              file=sys.stderr)
         return 1
     if not rows:
-        print("the sampler produced no rows", file=sys.stderr)
+        print("TELEMETRY INVALID: the sampler produced no rows", file=sys.stderr)
         return 1
 
     memory = [(int(r["mem_bytes"] or 0), int(r["epoch"])) for r in rows]

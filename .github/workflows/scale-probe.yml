@@ -123,6 +123,22 @@ jobs:
           python3 scripts/peak-from-samples.py "measurements/rung-$RUNG-samples.csv" \
             --label "rung $RUNG ($SOURCE_GB GB)"
 
+          # And the verdict the build itself reached, which is the authority. The check above
+          # reads one file; this reads what the summariser concluded across all of them, so a
+          # rung cannot pass by having samples that happen to exist while a timing is missing.
+          python3 - <<'VERDICT'
+          import json, pathlib, sys, os
+          path = pathlib.Path(f"measurements/rung-{os.environ['RUNG']}.json")
+          if not path.exists():
+              sys.exit("TELEMETRY INVALID: the build produced no metrics at all")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          if report.get("telemetry") != "VALID":
+              sys.exit(f"TELEMETRY INVALID: missing {report.get('telemetryMissing')}")
+          peak = report["peak"]
+          print(f"rung {os.environ['RUNG']}: telemetry VALID — "
+                f"{peak['memoryGb']} GB peak memory, {peak['diskGb']} GB peak disk")
+          VERDICT
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

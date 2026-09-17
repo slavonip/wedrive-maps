@@ -119,7 +119,27 @@ def main() -> int:
     gigabytes = args.sources / 1e9 or None
     tile_seconds = timings.get("tiles", 0)
 
+    # ── IS THIS MEASUREMENT USABLE? Said out loud, not implied by null fields ────────────────
+    # A rung already came back green carrying `samples: 0`, because "the build succeeded" and
+    # "the build was measured" are different claims and only one of them was being made. They are
+    # separated here, and the two consumers want opposite things:
+    #
+    #   a monthly production build   graph PASS + telemetry INVALID  →  publish the graph anyway.
+    #                                An observability failure must never stop the car getting maps.
+    #   a scaling rung               telemetry INVALID               →  the rung FAILED. There the
+    #                                measurement IS the deliverable and timings alone cannot say
+    #                                which limit binds first.
+    missing = [name for name, value in (
+        ("samples", samples or None),
+        ("peakMemory", peak_memory or None),
+        ("peakDisk", peak_disk or None),
+        ("buildSeconds", args.elapsed or None),
+        ("tileSeconds", tile_seconds or None),
+    ) if not value]
+
     report = {
+        "telemetry": "VALID" if not missing else "INVALID",
+        "telemetryMissing": missing,
         "buildId": args.build_id,
         "region": args.region,
         "engineVersion": args.engine,
@@ -167,6 +187,11 @@ def main() -> int:
     }
 
     print(json.dumps(report, indent=2))
+
+    if missing:
+        # A GitHub annotation, so it is visible on the run rather than buried in a log. Production
+        # carries on; the scale probe turns this same condition into a failure.
+        print(f"::warning::telemetry INVALID — missing {', '.join(missing)}", file=sys.stderr)
 
     # A second copy on stderr, formatted for a human reading the log rather than the artifact.
     def hours(seconds):
