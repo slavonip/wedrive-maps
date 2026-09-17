@@ -95,11 +95,14 @@ jobs:
             echo "::warning::no vendored timezone database; this region cannot be promoted"
           fi
 
+      # ONE PBF, merged before the build. Both the shape the design wants and a candidate fix
+      # for the four-country abort: a master build hands Valhalla a single file, so the
+      # multi-input path that fails is never taken (docs/map-factory.md §12).
       - name: build and cut
         run: |
           mkdir -p /data
           cp -r scripts /data/scripts
-          bash /data/scripts/build-region.sh "${{ inputs.region || 'eu-core' }}" \
+          bash /data/scripts/build-master.sh "${{ inputs.region || 'eu-core' }}" \
             ${{ needs.plan.outputs.members }}
 
       # THE GATE, over the ASSEMBLED cuts rather than the whole build — because assembled is
