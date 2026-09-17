@@ -1,0 +1,155 @@
+name: timezone candidate
+
+# THE TIMEZONE DATASET IS A VERSIONED INPUT, AND THIS IS THE ONLY WAY IT CHANGES.
+#
+# It was vendored once, from a script that hardcoded timezone-boundary-builder 2024a, and then
+# trusted for weeks. tzdata had since merged five Balkan zones into Europe/Belgrade, and Valhalla
+# refuses a deprecated identifier outright — half an hour into tile building, with two
+# unrelated-looking messages depending on which path reached it first. It cost a week, eight
+# bisecting runs and four wrong hypotheses, and none of them was the timezone database.
+#
+# So: never "update to the newest", ever, and never automatically. A release is named by a human,
+# and it walks the whole way:
+#
+#     candidate  ->  compatibility test  ->  publish as a NAMED candidate
+#                       (exhaustive: every zone id asked of the runtime)
+#                                            |
+#                          build-region.yml -f timezone=<tag>     <- master build + probes
+#                                            |
+#                                          promote                <- a separate, deliberate run
+#
+# Publishing a candidate changes nothing: it sits beside the promoted file under its own name,
+# and only `promote: true` makes it the one every build uses.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "timezone-boundary-builder release tag, e.g. 2026d. Never 'latest'."
+        required: true
+      promote:
+        description: "Make this ALREADY-TESTED candidate the dataset every build uses"
+        type: boolean
+        default: false
+
+concurrency:
+  group: timezone-candidate
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    if: ${{ !inputs.promote }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/valhalla/valhalla:3.6.3
+      options: --user root
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      # `valhalla_build_timezones` is a shell script with the release hardcoded in its download
+      # URL — 2025b in this image, and 2024a in the gis-ops script our first database came from.
+      # Rewriting that one string is how a release is pinned; the rest of the script (shapefile
+      # -> spatialite, the schema Valhalla expects) is left exactly as the image ships it.
+      - name: build the candidate dataset
+        run: |
+          builder="$(which valhalla_build_timezones)"
+          current="$(grep -o 'releases/download/[^/]*' "$builder" | head -1 | cut -d/ -f3)"
+          echo "this image's builder targets $current; retargeting to ${{ inputs.release }}"
+          sed "s|/$current/|/${{ inputs.release }}/|" "$builder" > /tmp/build-tz.sh
+          chmod +x /tmp/build-tz.sh
+          grep -o 'releases/download/[^/]*' /tmp/build-tz.sh | head -1
+
+          mkdir -p candidate
+          bash /tmp/build-tz.sh > candidate/timezones.sqlite 2>/tmp/tz.err || {
+            echo "::error::building the dataset failed"; tail -25 /tmp/tz.err; exit 1; }
+          printf '${{ inputs.release }}\n' > candidate/timezones.version
+          ls -la candidate/
+
+      # ── THE COMPATIBILITY TEST, and it is exhaustive where a build is a sample ──────────────
+      # A master build only exercises the zones its own countries touch. Ours covers Moldova and
+      # Romania, so it would have passed happily on the very dataset whose Balkan zones were
+      # about to abort a region nobody had built yet. Every id in the dataset is asked of the
+      # runtime here instead — against the tzdata shipped in this same image, so the answer is
+      # the runtime's rather than anything we believed in advance.
+      - name: compatibility test
+        run: |
+          python3 scripts/check-timezones.py candidate/timezones.sqlite \
+            --expect-dataset "${{ inputs.release }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: timezone-candidate
+          path: candidate/
+          retention-days: 5
+
+  publish-candidate:
+    needs: candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: timezone-candidate
+          path: candidate
+
+      # Published under its OWN name. Nothing reads it until a run names it, and the promoted
+      # `timezones.sqlite` is untouched.
+      - name: publish beside the promoted dataset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ inputs.release }}"
+          mv candidate/timezones.sqlite "candidate/timezones-$tag.sqlite"
+          mv candidate/timezones.version "candidate/timezones-$tag.version"
+          gh release view maps-vendor >/dev/null 2>&1 || gh release create maps-vendor \
+            --title "build inputs" \
+            --notes "Inputs the factory builds with. Timezone data from timezone-boundary-builder (ODbL, derived from OpenStreetMap)."
+          gh release upload maps-vendor "candidate/timezones-$tag.sqlite" \
+            "candidate/timezones-$tag.version" --clobber
+          cat >> "$GITHUB_STEP_SUMMARY" <<SUMMARY
+          ### timezone candidate \`$tag\` published
+
+          It is a candidate. Nothing builds against it until it is named, and nothing is promoted
+          until it has been through a real region:
+
+          \`\`\`
+          gh workflow run build-region.yml -f region=eu-core -f timezone=$tag
+          \`\`\`
+
+          That run does the master build and the probes, and **cannot publish** — its \`publish\`
+          job is gated on the dataset being the promoted one. When its probes are green:
+
+          \`\`\`
+          gh workflow run timezone-candidate.yml -f release=$tag -f promote=true
+          \`\`\`
+          SUMMARY
+
+  promote:
+    if: ${{ inputs.promote }}
+    runs-on: ubuntu-latest
+    steps:
+      # PROMOTION IS A COPY, NOT A BUILD. The bytes that become the live dataset are the exact
+      # bytes a region was already built and probed against — rebuilding here would promote
+      # something nothing has ever tested, however identical the recipe.
+      - name: promote the tested candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="${{ inputs.release }}"
+          gh release download maps-vendor -p "timezones-$tag.sqlite" -p "timezones-$tag.version" \
+            -D promoted --clobber
+          [ -s "promoted/timezones-$tag.sqlite" ] || {
+            echo "::error::no candidate $tag has been published; run this workflow without promote first"
+            exit 1; }
+          mv "promoted/timezones-$tag.sqlite" promoted/timezones.sqlite
+          mv "promoted/timezones-$tag.version" promoted/timezones.version
+          gh release upload maps-vendor promoted/timezones.sqlite promoted/timezones.version \
+            --clobber
+          echo "### promoted \`$tag\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Every build from now on uses it. The candidate asset stays where it is, so" \
+            >> "$GITHUB_STEP_SUMMARY"
+          echo "promoting a previous release back is the same one-line act." >> "$GITHUB_STEP_SUMMARY"

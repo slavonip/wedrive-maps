@@ -85,7 +85,7 @@ def runtime_links(zoneinfo):
     source = pathlib.Path(zoneinfo) / "tzdata.zi"
     if not source.exists():
         return None, None
-    links, version = {}, None
+    links, canonical, version = {}, set(), None
     for line in source.read_text(errors="replace").splitlines():
         if line.startswith("# version"):
             version = line.split()[-1]
@@ -93,7 +93,11 @@ def runtime_links(zoneinfo):
             parts = line.split()
             if len(parts) >= 3:
                 links[parts[2]] = parts[1]      # L <target> <alias>
-    return links, version
+        elif line.startswith("Z"):
+            parts = line.split()
+            if len(parts) >= 2:
+                canonical.add(parts[1])         # Z <name> <offset> ...
+    return links, canonical, version
 
 
 def main() -> int:
@@ -126,17 +130,30 @@ def main() -> int:
             "carries identifiers the runtime refuses:\n" +
             "\n".join(f"        {z}  (tzdata merged it into {DEPRECATED[z]})" for z in found))
 
-    links, runtime_version = runtime_links(args.zoneinfo)
+    links, canonical, runtime_version = runtime_links(args.zoneinfo)
     if links is None:
         print(f"   {args.zoneinfo}/tzdata.zi absent — checking the named list only")
     else:
-        print(f"   runtime tzdata {runtime_version or 'unknown'}: {len(links)} link identifiers")
+        print(f"   runtime tzdata {runtime_version or 'unknown'}: "
+              f"{len(canonical)} zones, {len(links)} links")
         aliased = sorted(set(zones) & set(links))
         if aliased:
             problems.append(
                 "carries identifiers THIS RUNTIME lists as links, not zones:\n" +
                 "\n".join(f"        {z}  (this image's tzdata links it to {links[z]})"
                            for z in aliased))
+
+        # THIS IS THE COMPATIBILITY TEST, and it is exhaustive where a build is a sample. A
+        # master build only exercises the zones its countries happen to touch — ours covers
+        # Moldova and Romania, so it would have passed happily on a dataset whose Balkan zones
+        # were the ones about to abort a later region. Every id in the dataset is asked of the
+        # runtime here instead, so a dataset is cleared for countries nobody has built yet.
+        unknown = sorted(set(zones) - set(links) - canonical)
+        if unknown:
+            problems.append(
+                "carries identifiers this runtime has never heard of:\n" +
+                "\n".join(f"        {z}" for z in unknown[:12]) +
+                (f"\n        ... and {len(unknown) - 12} more" if len(unknown) > 12 else ""))
 
     if not MIN_ZONES <= len(zones) <= MAX_ZONES:
         problems.append(f"has {len(zones)} zones, expected {MIN_ZONES}..{MAX_ZONES} — "

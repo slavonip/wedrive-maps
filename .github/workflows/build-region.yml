@@ -17,6 +17,10 @@ on:
         description: "Super-region id from regions.yml (e.g. eu-core)"
         required: true
         default: "eu-core"
+      timezone:
+        description: "Timezone dataset: 'vendored' (the promoted one), or a candidate tag like 2026d"
+        required: false
+        default: "vendored"
   schedule:
     # A week after the package build, so the two never contend for the same runner minutes while
     # both exist. Moves to the 1st when the packages are retired.
@@ -83,16 +87,28 @@ jobs:
           name: region-plan
           path: plan
 
-      - name: vendored timezone database
+      # WHICH TIMEZONE DATASET, and it is never "the newest one available". The promoted file is
+      # the default and the only thing a scheduled run can reach; a candidate is named explicitly
+      # by a human who wants this region built against it before it is promoted. That is the
+      # whole point of the sequence: candidate -> compatibility test -> master build -> probes ->
+      # promote, with a real region's routes proving the dataset before it becomes everyone's.
+      - name: timezone database
         run: |
           mkdir -p /data/vendor
           base="${{ github.server_url }}/${{ github.repository }}/releases/download/maps-vendor"
-          if curl -fsSL -o /data/vendor/timezones.sqlite "$base/timezones.sqlite" &&
-             curl -fsSL -o /data/vendor/timezones.version "$base/timezones.version"; then
-            echo "vendored timezones $(cat /data/vendor/timezones.version)"
+          asset=timezones.sqlite
+          version=timezones.version
+          if [ "${{ inputs.timezone || 'vendored' }}" != "vendored" ]; then
+            asset="timezones-${{ inputs.timezone }}.sqlite"
+            version="timezones-${{ inputs.timezone }}.version"
+            echo "::notice::building against CANDIDATE timezone dataset ${{ inputs.timezone }}"
+          fi
+          if curl -fsSL -o /data/vendor/timezones.sqlite "$base/$asset" &&
+             curl -fsSL -o /data/vendor/timezones.version "$base/$version"; then
+            echo "timezones $(cat /data/vendor/timezones.version)"
           else
             rm -f /data/vendor/timezones.sqlite
-            echo "::warning::no vendored timezone database; this region cannot be promoted"
+            echo "::warning::no timezone database ($asset); this region cannot be promoted"
           fi
 
       # ── THE GATE, AND IT IS DELIBERATELY ITS OWN STEP ───────────────────────────────────────
@@ -156,6 +172,8 @@ jobs:
           if-no-files-found: warn
 
   publish:
+    # A run against a candidate dataset proves the dataset; it must not ship the graph it built.
+    if: ${{ (inputs.timezone || 'vendored') == 'vendored' }}
     needs: [plan, build]
     runs-on: ubuntu-latest
     permissions:
