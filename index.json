@@ -72,11 +72,47 @@
       },
       "complete": true,
       "vintageSkewDays": 0
+    },
+    "hu": {
+      "countries": [
+        "HU"
+      ],
+      "title": "Hungary",
+      "regions": [
+        "europe/hungary"
+      ],
+      "graph": {
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/hu-2026-09-17.tar",
+        "bytes": 372828160,
+        "sha256": "87196b4cf23f50b9960858dc00cbdd16d16acfbb521eb327e1e76901e492b1c8",
+        "parts": null,
+        "dataDate": "2026-09-17",
+        "engineVersion": "3.5.1"
+      },
+      "basemap": {
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/hu-2026-09-17.pmtiles",
+        "bytes": 465724748,
+        "sha256": "435d7fb021272b002db41f769068a64976eb0fe144a8a872984a8012df9321f6",
+        "parts": null,
+        "dataDate": "2026-09-17",
+        "schema": "protomaps-v4",
+        "maxzoom": 14,
+        "bbox": [
+          16.11,
+          45.73,
+          22.91,
+          48.59
+        ],
+        "upstreamBuild": "20260917.pmtiles"
+      },
+      "complete": true,
+      "vintageSkewDays": 0
     }
   },
   "release": "2026-09-17",
   "countries": {
-    "MD": "Moldova",
-    "RO": "Romania"
+    "HU": "Hungary",
+    "MD": "MD",
+    "RO": "RO"
   }
 }
