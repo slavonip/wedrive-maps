@@ -89,8 +89,15 @@ valhalla_build_admins -c "$CONF" "${PBFS[@]}"
 echo '==> tiles (the long step)'
 valhalla_build_tiles -c "$CONF" "${PBFS[@]}"
 
+# -O OVERWRITES, and leaving it out is how a rebuild silently ships the OLD archive. Measured
+# 2026-09-17: md-ro was rebuilt with the timezone database, every tile was written correctly,
+# and `valhalla_build_extract` then refused with "File exists. Specify --overwrite". `set -e`
+# killed the script there, so the manifest was never regenerated either — which is the only
+# reason the stale .tar was not published alongside a manifest claiming it had timezones. On a
+# fresh CI runner the directory is always empty and this can never happen there, which is
+# exactly what makes it the kind of defect that only ever bites a person rebuilding locally.
 echo '==> extract'
-valhalla_build_extract -c "$CONF" -v
+valhalla_build_extract -c "$CONF" -O -v
 
 # Stamp what this is and what built it. The BUILDER's version is what a tile's own version string
 # says, and the app has no version gate at all — so alignment is the factory's job to guarantee
