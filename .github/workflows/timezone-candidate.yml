@@ -88,6 +88,11 @@ jobs:
   publish-candidate:
     needs: candidate
     runs-on: ubuntu-latest
+    # The default token is read-only in this repository, so a job that writes to a release has to
+    # name it. Keeping it that way means the jobs that can change what the car reads are exactly
+    # the jobs that declare it.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -130,6 +135,8 @@ jobs:
   promote:
     if: ${{ inputs.promote }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       # PROMOTION IS A COPY, NOT A BUILD. The bytes that become the live dataset are the exact
       # bytes a region was already built and probed against — rebuilding here would promote
