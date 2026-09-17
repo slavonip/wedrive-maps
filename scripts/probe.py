@@ -111,15 +111,32 @@ def probe_timezone(config: str, probe: dict, report: Report) -> None:
     response = route(config, [lat, lon], [lat + 0.004, lon + 0.004],
                      {"date_time": {"type": 1, "value": "2026-09-17T08:00"}})
     name = probe["name"]
-    try:
-        got = response["trip"]["locations"][0].get("time_zone_name") or "none"
-    except Exception:                              # noqa: BLE001
-        got = "none"
+
+    # THREE OUTCOMES, AND THIS PROBE USED TO REPORT TWO OF THEM AS THE SAME SENTENCE.
+    # `route()` returns None for any refusal, and an unroutable pair therefore produced
+    # "no timezone in the graph — this package was built without the timezone database": a
+    # confident diagnosis of a cause the probe had no way to observe. It cost a real
+    # investigation on the four-country build, where three countries reported their zone
+    # correctly — which is the one thing a missing database cannot do.
+    #
+    # Naming the wrong cause is worse than naming none. Each outcome now says only what was
+    # actually seen, and the two-point pair is reported so a bad coordinate is visible as a bad
+    # coordinate.
+    if response is None or metres(response) is None:
+        report.fail(name, f"the two probe points do not route "
+                          f"({lat:.4f},{lon:.4f} → {lat + 0.004:.4f},{lon + 0.004:.4f}), "
+                          f"so this says NOTHING about timezones — fix the coordinates")
+        return
+
+    got = response["trip"]["locations"][0].get("time_zone_name") or None
     if got == probe["expect"]:
         report.ok(name, got)
-    elif got == "none":
-        report.fail(name, f"no timezone in the graph, expected {probe['expect']} — this package "
-                          f"was built without the timezone database")
+    elif got is None:
+        # A route came back and carries no zone. THIS is the symptom of a graph built without
+        # the timezone database — and it is only diagnostic when the other countries in the same
+        # build report theirs, which is why the report prints them all before failing.
+        report.fail(name, f"the route succeeded but carries no timezone, expected "
+                          f"{probe['expect']} — these nodes were built without one")
     else:
         report.fail(name, f"{got}, expected {probe['expect']}")
 
