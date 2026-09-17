@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "packages": {
+    "md": {
+      "countries": [],
+      "regions": [
+        "europe/moldova"
+      ],
+      "graph": {
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md.tar",
+        "bytes": 118435840,
+        "sha256": "f94a610ebcbbf72c3864135d782f550b0774910ebdb0060e7871f2fe7f0fa253",
+        "parts": null,
+        "dataDate": "2026-09-17",
+        "engineVersion": "3.5.1"
+      }
+    }
+  },
+  "release": "2026-09-17"
+}
