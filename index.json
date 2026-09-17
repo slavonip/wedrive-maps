@@ -35,6 +35,43 @@
       },
       "complete": true,
       "vintageSkewDays": 0
+    },
+    "md-ro": {
+      "countries": [
+        "MD",
+        "RO"
+      ],
+      "title": "Moldova + Romania",
+      "regions": [
+        "europe/moldova",
+        "europe/romania"
+      ],
+      "graph": {
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md-ro.tar",
+        "bytes": 514969600,
+        "sha256": "bedea44697d502330ed06c990b89372bbbb531abbb1b366890025e71b8a35e5c",
+        "parts": null,
+        "dataDate": "2026-09-17",
+        "engineVersion": "3.5.1"
+      },
+      "basemap": {
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md-ro.pmtiles",
+        "bytes": 696405357,
+        "sha256": "fd7d03431dcc5ce7e02b8f5b5e3fabcfecb307f9282aec45fa400bd67ddd3844",
+        "parts": null,
+        "dataDate": "2026-09-17",
+        "schema": "protomaps-basemap",
+        "maxzoom": 14,
+        "bbox": [
+          20.24,
+          43.61,
+          30.28,
+          48.49
+        ],
+        "upstreamBuild": "20260917.pmtiles"
+      },
+      "complete": true,
+      "vintageSkewDays": 0
     }
   },
   "release": "2026-09-17"
