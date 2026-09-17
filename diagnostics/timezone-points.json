@@ -1,0 +1,65 @@
+[
+  {
+    "country": "AT",
+    "name": "Vienna centre",
+    "at": [48.2082, 16.3738],
+    "expect": "Europe/Vienna",
+    "why": "the probe coordinate that failed on the four-country build"
+  },
+  {
+    "country": "AT",
+    "name": "Vienna west (Penzing)",
+    "at": [48.1950, 16.2700],
+    "expect": "Europe/Vienna",
+    "why": "same city, a different tile - separates a bad coordinate from a bad city"
+  },
+  {
+    "country": "AT",
+    "name": "Vienna east (Donaustadt)",
+    "at": [48.2320, 16.4500],
+    "expect": "Europe/Vienna",
+    "why": "across the Danube, and across a tile boundary from the centre"
+  },
+  {
+    "country": "AT",
+    "name": "Graz",
+    "at": [47.0707, 15.4395],
+    "expect": "Europe/Vienna",
+    "why": "300 km from Vienna - separates a bad city from a bad country"
+  },
+  {
+    "country": "AT",
+    "name": "Linz",
+    "at": [48.3069, 14.2858],
+    "expect": "Europe/Vienna",
+    "why": "a third Austrian city, so 'all of Austria' is a conclusion rather than a guess"
+  },
+  {
+    "country": "AT",
+    "name": "Salzburg (on the border)",
+    "at": [47.8095, 13.0550],
+    "expect": "Europe/Vienna",
+    "why": "on the German frontier: if only frontier nodes lose their zone, this says so"
+  },
+  {
+    "country": "HU",
+    "name": "Budapest (control)",
+    "at": [47.4979, 19.0402],
+    "expect": "Europe/Budapest",
+    "why": "PASSES in the same build. A diagnostic reporting a fault here is measuring itself"
+  },
+  {
+    "country": "RO",
+    "name": "Iasi (control)",
+    "at": [47.1585, 27.6014],
+    "expect": "Europe/Bucharest",
+    "why": "second control, in a country that also passes"
+  },
+  {
+    "country": "MD",
+    "name": "Chisinau (control)",
+    "at": [47.0105, 28.8638],
+    "expect": "Europe/Chisinau",
+    "why": "third control, and the point every other probe in this factory also asks about"
+  }
+]

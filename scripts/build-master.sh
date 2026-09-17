@@ -54,8 +54,23 @@ SAMPLES="$WORK/samples.csv"
 echo "stage,seconds" > "$STAGES"
 BUILD_STARTED=$(date +%s)
 
-"$(dirname "${BASH_SOURCE[0]}")/sample-resources.sh" "$SAMPLES" "$WORK" &
+# Invoked THROUGH bash rather than executed. The exec bit does not survive this repository:
+# it is developed on Windows with `core.filemode=false`, so `chmod +x` is never recorded and git
+# stores 0644 — the container then refuses the script. Because the sampler is backgrounded, the
+# refusal could not be caught by `set -e` either, so the first scale probe ran to completion and
+# reported `samples: 0` having measured none of what it exists to measure.
+bash "$(dirname "${BASH_SOURCE[0]}")/sample-resources.sh" "$SAMPLES" "$WORK" &
 SAMPLER=$!
+
+# A background process that dies is invisible by construction, so check rather than assume: the
+# sampler writes its header immediately and a row within five seconds.
+sleep 6
+if ! [ -s "$SAMPLES" ] || [ "$(wc -l < "$SAMPLES")" -lt 2 ]; then
+  # A warning, not a failure: a production build must not be lost because its instrumentation
+  # was. The scale probe treats the same condition as fatal, because there the measurement IS
+  # the deliverable.
+  echo "::warning::the resource sampler produced nothing; this build records no peaks"
+fi
 # Killed however this script leaves, including the abort we spent a week chasing — a build that
 # dies is exactly the build whose peak memory we want to know.
 trap 'kill $SAMPLER 2>/dev/null || true' EXIT
@@ -171,7 +186,18 @@ valhalla_build_admins -c "$CONF" "$MASTER"
 
 stage tiles
 echo '==> tiles: ONE build over ONE file'
-valhalla_build_tiles -c "$CONF" "$MASTER"
+# The output is KEPT, because the builder already counts the quantities that predict what a build
+# costs and we have been discarding them. PBF gigabytes are a weak proxy — Austria showed road
+# density costing more than bytes do — and these are the real ones:
+#
+#   Finished with 4938978 routable ways containing 52541965 nodes
+#   Finished with 45701150 nodes contained in routable ways
+#   Finished with 9418454 graph edges
+#   Directed Edge Count = 18836908
+#   Building 1007 tiles with 4 threads
+#
+# `pipefail` is set, so teeing cannot hide a failing build.
+valhalla_build_tiles -c "$CONF" "$MASTER" 2>&1 | tee "$WORK/tiles.log"
 
 # The master extract is gigabytes of intermediate on a runner with a finite disk, and nothing
 # downstream needs it.
@@ -299,7 +325,7 @@ stage end           # closes "archives"; "end" is a sentinel and is never report
 
 # ── the measurement, written beside the artifacts ────────────────────────────────────────────
 kill $SAMPLER 2>/dev/null || true
-python3 "$HERE/summarise-build.py" "$STAGES" "$SAMPLES" "$TILEDIR" "$CUTS" \
+python3 "$HERE/summarise-build.py" "$STAGES" "$SAMPLES" "$TILEDIR" "$CUTS" --log "$WORK/tiles.log" \
   --region "$REGION" --build-id "$BUILD_ID" --engine "$ENGINE" \
   --sources "$SOURCE_BYTES" --members "${#MEMBERS[@]}" \
   --elapsed "$(($(date +%s) - BUILD_STARTED))" > "$METRICS"

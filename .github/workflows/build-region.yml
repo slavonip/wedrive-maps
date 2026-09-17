@@ -149,6 +149,26 @@ jobs:
             plan 2>&1 | tee /data/cuts-output.txt
           exit "${PIPESTATUS[0]}"
 
+      # ── THE DISCRIMINATOR, and it is free exactly here ──────────────────────────────────────
+      # The master tile directory and the country cuts both exist in THIS runner and nowhere else
+      # after it ends, so the one comparison that separates "the cut dropped it" from "it was
+      # never written" costs nothing while they are still on disk — and a rebuild to ask later
+      # costs half an hour.
+      #
+      # It runs on failure only, and it never gates: it reads the timezone out of the graph nodes
+      # themselves rather than inferring it from a route, at several points per country plus
+      # controls in countries that pass. A diagnostic able to fail a build invites being made to
+      # pass, so this one always exits 0.
+      - name: what the graph actually holds
+        if: failure()
+        run: |
+          region="${{ inputs.region || 'eu-core' }}"
+          python3 scripts/diagnose-timezone.py "/data/tiles_$region" --label "MASTER (before the cut)"
+          for dir in /data/cuts_$region/*/; do
+            code="$(basename "$dir")"
+            python3 scripts/diagnose-timezone.py "$dir" --label "CUT $code" --only "$code"
+          done
+
       - name: report the probes
         if: always()
         run: |

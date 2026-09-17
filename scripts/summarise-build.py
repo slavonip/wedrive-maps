@@ -25,6 +25,7 @@ was about tile building. Stages are separated here so that can never happen agai
 """
 import argparse
 import csv
+import re
 import json
 import pathlib
 import sys
@@ -53,6 +54,41 @@ def peaks(path):
     return memory, disk, samples
 
 
+# WHAT ACTUALLY PREDICTS THE COST OF A BUILD. Gigabytes of PBF are a weak proxy: Austria takes
+# longer than its size suggests because its road network is denser, and a master is chosen by what
+# it costs rather than by how many countries are in it. The builder already counts the better
+# quantities and prints them; nobody was reading them.
+#
+# Recorded in rising order of expected explanatory power — source bytes, then OSM ways and nodes,
+# then graph edges and tiles. Several points of history will say which one actually explains peak
+# memory, and that is a question to answer with data rather than in advance.
+COUNTERS = {
+    "routableWays": r"Finished with (\d+) routable ways",
+    "osmNodesInRoutableWays": r"Finished with (\d+) nodes contained in routable ways",
+    "graphEdges": r"Finished with (\d+) graph edges",
+    "directedEdges": r"Directed Edge Count = (\d+)",
+    "tilesBuilt": r"Building (\d+) tiles with",
+}
+
+
+def counters(path):
+    """Pull the builder's own counts out of its output. Absent keys are absent, never zero — a
+    quantity nobody measured and a quantity measured as nothing are different facts, and the
+    whole point of this file is to stop conflating those."""
+    if not path:
+        return {}
+    try:
+        text = pathlib.Path(path).read_text(errors="replace")
+    except FileNotFoundError:
+        return {}
+    found = {}
+    for name, pattern in COUNTERS.items():
+        match = re.search(pattern, text)
+        if match:
+            found[name] = int(match.group(1))
+    return found
+
+
 def count(root, pattern="*.gph"):
     files = list(pathlib.Path(root).rglob(pattern))
     return len(files), sum(f.stat().st_size for f in files)
@@ -70,10 +106,13 @@ def main() -> int:
     parser.add_argument("--sources", type=int, default=0)
     parser.add_argument("--members", type=int, default=0)
     parser.add_argument("--elapsed", type=int, default=0)
+    parser.add_argument("--log", default=None,
+                        help="the tile builder's own output, which counts what actually predicts cost")
     args = parser.parse_args()
 
     timings = stages(args.stages)
     peak_memory, peak_disk, samples = peaks(args.samples)
+    counted = counters(args.log)
     tiles, tile_bytes = count(args.tile_dir)
     cut_tiles, cut_bytes = count(args.cuts_dir)
 
@@ -87,6 +126,7 @@ def main() -> int:
         "countries": args.members,
         "source": {"bytes": args.sources, "gb": round(args.sources / 1e9, 2)},
         "graph": {
+            **counted,
             "tiles": tiles,
             "bytes": tile_bytes,
             "cutTiles": cut_tiles,
@@ -112,6 +152,17 @@ def main() -> int:
             "tilesPerSourceGb": round(tiles / gigabytes) if gigabytes else None,
             "peakMemoryPerSourceGb": round(peak_memory / gigabytes / 1e9, 2)
                                      if gigabytes and peak_memory else None,
+            # The candidates for "what actually explains peak memory", each expressed per million
+            # of its unit so the numbers are comparable at a glance across rungs.
+            "peakMemoryPerMillionNodes": round(
+                peak_memory / (counted["osmNodesInRoutableWays"] / 1e6) / 1e9, 3)
+                if peak_memory and counted.get("osmNodesInRoutableWays") else None,
+            "peakMemoryPerMillionDirectedEdges": round(
+                peak_memory / (counted["directedEdges"] / 1e6) / 1e9, 3)
+                if peak_memory and counted.get("directedEdges") else None,
+            "tileSecondsPerMillionDirectedEdges": round(
+                tile_seconds / (counted["directedEdges"] / 1e6), 1)
+                if tile_seconds and counted.get("directedEdges") else None,
         },
     }
 

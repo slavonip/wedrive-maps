@@ -116,8 +116,12 @@ jobs:
             || echo "no metrics file — this build did not reach the end"
           cp /data/samples.csv "measurements/rung-$RUNG-samples.csv" 2>/dev/null || true
           cp /data/stages.csv "measurements/rung-$RUNG-stages.csv" 2>/dev/null || true
+          # NOT `|| true`. A rung without peaks has measured nothing — the first probe ran to
+          # completion, reported its timings, and silently carried `samples: 0` because the
+          # sampler could not start. Timings alone cannot say which limit binds first, which is
+          # the entire question, so a rung that loses them must fail loudly.
           python3 scripts/peak-from-samples.py "measurements/rung-$RUNG-samples.csv" \
-            --label "rung $RUNG ($SOURCE_GB GB)" || true
+            --label "rung $RUNG ($SOURCE_GB GB)"
 
       - uses: actions/upload-artifact@v4
         if: always()
