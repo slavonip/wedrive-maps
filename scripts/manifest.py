@@ -147,17 +147,20 @@ def main(incoming: str, manifest: str) -> int:
     # has to be built (one pass over several PBFs) and mean nothing to a driver. So the manifest
     # carries the country names, and the app does not hold a table of its own — adding a country
     # to regions.yml must not require an APK.
-    names = {}
-    for plan in plans.values():
-        for code in plan.get("countries", []):
-            names.setdefault(code, code)
-    for package_id, entry in index["packages"].items():
-        for code in entry.get("countries", []):
-            names.setdefault(code, code)
-    # Prefer the real names where a plan carried them.
+    # WHAT WAS ALREADY PUBLISHED COMES FIRST. A run builds only the packages it was asked for,
+    # so its plans name only those countries — and seeding the map with the country CODE as a
+    # placeholder meant a run for `at-hu` republished Moldova as "MD". The Maps screen would then
+    # show a driver two letters where a country's name had been, from a build that never touched
+    # Moldova at all. Measured 2026-09-17, one run after the names were introduced.
+    names = dict(index.get("countries") or {})
+    # Then this run's plans, which are authoritative for the countries they cover.
     for plan in plans.values():
         for code, name in (plan.get("countryNames") or {}).items():
             names[code] = name
+    # And finally a placeholder for anything nobody has ever named, so it is at least selectable.
+    for entry in index["packages"].values():
+        for code in entry.get("countries", []):
+            names.setdefault(code, code)
     if names:
         index["countries"] = dict(sorted(names.items()))
 
