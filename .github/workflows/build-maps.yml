@@ -67,10 +67,20 @@ jobs:
       fail-fast: false          # one country failing must not stop the others
       matrix:
         package: ${{ fromJson(needs.plan.outputs.packages) }}
-    # PINNED, never :latest. On 2026-09-17 the floating tag lost `pkg-config` and the build died
-    # at a step that had worked for weeks — a monthly job must not change toolchain under us.
+    # PINNED, never :latest, and now UPSTREAM'S OWN IMAGE rather than gis-ops'.
+    #
+    # Two reasons, and the second is the better one. `gis-ops/docker-valhalla` stops at 3.5.1
+    # (`:latest` is the same build), and 3.5.1 ABORTS on four countries at once:
+    # `vector::_M_range_check` against an empty vector on the same four tiles every time, in both
+    # pipelines, while each country and every pair builds cleanly. Bisected 2026-09-17 over eight
+    # runs.
+    #
+    # And 3.6.3 is EXACTLY the Valhalla inside the APK. The car has been reading 3.5.1 tiles with
+    # a 3.6.3 runtime and no version gate — working because the format changed less than the
+    # version string, which is luck rather than design (§13). Building with the same version the
+    # car runs turns that into an actual guarantee.
     container:
-      image: ghcr.io/gis-ops/docker-valhalla/valhalla:3.5.1
+      image: ghcr.io/valhalla/valhalla:3.6.3
       options: --user root
     defaults:
       run:

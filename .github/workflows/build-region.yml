@@ -61,7 +61,7 @@ jobs:
     needs: plan
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/gis-ops/docker-valhalla/valhalla:3.5.1
+      image: ghcr.io/valhalla/valhalla:3.6.3
       options: --user root
     defaults:
       run:
