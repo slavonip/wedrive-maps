@@ -114,5 +114,42 @@ print(json.dumps({
 }, indent=2))
 META
 
+# ── the third artifact: a searchable index of place names ───────────────────────────────────
+#
+# The names are already inside the basemap, and until now nothing could look them up: MapLibre
+# queries only what is currently rendered, so a destination off-screen was unfindable and the
+# search screen had to say "not built" (§8a level 3).
+#
+# DECODED HERE rather than on the head unit. A PMTiles and MVT reader in Kotlin is a few hundred
+# lines to own forever, running on the slowest computer in the arrangement every time someone
+# types a letter. One pass on a runner produces a flat file the car scans instantly — measured
+# on Moldova: 5040 places, 353 KB, small villages included, and typing "Ia" puts Iași first
+# because the index carries population.
+echo '==> place index'
+python3 "$WORK/scripts/build-places.py" "$BASEMAP" "$W,$S,$E,$N"   "$OUT_DIR/$PACKAGE-places.json" --pmtiles "$PMTILES" --zoom 10
+
+python3 - "$OUT_DIR/$PACKAGE-places.json" "$PACKAGE" <<'PLACES' > "$OUT_DIR/$PACKAGE-places-meta.json"
+import hashlib
+import json
+import os
+import sys
+
+path, package = sys.argv[1], sys.argv[2]
+digest = hashlib.sha256()
+with open(path, "rb") as handle:
+    for chunk in iter(lambda: handle.read(1 << 20), b""):
+        digest.update(chunk)
+index = json.load(open(path, encoding="utf-8"))
+print(json.dumps({
+    "package": package,
+    "artifact": "places",
+    "count": index["count"],
+    "zoom": index["zoom"],
+    "bytes": os.path.getsize(path),
+    "sha256": digest.hexdigest(),
+}, indent=2))
+PLACES
+
 echo "==> done: $BASEMAP"
 cat "$OUT_DIR/$PACKAGE-basemap.json"
+cat "$OUT_DIR/$PACKAGE-places-meta.json"

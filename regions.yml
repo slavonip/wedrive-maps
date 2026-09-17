@@ -131,6 +131,27 @@ countries:
     # Hochstraße St. Marx over Litfaßstraße, 79 m. UNVERIFIED BY ROUTER — see UA above.
     grade_separation: [48.187644, 16.408707, 48.18726, 16.409606, 79]
 
+  BG:
+    name: Bulgaria
+    region: europe/bulgaria
+    bbox: [22.35, 41.23, 29.19, 44.22]
+    timezone: Europe/Sofia
+    timezone_at: [42.6977, 23.3219]                  # Sofia
+    # бул. Владимир Вазов (OSM way 23222938), 400 m one-way
+    oneway: [42.708914, 23.372637, 42.709792, 23.377379]
+    # Липите over Породин, 80 m. UNVERIFIED BY ROUTER until a build contains Bulgaria.
+    grade_separation: [42.794786, 23.330232, 42.794224, 23.330842, 80]
+
+  GR:
+    name: Greece
+    region: europe/greece
+    bbox: [18.97, 34.59, 29.66, 41.75]
+    timezone: Europe/Athens
+    timezone_at: [37.9838, 23.7275]                  # Athens
+    # Ναυπάκτου (OSM way 24814935), 400 m one-way
+    oneway: [37.878134, 23.771462, 37.874543, 23.771622]
+    # Βουλιαγμένης over Θράκης, 62 m. UNVERIFIED BY ROUTER until a build contains Greece.
+    grade_separation: [37.889356, 23.748789, 37.889367, 23.749499, 62]
 # ── What must hold BETWEEN countries in the same package ────────────────────────────────────
 #
 # THE probe the multi-PBF build exists for. Measured 2026-09-17: two countries built separately
@@ -189,6 +210,31 @@ borders:
     to: [48.2082, 16.3738]          # Vienna
     min_km: 1100
     max_km: 2000
+
+  BG-RO:
+    from: [43.8563, 25.9660]        # Giurgiu, on the Danube
+    to: [43.8356, 25.9657]          # Ruse, the far bank
+    min_km: 2                       # the Friendship Bridge is barely 3 km end to end, which
+    max_km: 40                      # makes this the shortest frontier probe in the file
+
+  BG-GR:
+    from: [41.1354, 24.8888]        # Drama
+    to: [41.1400, 24.1400]          # Serres, via the Promachonas crossing
+    min_km: 40
+    max_km: 220
+
+  # GREECE REACHES THE REGION THROUGH BULGARIA ONLY. Its other land neighbours in this set do
+  # not exist — there is no Greek frontier with Romania, Hungary, Austria or Moldova — so a route
+  # to any of them passes through Bulgaria, whose own border probe already covers that ground.
+  GR-HU: {adjacent: false}
+  GR-MD: {adjacent: false}
+  GR-RO: {adjacent: false}
+  AT-GR: {adjacent: false}
+  AT-BG: {adjacent: false}
+  BG-HU: {adjacent: false}
+  BG-MD: {adjacent: false}
+  BG-UA: {adjacent: false}
+  GR-UA: {adjacent: false}
 
   # NOT ADJACENT, stated rather than left silent — silence is indistinguishable from an
   # oversight, and the coverage gate refuses a pair it has never been told about. A route

@@ -86,6 +86,13 @@ def main(root: str) -> int:
     base = pathlib.Path(root)
     report = {}
     for path in sorted(base.rglob("*")):
+        if path.name.endswith("-places.json") and path.is_file():
+            # Small, so never split and never dated: the manifest carries its hash and a car
+            # that finds a mismatch simply fetches it again. A dated name would only add a
+            # second thing to keep in step with the package it belongs to.
+            report[path.name] = split(path)
+            print(f"{path.name}: {report[path.name]['bytes']} bytes")
+            continue
         if path.suffix not in {".tar", ".pmtiles"} or not path.is_file():
             continue
 

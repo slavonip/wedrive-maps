@@ -104,6 +104,28 @@ def main(incoming: str, manifest: str) -> int:
         if package not in promoted:
             promoted.append(package)
 
+    # ── the third artifact: names to search ─────────────────────────────────────────────────
+    #
+    # Small enough to be unremarkable (353 KB for Moldova) and the difference between a search
+    # box that works offline and one that says "not built". Promoted independently of the other
+    # two: a package whose index failed to build still routes and still draws.
+    for meta_path in sorted(root.rglob("*-places-meta.json")):
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        package = meta["package"]
+        asset = assets.get(f"{package}-places.json")
+        if asset is None:
+            print(f"{package}: place index built but not uploaded, skipped")
+            continue
+        entry = index["packages"].setdefault(package, {})
+        entry["places"] = {
+            "url": RELEASE + f"{package}-places.json",
+            "bytes": asset["bytes"],
+            "sha256": asset["sha256"],
+            "count": meta.get("count"),
+        }
+        if package not in promoted:
+            promoted.append(package)
+
     # VINTAGE SKEW IS A REAL FAILURE MODE (§13): the two halves come from different snapshots
     # unless deliberately paired, and the symptom — a road drawn that the router refuses, or a
     # route down a road that is not drawn — reads as "the app is broken" rather than as "these
