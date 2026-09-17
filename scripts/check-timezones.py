@@ -84,7 +84,7 @@ def runtime_links(zoneinfo):
     """
     source = pathlib.Path(zoneinfo) / "tzdata.zi"
     if not source.exists():
-        return None, None
+        return None, None, None
     links, canonical, version = {}, set(), None
     for line in source.read_text(errors="replace").splitlines():
         if line.startswith("# version"):
