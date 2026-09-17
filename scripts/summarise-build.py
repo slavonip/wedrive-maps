@@ -161,8 +161,33 @@ def main() -> int:
         ("tileSeconds", tile_seconds or None),
     ) if not value]
 
+    # ── WHAT EACH NUMBER IS, stored beside the number ────────────────────────────────────────
+    # A figure without its provenance decays into folklore. "12.83 GB" read in six months is
+    # almost useless; "12.83 GB · memory.current · cgroup-v2 · includes reclaimable file cache"
+    # can still be interpreted correctly after the instruments have changed underneath it — and
+    # can be recognised as NOT comparable with a later figure measured differently.
+    #
+    # This is not decoration. Two conclusions in this project were drawn from numbers that
+    # measured something other than they claimed, and both were quoted onward before anyone
+    # checked. Provenance is what makes that catchable by reading rather than by re-running.
+    cgroup = {"cgroup2": "cgroup-v2", "cgroup1": "cgroup-v1"}.get(memory_source, memory_source)
+    provenance = {
+        "memoryGb": f"memory.current · {cgroup} · anon + file cache + kernel · "
+                    f"OVERSTATES what must fit in RAM",
+        "anonGb": f"memory.stat anon · {cgroup} · not reclaimable · THE OOM PREDICTOR",
+        "cacheGb": "memoryGb minus anonGb · reclaimable · released under pressure",
+        "diskPeakAbsoluteGb": "df --output=used · FILESYSTEM-WIDE, not this build",
+        "diskPeakDeltaGb": "absolute minus the first sample · this build's own footprint",
+        "diskBaselineGb": "the first sample · what the runner already held",
+        "seconds": "wall time per stage, bounded by the build script itself",
+        "graph counters": "parsed from valhalla_build_tiles' own log lines",
+        "sampledEvery": "5 seconds",
+        "engine": args.engine or "unknown",
+    }
+
     report = {
         "telemetry": "VALID" if not missing else "INVALID",
+        "provenance": provenance,
         "telemetryMissing": missing,
         "buildId": args.build_id,
         "region": args.region,
