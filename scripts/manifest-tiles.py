@@ -17,9 +17,13 @@ that rebuilt only some countries would leave the rest advertising an id that no 
 which is precisely the state that must never exist.
 """
 import json
+import os
 import pathlib
 import sys
 from datetime import datetime, timezone
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import verdicts  # noqa: E402 — one vocabulary, one predicate, shared by every gate
 
 RELEASE = "https://github.com/slavonip/wedrive-maps/releases/download/tiles/"
 
@@ -44,24 +48,64 @@ def main(incoming: str, manifest: str) -> int:
         return 2
     build_id = build_ids.pop()
 
-    # THE TIMEZONE FIELD IS AN OBJECT NOW, AND A NON-EMPTY DICT IS TRUTHY — so the old
-    # `not meta.get("timezones", True)` would have promoted a graph whose gate said ABSENT while
-    # looking exactly like a check. Read the verdict, not the presence of a verdict.
+    # ── WHAT EACH GATE'S VERDICT MEANS FOR PROMOTION ────────────────────────────────────────
+    # `verdicts.is_pass` refuses to guess: only the literal string PASS is a pass, so ABSENT,
+    # UNCHECKED, a legacy boolean and a truthy dict are all "not PASS". What to DO about a
+    # not-PASS is a separate decision, and it is made here, per gate, with its reason — because
+    # the gates are not equally consequential and treating them alike would be wrong in both
+    # directions.
     #
-    # The boolean form is still accepted because manifests published before 2026-09-17 carry it,
-    # and a stale manifest must not become unreadable just because the field grew.
-    def timezones_ok(meta) -> bool:
-        field = meta.get("timezones", True)
-        if isinstance(field, dict):
-            return field.get("compatibilityGate") == "PASS"
-        return bool(field)
+    #   gate       field                          blocks?  why
+    #   timezone   timezones.compatibilityGate    YES      the zone is written into every node at
+    #                                                      build time and is uncorrectable later;
+    #                                                      a graph without it gives silently wrong
+    #                                                      arrival times across a border
+    #   admins     admins.adminsGate              YES      driving side, access defaults and
+    #                                                      country-crossing costs. Routes still
+    #                                                      come back, so nothing else notices
+    #   freshness  osm.freshnessGate              NO       an unreadable PBF header makes a graph
+    #                                                      UNVERIFIED, not WRONG. A FAIL already
+    #                                                      stopped the build long before here, so
+    #                                                      what reaches this point is only ever
+    #                                                      "we could not confirm it was newer" —
+    #                                                      which must not stop the car getting maps
+    BLOCKING = {
+        "timezone": ("timezones", "compatibilityGate"),
+        "admins": ("admins", "adminsGate"),
+    }
+    ANNOTATING = {
+        "freshness": ("osm", "freshnessGate"),
+    }
 
-    unsound = [m for m in metas if not timezones_ok(m)]
-    if unsound:
-        verdicts = {str((m.get("timezones") or {}).get("compatibilityGate")
-                        if isinstance(m.get("timezones"), dict) else m.get("timezones"))
-                    for m in unsound}
-        print(f"{build_id}: timezone gate says {', '.join(sorted(verdicts))}, NOT promoted")
+    def verdict_of(meta, field, key):
+        found = meta.get(field)
+        if isinstance(found, dict):
+            return found.get(key)
+        # Manifests published before 2026-09-17 carry `"timezones": true`. A stale manifest must
+        # not become unreadable because a field grew, so the old shape is translated ONCE, here,
+        # where it is visible — rather than by making the predicate lenient, which is how the
+        # bug happened the first time.
+        if isinstance(found, bool):
+            return verdicts.PASS if found else verdicts.FAIL
+        return found
+
+    refused = []
+    for label, (field, key) in BLOCKING.items():
+        bad = {verdicts.describe(verdict_of(m, field, key)) for m in metas
+               if not verdicts.is_pass(verdict_of(m, field, key))}
+        if bad:
+            refused.append(f"{label} gate says {', '.join(sorted(bad))}")
+
+    for label, (field, key) in ANNOTATING.items():
+        seen = {verdicts.describe(verdict_of(m, field, key)) for m in metas
+                if not verdicts.is_pass(verdict_of(m, field, key))}
+        if seen:
+            print(f"{build_id}: {label} gate says {', '.join(sorted(seen))} — recorded, "
+                  f"not blocking (the graph is unverified, not wrong)")
+
+    if refused:
+        for line in refused:
+            print(f"{build_id}: {line}, NOT promoted")
         return 0
 
     index = {

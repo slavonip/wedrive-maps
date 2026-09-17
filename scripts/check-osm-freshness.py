@@ -33,15 +33,19 @@ manifest so a graph can always say what it was built from.
 import argparse
 import datetime
 import json
+import os
 import pathlib
 import re
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import verdicts  # noqa: E402 — one vocabulary, one predicate, shared by every gate
+
 TIMESTAMP_KEY = "header.option.osmosis_replication_timestamp"
 
 
-def snapshot_of(pbf: str) -> str | None:
+def snapshot_of(pbf: str) -> tuple:
     """The replication timestamp in the PBF header, or None if it carries none.
 
     `osmium fileinfo -g` prints just that value. An extract with no such header is not
@@ -52,19 +56,16 @@ def snapshot_of(pbf: str) -> str | None:
         done = subprocess.run(["osmium", "fileinfo", "-g", TIMESTAMP_KEY, pbf],
                               capture_output=True, text=True, timeout=120)
     except FileNotFoundError:
-        print("   osmium is not installed, so no extract can be checked", file=sys.stderr)
-        return None
+        return None, "osmium is not installed"
     text = (done.stdout or "").strip()
     match = re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", text)
     if match:
-        return match.group(0)
+        return match.group(0), ""
     # SAY WHY. "Unchecked" is a fair verdict but a useless one if nobody can tell whether the
     # header is absent, the key is spelled differently in this osmium, or the call failed — and
     # a gate that quietly checks nothing is the failure mode this whole file exists to prevent.
-    reason = (done.stderr or "").strip().splitlines()
-    print(f"      osmium said: {reason[-1][:100] if reason else text[:100] or 'nothing'}",
-          file=sys.stderr)
-    return None
+    said = (done.stderr or "").strip().splitlines()
+    return None, ("osmium said: " + (said[-1][:90] if said else text[:90] or "nothing"))
 
 
 def parse(stamp: str) -> datetime.datetime:
@@ -99,13 +100,14 @@ def main() -> int:
     now = parse(args.now) if args.now else datetime.datetime.now(datetime.timezone.utc)
     published = previously_published(args.index)
 
-    problems, unchecked, snapshots = [], [], {}
+    problems, unchecked, snapshots, why = [], [], {}, {}
     for pair in args.pbf:
         code, _, path = pair.partition("=")
-        stamp = snapshot_of(path)
+        stamp, reason = snapshot_of(path)
         if not stamp:
             unchecked.append(code)
-            print(f"   {code}: no replication timestamp in the header — cannot be checked")
+            why[code] = reason
+            print(f"   {code}: {reason} — cannot be checked")
             continue
         snapshots[code] = stamp
         age = (now - parse(stamp)).days
@@ -124,11 +126,15 @@ def main() -> int:
                             f"published. A mirror has rolled back; building this would replace a "
                             f"good graph with an older one that looks newer")
 
-    verdict = "PASS"
+    # The shared vocabulary: PASS · FAIL · UNCHECKED: <reason> · ABSENT, and an UNCHECKED
+    # verdict always carries why. "UNCHECKED" on its own is indistinguishable from a gate that
+    # quietly checked nothing, which is the failure this whole file exists to make visible.
+    verdict = verdicts.PASS
     if problems:
-        verdict = "FAIL"
+        verdict = verdicts.FAIL
     elif unchecked:
-        verdict = "UNCHECKED"
+        verdict = verdicts.unchecked(
+            "; ".join(f"{code}: {why.get(code, 'no reason given')}" for code in sorted(unchecked)))
 
     if args.record:
         pathlib.Path(args.record).write_text(json.dumps({
@@ -136,6 +142,7 @@ def main() -> int:
             "freshnessGate": verdict,
             "maxAgeDays": args.max_age_days,
             "unchecked": sorted(unchecked),
+            "uncheckedReasons": why,
         }, indent=2))
 
     if problems:
