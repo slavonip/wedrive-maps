@@ -5,6 +5,7 @@ half (probe.py) runs after, inside the Valhalla container, and can only test wha
 
     usage: python3 probe-plan.py <package-id> [<output.json>]
            python3 probe-plan.py --check-all          # coverage only, every package
+           python3 probe-plan.py --all-plans <dir>    # one <package>.json per named package
 
 Exit codes: 0 covered, 2 not covered (or the package is unknown).
 
@@ -116,8 +117,18 @@ def plan_for(config: dict, package_id: str) -> dict:
             "min_km": entry.get("min_km", 1), "max_km": entry.get("max_km", 2000),
         })
 
-    return {"package": package_id, "title": packages_module.title_of(config, package_id),
-            "countries": listed, "probes": probes}
+    # EVERYTHING the downstream jobs need about this package, in one file. The Valhalla image
+    # has no PyYAML and no pip to install it, and the honest fix is not to teach it: this plan is
+    # computed once on the runner, where the dependency already lives, and every later step reads
+    # plain JSON with the standard library. One fewer thing that has to be reachable at 02:17.
+    return {
+        "package": package_id,
+        "title": packages_module.title_of(config, package_id),
+        "countries": listed,
+        "regions": packages_module.regions_of(config, package_id),
+        "bbox": packages_module.bbox_of(config, package_id),
+        "probes": probes,
+    }
 
 
 def main() -> int:
@@ -136,6 +147,27 @@ def main() -> int:
                 count = len(plan_for(config, package_id)["probes"])
                 print(f"covered   {package_id}: {count} probes")
         return 2 if failed else 0
+
+    if "--all-plans" in sys.argv:
+        import os
+        target = sys.argv[sys.argv.index("--all-plans") + 1]
+        wanted = [a for a in sys.argv[1:]
+                  if a not in ("--all-plans", target)] or list(config.get("packages", {}))
+        os.makedirs(target, exist_ok=True)
+        for package_id in wanted:
+            problems = coverage_problems(config, package_id)
+            if problems:
+                print(f"UNCOVERED {package_id}:", file=sys.stderr)
+                for problem in problems:
+                    print(f"  - {problem}", file=sys.stderr)
+                return 2
+            plan = plan_for(config, package_id)
+            path = os.path.join(target, f"{package_id}.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(plan, handle, ensure_ascii=False, indent=2)
+            print(f"{package_id}: {len(plan['probes'])} probes, "
+                  f"{len(plan['regions'])} regions -> {path}")
+        return 0
 
     if len(sys.argv) < 2:
         print(__doc__, file=sys.stderr)

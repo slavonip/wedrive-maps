@@ -42,6 +42,19 @@ jobs:
       - id: read
         run: python3 scripts/plan.py "${{ inputs.packages }}" >> "$GITHUB_OUTPUT"
 
+      # EVERYTHING downstream needs about each package, computed once, here, where PyYAML lives.
+      # The Valhalla image has no PyYAML and no pip to install one; teaching it would be one more
+      # thing that must be reachable at 02:17. Every later job reads plain JSON instead.
+      - name: derive each package's plan
+        run: |
+          python3 scripts/probe-plan.py --all-plans plan ${{ inputs.packages }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan
+          path: plan/
+          retention-days: 2
+
   # ── the routing graph: Valhalla's own image, because only it carries the tools ────────────
   graph:
     needs: plan
@@ -77,9 +90,10 @@ jobs:
           rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
           df -h / | tail -1
 
-      # The image ships Python without PyYAML, and every script that reads regions.yml needs it.
-      - name: python bits the scripts need
-        run: pip install --quiet pyyaml
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan
+          path: plan
 
       # THE TIMEZONE DATABASE IS OURS TO SUPPLY, not a third party's to be up at 02:17.
       # `valhalla_build_timezones` downloads a shapefile from someone else's GitHub release; on
@@ -109,18 +123,20 @@ jobs:
         run: |
           mkdir -p /data
           cp -r scripts /data/scripts
-          bash /data/scripts/build-graph.sh "${{ matrix.package }}" \
-            $(python3 scripts/regions-of.py "${{ matrix.package }}")
+          regions=$(python3 -c "
+          import json
+          print(*json.load(open('plan/${{ matrix.package }}.json'))['regions'])")
+          echo "regions: $regions"
+          bash /data/scripts/build-graph.sh "${{ matrix.package }}" $regions
 
       # THE GATE. A graph that builds is not a graph that routes: the car's runtime has no
       # version check and will happily read a graph missing half a country. Only a route with a
       # known answer proves anything (§7's probes).
       - name: probe
         run: |
-          python3 scripts/probe-plan.py "${{ matrix.package }}" /data/probes.json
           set +e
-          python3 scripts/probe.py "/data/valhalla_${{ matrix.package }}.json" /data/probes.json \
-            2>&1 | tee /data/probe-output.txt
+          python3 scripts/probe.py "/data/valhalla_${{ matrix.package }}.json" \
+            "plan/${{ matrix.package }}.json" 2>&1 | tee /data/probe-output.txt
           exit "${PIPESTATUS[0]}"
 
       # WHICH probe failed, one click from the run — and on a PASSING run too, so this month's
@@ -172,26 +188,33 @@ jobs:
           rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
           df -h / | tail -1
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan
+          path: plan
+
+      # NOT /data. This job is not in a container and the runner user cannot write the root —
+      # measured 2026-09-17: "mkdir: cannot create directory '/data': Permission denied". The
+      # graph job can, because its container runs --user root. That difference is exactly the
+      # kind that makes one path work in one job and fail in the next.
       - name: extract
         run: |
-          pip install --quiet pyyaml
-          mkdir -p /data/out
+          mkdir -p "$RUNNER_TEMP/out"
           read -r W S E N <<< "$(python3 -c "
-          import sys; sys.path.insert(0, 'scripts')
-          import packages
-          print(*packages.bbox_of(packages.load(), '${{ matrix.package }}'))")"
+          import json
+          print(*json.load(open('plan/${{ matrix.package }}.json'))['bbox'])")"
           echo "bbox: $W $S $E $N"
-          OUT_DIR=/data/out WORK=/data \
+          OUT_DIR="$RUNNER_TEMP/out" WORK="$RUNNER_TEMP" \
             bash scripts/build-basemap.sh "${{ matrix.package }}" "$W" "$S" "$E" "$N"
 
       # THE OTHER GATE, and its failure mode is the nastier one: a style pointed at the wrong
       # vector schema renders NOTHING and reports no error at all (§13).
       - name: probe
         run: |
-          python3 scripts/probe-plan.py "${{ matrix.package }}" /data/probes.json
           set +e
-          python3 scripts/probe-basemap.py "/data/out/${{ matrix.package }}.pmtiles" \
-            /data/probes.json /data/tools/pmtiles 2>&1 | tee /data/basemap-output.txt
+          python3 scripts/probe-basemap.py "$RUNNER_TEMP/out/${{ matrix.package }}.pmtiles" \
+            "plan/${{ matrix.package }}.json" "$RUNNER_TEMP/tools/pmtiles" \
+            2>&1 | tee "$RUNNER_TEMP/basemap-output.txt"
           exit "${PIPESTATUS[0]}"
 
       - name: report the probes
@@ -201,7 +224,7 @@ jobs:
             echo "### basemap: ${{ matrix.package }}"
             echo
             echo '```'
-            cat /data/basemap-output.txt 2>/dev/null || echo "the probes did not run"
+            cat "$RUNNER_TEMP/basemap-output.txt" 2>/dev/null || echo "the probes did not run"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -210,9 +233,9 @@ jobs:
         with:
           name: basemap-${{ matrix.package }}
           path: |
-            /data/out/${{ matrix.package }}.pmtiles
-            /data/out/${{ matrix.package }}-basemap.json
-            /data/basemap-output.txt
+            ${{ runner.temp }}/out/${{ matrix.package }}.pmtiles
+            ${{ runner.temp }}/out/${{ matrix.package }}-basemap.json
+            ${{ runner.temp }}/basemap-output.txt
           retention-days: 2
           if-no-files-found: warn
 
