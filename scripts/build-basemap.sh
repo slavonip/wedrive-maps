@@ -62,7 +62,8 @@ echo "==> extract $W,$S,$E,$N at z0-$MAXZOOM"
 SHOW=$("$PMTILES" show "$BASEMAP")
 echo "$SHOW"
 
-python3 - "$BASEMAP" "$PACKAGE" "$BUILD" "$MAXZOOM" "$W" "$S" "$E" "$N" <<'META' > "$OUT_DIR/$PACKAGE-basemap.json"
+python3 - "$BASEMAP" "$PACKAGE" "$BUILD" "$MAXZOOM" "$W" "$S" "$E" "$N" "$PMTILES" \
+  <<'META' > "$OUT_DIR/$PACKAGE-basemap.json"
 import hashlib
 import json
 import os
@@ -73,13 +74,16 @@ path, package, build, maxzoom, w, s, e, n = sys.argv[1:9]
 
 # The schema name lives in the archive's own metadata; take it from there rather than from what
 # we believe we asked for.
+# THE BINARY IS PASSED IN, not looked up on PATH. It is downloaded into $WORK/tools and is
+# not on PATH at all; the first version of this used `os.environ.get("PMTILES", "pmtiles")`,
+# found nothing, swallowed the exception and wrote the FALLBACK schema string into the
+# manifest. That fabricated value then matched the app's allowlist by coincidence while the
+# real schema did not — so the gate would have passed a placeholder and refused a correctly
+# labelled package. Found 2026-09-17 by opening the app and reading the row.
 meta = {}
-try:
-    raw = subprocess.run([os.environ.get("PMTILES", "pmtiles"), "show", "--metadata", path],
-                         capture_output=True, text=True).stdout
-    meta = json.loads(raw) if raw.strip().startswith("{") else {}
-except Exception:
-    meta = {}
+raw = subprocess.run([sys.argv[9], "show", "--metadata", path],
+                     capture_output=True, text=True, check=True).stdout
+meta = json.loads(raw)
 
 digest = hashlib.sha256()
 with open(path, "rb") as handle:
@@ -92,9 +96,16 @@ print(json.dumps({
     "format": "pmtiles",
     "upstream": "protomaps",
     "build": build,
-    "schema": meta.get("name") or meta.get("type") or "protomaps-basemap",
+    # `protomaps-v4`, matching the convention `MapRegion.schema` has used since the first
+    # sideloaded region. The archive itself says `name: "Protomaps Basemap"` and
+    # `version: "4.15.2"`; the MAJOR is what decides whether a style can read it, because that
+    # is what changes layer names, and a style pointed at the wrong schema draws nothing and
+    # reports nothing (§13).
+    "schema": "protomaps-v" + str(meta["version"]).split(".")[0],
+    "schemaName": meta.get("name"),
     "schemaVersion": meta.get("version"),
     "vectorLayers": sorted(layer["id"] for layer in meta.get("vector_layers", [])) or None,
+    "attribution": meta.get("attribution"),
     "maxzoom": int(maxzoom),
     "bbox": [float(w), float(s), float(e), float(n)],
     "dataDate": meta.get("planetTime", "")[:10] or build[:4] + "-" + build[4:6] + "-" + build[6:8],
