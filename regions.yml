@@ -1,13 +1,14 @@
-# What the factory produces. One entry per PACKAGE, not per country.
+# What the factory produces, and how each thing it produces is proved.
 #
 # A package is what a car installs: one basemap and one routing graph, built together. A
-# single-country package is simply a list of one, which is why this shape survives whichever way
-# the border measurement goes — if separately-built countries turn out not to join at the
-# frontier, multi-country packages are the only way to drive across one, and nothing here has to
-# change except the lists below.
+# single-country package is simply a list of one.
 #
-# Adding a country is one entry. The workflow does the rest: fetch, build, probe, checksum,
-# publish, and only then promote.
+# Adding a country is one entry under `packages` AND one under `countries`. The second half is
+# not optional and the gate enforces it: a package containing a country with no probes is
+# refused before the build starts (scripts/probe-plan.py), because the alternative is a country
+# arriving in the car with nothing but "it built" behind it. That is exactly what happened to
+# Romania in the first md-ro build — it sat inside a package whose every probe pointed at
+# Chișinău, so the Romanian half was tested by nothing at all.
 #
 # `regions` are Geofabrik paths under https://download.geofabrik.de/ — the same source the
 # routing tiles and the basemap both come from, so the two halves of a package cannot drift to
@@ -30,3 +31,75 @@ packages:
   # Deliberately not enumerated further until the car actually needs them: thirty countries have
   # a billion subsets, and the factory builds the handful that match how this car is driven.
   # md-ro-ua, ro-bg and the rest are added the day a trip needs them.
+
+# ── What must hold INSIDE each country ──────────────────────────────────────────────────────
+#
+# Three properties per country, each chosen because a graph can lose it while still building,
+# downloading and routing — which is every way this can go wrong silently:
+#
+#   timezone          the IANA zone written into the nodes at build time. Lose it and routes are
+#                     fine while every cross-border arrival time is an hour out, in winter only.
+#   oneway            [from_lat, from_lon, to_lat, to_lon] along a one-way street. Going against
+#                     it must cost materially more, because the car has to go round.
+#   grade_separation  [lat, lon, lat, lon, straight_line_m] for a point on a bridge and a point
+#                     on the road beneath. They share no OSM node, so no turn between them
+#                     exists and the car must drive round.
+#
+# ABSOLUTE DISTANCES ARE NOT ASSERTED, deliberately. §7's August 2026 numbers (322 m / 681 m on
+# Pușkin) no longer hold on a 2026-09 extract — the same street answers 622 m / 1004 m because
+# OSM was edited — and a gate that failed on that would be failing a graph that is behaving
+# perfectly. What is asserted is the RELATIONSHIP, which an OSM edit cannot break and a broken
+# tile build cannot fake.
+#
+# Coordinates come from scripts/find-probes.py, which asks OSM for junctions with the property
+# rather than asking a person to remember one. The Moldova bridge probe spent a morning pointing
+# at Strada Visterniceni — a junction that is genuinely connected — because those coordinates
+# were typed from memory.
+
+countries:
+  MD:
+    name: Moldova
+    timezone: Europe/Chisinau
+    timezone_at: [47.0105, 28.8638]                  # Chișinău, city centre
+    # Strada Alexandr Pușkin — §7's original one-way measurement, 2026-08-29
+    oneway: [47.0246, 28.8320, 47.0209, 28.8331]
+    # Bulevardul Renașterii Naționale (OSM way 24776845, bridge=yes layer=2)
+    # over Strada Calea Moșilor (way 726144970)
+    grade_separation: [47.0352, 28.8480, 47.0348, 28.8483, 53]
+
+  RO:
+    name: Romania
+    timezone: Europe/Bucharest
+    timezone_at: [47.1585, 27.6014]                  # Iași
+    # Strada Morilor, Iași (OSM way 22970064), 402 m one-way
+    oneway: [47.160518, 27.577725, 47.157058, 27.577536]
+    # Pasaj Nicolina, Iași — the owner pointed at this one from the satellite view, and the
+    # router agrees it is the strongest in the city: 1352 m of driving round a 26 m gap, 52×.
+    #
+    # TWO EARLIER CANDIDATES WERE REJECTED, and both rejections are the same lesson. Trecătoarea
+    # Nucului (9 m) had both points snapping to ONE edge, so the router answered 9 m. Bulevardul
+    # Tudor Vladimirescu over Mangeron (25 m) snapped perfectly to two different ways and still
+    # answered 35 m — because it is an interchange and the turn really is legal there. In OSM
+    # tags the three are indistinguishable. Only a route tells them apart, which is what
+    # scripts/verify-candidates.py is for.
+    grade_separation: [47.144962, 27.582142, 47.144948, 27.582485, 26]
+
+# ── What must hold BETWEEN countries in the same package ────────────────────────────────────
+#
+# THE probe the multi-PBF build exists for. Measured 2026-09-17: two countries built separately
+# cannot be merged — 35 tile paths are shared between a Moldova build and a Romania build, 0 of
+# them byte-identical, and all three of Moldova's level-0 tiles are overwritten by Romania's. So
+# a package claiming two countries has to be built in ONE pass over both PBFs, and this route is
+# how we find out whether it was.
+#
+# Every ADJACENT pair in a package needs an entry. A pair that shares no border needs none —
+# Moldova and Bulgaria in one package would route through Romania or not at all, and neither
+# answer says anything about the tile build — so `adjacent: false` states that explicitly rather
+# than leaving a hole the coverage check cannot tell from an oversight.
+
+borders:
+  MD-RO:
+    from: [47.0105, 28.8638]        # Chișinău
+    to: [47.1585, 27.6014]          # Iași
+    min_km: 100                     # ~150 km via Ungheni/Sculeni. A graph cut at the frontier
+    max_km: 250                     # gives NO route at all, not a shorter one

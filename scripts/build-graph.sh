@@ -52,12 +52,28 @@ valhalla_build_config \
   --mjolnir-admin "$TILEDIR/admins.sqlite" > "$CONF"
 
 TIMEZONES=true
+TZ_DATASET=unknown
 if [ -f /data/vendor/timezones.sqlite ]; then
-  echo '==> timezones (vendored)'
+  # The vendored file carries its own provenance beside it, because "which timezone boundaries
+  # is this graph built from" is a question a wrong arrival time will eventually make someone
+  # ask, and the sqlite itself does not say.
+  TZ_DATASET="$(cat /data/vendor/timezones.version 2>/dev/null || echo vendored)"
+  echo "==> timezones (vendored, $TZ_DATASET)"
   cp /data/vendor/timezones.sqlite "$TILEDIR/timezones.sqlite"
-elif valhalla_build_timezones > "$TILEDIR/timezones.sqlite" 2>/dev/null && [ -s "$TILEDIR/timezones.sqlite" ]; then
-  echo '==> timezones (built; this needed the network and may not next time)'
+elif valhalla_build_timezones > "$TILEDIR/timezones.sqlite" 2>"$WORK/timezones.err" &&
+     [ -s "$TILEDIR/timezones.sqlite" ]; then
+  # STDERR IS KEPT, not discarded. On 2026-09-17 this step was run with `2>/dev/null`, failed,
+  # and the run looked like a structural problem with the image; the same command with stderr
+  # visible succeeded minutes later on the same machine, so it had been one transient fetch of
+  # someone else's GitHub release. Throwing away the reason is what turned five minutes into a
+  # morning.
+  TZ_DATASET="$(grep -o 'timezone-boundary-builder/releases/download/[^/]*' "$WORK/timezones.err" |
+                head -1 | awk -F/ '{print $NF}')"
+  TZ_DATASET="${TZ_DATASET:-downloaded}"
+  echo "==> timezones (downloaded, $TZ_DATASET; this needed the network and may not next time)"
 else
+  echo '--- valhalla_build_timezones said: ---' >&2
+  tail -20 "$WORK/timezones.err" >&2 || true
   # NOT fatal, and NOT silent. Without timezones the graph still routes correctly — the loss is
   # arrival times once the car crosses into another zone, which this car does. So the build goes
   # on, the flag goes into the metadata, and the manifest refuses to promote a package carrying
@@ -88,6 +104,7 @@ cat > "$WORK/out/$PACKAGE-graph.json" <<META
   "regions": [$(printf '"%s",' "${REGIONS[@]}" | sed 's/,$//')],
   "dataDate": "$(date -u +%Y-%m-%d)",
   "timezones": $TIMEZONES,
+  "timezoneDataset": "$TZ_DATASET",
   "tzdataVersion": "$(dpkg-query -W -f='${Version}' tzdata 2>/dev/null || echo unknown)",
   "bytes": $(stat -c%s "$EXTRACT"),
   "sha256": "$(sha256sum "$EXTRACT" | cut -d' ' -f1)"

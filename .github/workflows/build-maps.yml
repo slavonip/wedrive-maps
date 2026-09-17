@@ -24,6 +24,16 @@ jobs:
       packages: ${{ steps.read.outputs.packages }}
     steps:
       - uses: actions/checkout@v4
+
+      # COVERAGE FIRST, in one second, before any four-hour build. A package whose countries
+      # have no probes is refused here rather than shipping on "it built" — which is exactly
+      # what the first md-ro build did: every probe in it pointed at Chișinău while Romania was
+      # half the bytes and was asserted by nothing.
+      - name: every package is covered by probes
+        run: |
+          pip install --quiet pyyaml
+          python3 scripts/probe-plan.py --check-all
+
       - id: read
         run: python3 scripts/plan.py "${{ inputs.packages }}" >> "$GITHUB_OUTPUT"
 
@@ -51,6 +61,19 @@ jobs:
           rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
           df -h / | tail -1
 
+      # THE TIMEZONE DATABASE IS OURS TO SUPPLY, not a third party's to be up at 02:17.
+      # `valhalla_build_timezones` downloads a shapefile from someone else's GitHub release; on
+      # 2026-09-17 that fetch failed, the build carried on as designed, and the package was
+      # correctly refused promotion for having no timezones. A monthly unattended job must not
+      # lose a month to that, so the file rides in our own rolling release and is only rebuilt
+      # from upstream when we choose to.
+      - name: vendored timezone database
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /data/vendor
+          gh release download maps-vendor -p 'timezones.sqlite' -p 'timezones.version'             -D /data/vendor --clobber ||             echo "no vendored timezones: the build will try upstream and may be refused promotion"
+
       - name: build
         run: |
           mkdir -p /data
@@ -62,7 +85,10 @@ jobs:
       # version check and will happily read a graph missing half a country. Only a route with a
       # known answer proves anything (§7's probes).
       - name: probe
-        run: bash scripts/probe.sh "/data/valhalla_${{ matrix.package }}.json" "${{ matrix.package }}"
+        run: |
+          pip install --quiet pyyaml
+          python3 scripts/probe-plan.py "${{ matrix.package }}" /data/probes.json
+          python3 scripts/probe.py "/data/valhalla_${{ matrix.package }}.json" /data/probes.json
 
       - uses: actions/upload-artifact@v4
         with:
