@@ -78,3 +78,22 @@ def title_of(config: dict, package_id: str) -> str:
     countries = config.get("countries", {})
     return " + ".join(countries.get(c, {}).get("name", c)
                       for c in countries_of(config, package_id))
+
+
+def bbox_of(config: dict, package_id: str) -> list:
+    """The basemap's cut, as [W, S, E, N]: the union of the package's countries' boxes.
+
+    A union rather than a per-country cut because `.pmtiles` is ONE file per package, the same
+    way the graph is one archive — and because the interesting ground is precisely the strip
+    where two countries meet, which a per-country cut would leave to whichever file happened to
+    be consulted.
+    """
+    countries = config.get("countries", {})
+    boxes = []
+    for code in countries_of(config, package_id):
+        box = countries.get(code, {}).get("bbox")
+        if not box or len(box) != 4:
+            raise ValueError(f"country {code} has no 4-number `bbox:` in regions.yml")
+        boxes.append([float(v) for v in box])
+    return [min(b[0] for b in boxes), min(b[1] for b in boxes),
+            max(b[2] for b in boxes), max(b[3] for b in boxes)]

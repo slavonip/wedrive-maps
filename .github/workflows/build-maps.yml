@@ -42,16 +42,14 @@ jobs:
       - id: read
         run: python3 scripts/plan.py "${{ inputs.packages }}" >> "$GITHUB_OUTPUT"
 
+  # ── the routing graph: Valhalla's own image, because only it carries the tools ────────────
   graph:
     needs: plan
     # The job NAME carries the package, because GitHub's failure email says only which job
     # failed. "graph (md-ro)" in the subject line is free; anything richer has to be an issue,
-    # which is what the failure step below opens.
+    # which is what the report job below opens.
     name: graph (${{ matrix.package }})
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write            # to report a failed gate somewhere a person actually reads
     strategy:
       fail-fast: false          # one country failing must not stop the others
       matrix:
@@ -61,6 +59,12 @@ jobs:
     container:
       image: ghcr.io/gis-ops/docker-valhalla/valhalla:3.5.1
       options: --user root
+    defaults:
+      run:
+        # The container's default shell is `sh -e`, which is NOT bash: PIPESTATUS, arrays and
+        # [[ ]] all quietly do the wrong thing. Found 2026-09-17 while fixing a failure three
+        # steps earlier — this would have been the next one to bite.
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -73,18 +77,33 @@ jobs:
           rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
           df -h / | tail -1
 
+      # The image ships Python without PyYAML, and every script that reads regions.yml needs it.
+      - name: python bits the scripts need
+        run: pip install --quiet pyyaml
+
       # THE TIMEZONE DATABASE IS OURS TO SUPPLY, not a third party's to be up at 02:17.
       # `valhalla_build_timezones` downloads a shapefile from someone else's GitHub release; on
       # 2026-09-17 that fetch failed, the build carried on as designed, and the package was
       # correctly refused promotion for having no timezones. A monthly unattended job must not
-      # lose a month to that, so the file rides in our own rolling release and is only rebuilt
-      # from upstream when we choose to.
+      # lose a month to that, so the file rides in our own rolling release.
+      #
+      # PLAIN CURL, NOT `gh`. This image has no GitHub CLI — measured the same day, on a run
+      # where `gh: not found` was swallowed by a `|| echo` and the step reported success having
+      # done nothing whatsoever. The release is public, so no token is wanted either.
       - name: vendored timezone database
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /data/vendor
-          gh release download maps-vendor -p 'timezones.sqlite' -p 'timezones.version'             -D /data/vendor --clobber ||             echo "no vendored timezones: the build will try upstream and may be refused promotion"
+          base="${{ github.server_url }}/${{ github.repository }}/releases/download/maps-vendor"
+          if curl -fsSL -o /data/vendor/timezones.sqlite "$base/timezones.sqlite" &&
+             curl -fsSL -o /data/vendor/timezones.version "$base/timezones.version"; then
+            echo "vendored timezones $(cat /data/vendor/timezones.version)," \
+                 "$(stat -c%s /data/vendor/timezones.sqlite) bytes"
+          else
+            # Tolerated, never silent: the build goes on and the gate refuses to promote a
+            # package with no timezones, so the cost is a stale month, not a wrong arrival time.
+            rm -f /data/vendor/timezones.sqlite
+            echo "::warning::no vendored timezone database; this package cannot be promoted"
+          fi
 
       - name: build
         run: |
@@ -97,69 +116,160 @@ jobs:
       # version check and will happily read a graph missing half a country. Only a route with a
       # known answer proves anything (§7's probes).
       - name: probe
-        id: probe
         run: |
-          pip install --quiet pyyaml
           python3 scripts/probe-plan.py "${{ matrix.package }}" /data/probes.json
           set +e
-          python3 scripts/probe.py "/data/valhalla_${{ matrix.package }}.json" /data/probes.json             2>&1 | tee /data/probe-output.txt
-          echo "status=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
-          exit ${PIPESTATUS[0]}
+          python3 scripts/probe.py "/data/valhalla_${{ matrix.package }}.json" /data/probes.json \
+            2>&1 | tee /data/probe-output.txt
+          exit "${PIPESTATUS[0]}"
 
-      # WHICH probe failed, in a place a person reads. Three audiences, three mechanisms,
-      # because none of them can do the other's job:
-      #   * the job NAME gives the package to the failure email's subject line;
-      #   * the step SUMMARY puts the probe table one click from the run;
-      #   * an ISSUE is the only way GitHub will put the actual text in an email, and it leaves
-      #     a record that survives the 90-day log retention.
-      # `if: always()` so a passing run still files its numbers where they can be compared to
-      # next month's.
+      # WHICH probe failed, one click from the run — and on a PASSING run too, so this month's
+      # numbers can be compared with next month's.
       - name: report the probes
         if: always()
         run: |
           {
-            echo "### ${{ matrix.package }}"
+            echo "### graph: ${{ matrix.package }}"
             echo
             echo '```'
             cat /data/probe-output.txt 2>/dev/null || echo "the probes did not run"
             echo '```'
-            cat "/data/out/${{ matrix.package }}-graph.json" 2>/dev/null || true
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: open an issue when the gate refuses the package
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          body=$(mktemp)
-          {
-            echo "\`${{ matrix.package }}\` did not pass its probes and was **not promoted**."
-            echo "Every car keeps last month's package until this is fixed."
-            echo
-            echo '```'
-            cat /data/probe-output.txt 2>/dev/null || echo "the probes did not run at all"
-            echo '```'
-            echo
-            echo "Manifest:"
-            echo '```json'
-            cat "/data/out/${{ matrix.package }}-graph.json" 2>/dev/null || echo "{}"
-            echo '```'
-            echo
-            echo "[Full log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
-          } > "$body"
-          gh issue create             --title "maps: ${{ matrix.package }} failed its probes ($(date -u +%Y-%m-%d))"             --body-file "$body" || echo "could not open an issue; see the log above"
-
-
+      # `always()`, so a FAILED gate's output still reaches the report job — which is the whole
+      # reason that job exists.
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: graph-${{ matrix.package }}
           path: |
             /data/out/${{ matrix.package }}.tar
             /data/out/${{ matrix.package }}-graph.json
+            /data/probe-output.txt
           retention-days: 2
+          if-no-files-found: warn
+
+  # ── the basemap: a plain runner, because go-pmtiles is not in Valhalla's image ────────────
+  #
+  # A package is TWO artifacts and this is the one the driver looks at. It was missing entirely
+  # until 2026-09-17: the publish step already knew how to upload a `.pmtiles` and nothing in
+  # the factory ever produced one, so `md-ro` was a routing graph for a country with no map
+  # under it. The routing probes could never have caught that — every one of them calls
+  # `valhalla_service route`.
+  basemap:
+    needs: plan
+    name: basemap (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.plan.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: reclaim disk
+        run: |
+          rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
+          df -h / | tail -1
+
+      - name: extract
+        run: |
+          pip install --quiet pyyaml
+          mkdir -p /data/out
+          read -r W S E N <<< "$(python3 -c "
+          import sys; sys.path.insert(0, 'scripts')
+          import packages
+          print(*packages.bbox_of(packages.load(), '${{ matrix.package }}'))")"
+          echo "bbox: $W $S $E $N"
+          OUT_DIR=/data/out WORK=/data \
+            bash scripts/build-basemap.sh "${{ matrix.package }}" "$W" "$S" "$E" "$N"
+
+      # THE OTHER GATE, and its failure mode is the nastier one: a style pointed at the wrong
+      # vector schema renders NOTHING and reports no error at all (§13).
+      - name: probe
+        run: |
+          python3 scripts/probe-plan.py "${{ matrix.package }}" /data/probes.json
+          set +e
+          python3 scripts/probe-basemap.py "/data/out/${{ matrix.package }}.pmtiles" \
+            /data/probes.json /data/tools/pmtiles 2>&1 | tee /data/basemap-output.txt
+          exit "${PIPESTATUS[0]}"
+
+      - name: report the probes
+        if: always()
+        run: |
+          {
+            echo "### basemap: ${{ matrix.package }}"
+            echo
+            echo '```'
+            cat /data/basemap-output.txt 2>/dev/null || echo "the probes did not run"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: basemap-${{ matrix.package }}
+          path: |
+            /data/out/${{ matrix.package }}.pmtiles
+            /data/out/${{ matrix.package }}-basemap.json
+            /data/basemap-output.txt
+          retention-days: 2
+          if-no-files-found: warn
+
+  # ── say what broke, somewhere a person actually reads ─────────────────────────────────────
+  #
+  # ON THE RUNNER, not in the container, because `gh` exists here and does not exist there.
+  # GitHub's failure email cannot carry custom text — the subject is always "Run failed: build
+  # maps" and the body is a link — so an issue is the only way to put the probe table in front
+  # of someone by email, and it leaves a record that outlives the 90-day log retention.
+  report:
+    needs: [graph, basemap]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: incoming
+      - name: open an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          body=$(mktemp)
+          {
+            echo "A package did not pass its probes and was **not promoted**."
+            echo "Every car keeps last month's data until this is fixed."
+            echo
+            for out in $(find incoming -name '*-output.txt' | sort); do
+              echo "### ${out#incoming/}"
+              echo '```'
+              cat "$out"
+              echo '```'
+              echo
+            done
+            for meta in $(find incoming -name '*.json' | sort); do
+              echo "<details><summary>${meta#incoming/}</summary>"
+              echo
+              echo '```json'
+              cat "$meta"
+              echo '```'
+              echo
+              echo "</details>"
+            done
+            echo
+            echo "[Full log]($RUN_URL)"
+          } > "$body"
+          gh issue create --repo "$REPO" \
+            --title "maps: a package failed its probes ($(date -u +%Y-%m-%d))" \
+            --body-file "$body"
 
   publish:
-    needs: [plan, graph]
+    needs: [plan, graph, basemap]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -190,7 +300,9 @@ jobs:
       # passed. A failed build therefore leaves every car on last month's data rather than on a
       # graph nobody drove.
       - name: promote
-        run: python3 scripts/manifest.py incoming index.json
+        run: |
+          pip install --quiet pyyaml
+          python3 scripts/manifest.py incoming index.json
 
       - name: commit the manifest
         run: |

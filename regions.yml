@@ -37,6 +37,8 @@ packages:
 # Three properties per country, each chosen because a graph can lose it while still building,
 # downloading and routing — which is every way this can go wrong silently:
 #
+#   bbox              [W, S, E, N] from Geofabrik's index-v1.json — the box the BASEMAP is cut
+#                     to. A package's box is the union of its countries'.
 #   timezone          the IANA zone written into the nodes at build time. Lose it and routes are
 #                     fine while every cross-border arrival time is an hour out, in winter only.
 #   oneway            [from_lat, from_lon, to_lat, to_lon] along a one-way street. Going against
@@ -60,6 +62,10 @@ countries:
   MD:
     name: Moldova
     region: europe/moldova
+    # From Geofabrik's own index-v1.json, so the basemap is cut to the same ground the routing
+    # extract covers. Two halves of a package cut to different boxes is a road you can route
+    # along and cannot see — or the reverse, which reads as "the app is broken".
+    bbox: [26.61, 45.46, 30.19, 48.49]
     timezone: Europe/Chisinau
     timezone_at: [47.0105, 28.8638]                  # Chișinău, city centre
     # Strada Alexandr Pușkin — §7's original one-way measurement, 2026-08-29
@@ -71,6 +77,7 @@ countries:
   RO:
     name: Romania
     region: europe/romania
+    bbox: [20.24, 43.61, 30.28, 48.27]
     timezone: Europe/Bucharest
     timezone_at: [47.1585, 27.6014]                  # Iași
     # Strada Morilor, Iași (OSM way 22970064), 402 m one-way

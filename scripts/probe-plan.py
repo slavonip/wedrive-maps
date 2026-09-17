@@ -28,7 +28,7 @@ import sys
 
 import packages as packages_module
 
-REQUIRED_COUNTRY_PROBES = ("region", "timezone", "timezone_at", "oneway",
+REQUIRED_COUNTRY_PROBES = ("region", "bbox", "timezone", "timezone_at", "oneway",
                            "grade_separation")
 
 
