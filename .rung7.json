@@ -1,0 +1,70 @@
+{
+  "telemetry": "VALID",
+  "provenance": {
+    "memoryGb": "memory.current \u00b7 cgroup-v2 \u00b7 anon + file cache + kernel \u00b7 OVERSTATES what must fit in RAM",
+    "anonGb": "memory.stat anon \u00b7 cgroup-v2 \u00b7 not reclaimable \u00b7 THE OOM PREDICTOR",
+    "cacheGb": "memoryGb minus anonGb \u00b7 reclaimable \u00b7 released under pressure",
+    "diskPeakAbsoluteGb": "df --output=used \u00b7 FILESYSTEM-WIDE, not this build",
+    "diskPeakDeltaGb": "absolute minus the first sample \u00b7 this build's own footprint",
+    "diskBaselineGb": "the first sample \u00b7 what the runner already held",
+    "seconds": "wall time per stage, bounded by the build script itself",
+    "graph counters": "parsed from valhalla_build_tiles' own log lines",
+    "sampledEvery": "5 seconds",
+    "engine": "unknown"
+  },
+  "telemetryMissing": [],
+  "buildId": "scale-7-2026-09-17",
+  "region": "scale-7",
+  "engineVersion": "",
+  "countries": 7,
+  "source": {
+    "bytes": 4952480920,
+    "gb": 4.95
+  },
+  "graph": {
+    "routableWays": 14194312,
+    "osmNodesInRoutableWays": 104602150,
+    "graphEdges": 28428854,
+    "directedEdges": 56857708,
+    "tilesBuilt": 1973,
+    "tiles": 2268,
+    "bytes": 4918242704,
+    "cutTiles": 2383,
+    "cutBytes": 5843507056,
+    "cutOverhead": 1.188
+  },
+  "seconds": {
+    "download": 371,
+    "merge": 226,
+    "config": 0,
+    "admins": 118,
+    "tiles": 1221,
+    "cut": 13,
+    "archives": 16,
+    "total": 1977
+  },
+  "peak": {
+    "memoryBytes": 15974019072,
+    "memoryGb": 15.97,
+    "anonBytes": 5216849920,
+    "anonGb": 5.22,
+    "cacheGb": 10.76,
+    "memorySource": "cgroup2",
+    "diskPeakDeltaBytes": 30826442752,
+    "diskPeakDeltaGb": 30.83,
+    "diskPeakAbsoluteBytes": 94171037696,
+    "diskPeakAbsoluteGb": 94.17,
+    "diskBaselineGb": 63.34,
+    "samples": 395
+  },
+  "rates": {
+    "tileSecondsPerSourceGb": 247,
+    "totalSecondsPerSourceGb": 399,
+    "tilesPerSourceGb": 458,
+    "peakMemoryPerSourceGb": 3.23,
+    "peakMemoryPerMillionNodes": 0.153,
+    "peakMemoryPerMillionDirectedEdges": 0.281,
+    "anonPerMillionDirectedEdges": 0.092,
+    "tileSecondsPerMillionDirectedEdges": 21.5
+  }
+}

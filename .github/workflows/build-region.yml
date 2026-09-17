@@ -218,6 +218,11 @@ jobs:
             --title "country tiles" \
             --notes "Per-country Valhalla tiles, cut from one build so they reassemble. Map data © OpenStreetMap contributors, ODbL."
           find incoming -name '*-tiles.tar' -exec gh release upload tiles {} --clobber \;
+          # The per-country manifests too, not only the archives. They carry every tile's hash —
+          # which is what makes reference counting and per-tile delta updates possible on the car
+          # — plus the gates' verdicts. Without them a published graph cannot say what it was
+          # built from once the workflow run expires.
+          find incoming -name '*-tiles.json' -exec gh release upload tiles {} --clobber \;
 
       - name: promote
         run: |

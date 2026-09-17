@@ -140,6 +140,19 @@ def main(incoming: str, manifest: str) -> int:
             "tiles": meta.get("tiles"),
             "dataDate": meta.get("dataDate"),
             "buildId": meta["buildId"],
+            # ── WHAT THIS GRAPH WAS BUILT FROM, CARRIED ALL THE WAY OUT ──────────────────────
+            # The gates' verdicts were computed, used to decide promotion, and then dropped: the
+            # per-country `*-tiles.json` that holds them is a workflow artifact with two days'
+            # retention and is not published at all — only the `.tar` reaches the release. So
+            # every question this session went to trouble to make answerable — which timezone
+            # dataset, which tzdata accepted it, which OSM snapshot, how many admin records were
+            # dropped — became unanswerable the moment the run expired.
+            #
+            # A graph outlives its build log by design; that is the whole point of a monthly
+            # factory. Its provenance has to travel with it.
+            "timezones": meta.get("timezones"),
+            "osm": meta.get("osm"),
+            "admins": meta.get("admins"),
         }
 
     out.write_text(json.dumps(index, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
