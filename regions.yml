@@ -125,7 +125,14 @@ countries:
     region: europe/austria
     bbox: [9.53, 46.37, 17.16, 49.02]
     timezone: Europe/Vienna
-    timezone_at: [48.2082, 16.3738]                  # Vienna
+    # Penzing, NOT Stephansplatz. The city-centre coordinate is correct about Austria and useless
+    # as a probe: the timezone and admin probes route from the point to one 500 m away, and
+    # Vienna's core is pedestrianised, so a car route between two points inside it does not exist.
+    # The graph was right all along — the diagnostic read `Europe/Vienna` off 20 edges at the old
+    # coordinate, in the master and in the cut alike — and the probe was reporting "no timezone"
+    # for what was actually "no route". A PROBE COORDINATE MUST ROUTE LOCALLY, which is a
+    # different requirement from being in the right country.
+    timezone_at: [48.1950, 16.2700]                  # Vienna (Penzing) — routes 2.04 km
     # Urselbrunnengasse (OSM way 365841141), 400 m one-way
     oneway: [48.166483, 16.392700, 48.169012, 16.396515]
     # Hochstraße St. Marx over Litfaßstraße, 79 m. UNVERIFIED BY ROUTER — see UA above.
