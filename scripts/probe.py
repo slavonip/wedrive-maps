@@ -162,19 +162,90 @@ def probe_admin(config: str, probe: dict, report: Report) -> None:
 
     `valhalla_build_admins` drops admin records routinely — 30 of them on the four-country build —
     and upstream says to ignore that on an extract. `check-admins.py` verifies that none of the
-    dropped records name a country we are building; this verifies the other half, that the
-    records which were NOT dropped actually landed in the graph.
+    dropped records name a country we are building; this verifies the other half, that the records
+    which were NOT dropped actually landed in the graph.
 
     **No routing probe can see this.** Admin records carry driving side, access defaults and
     country-crossing costs. A graph that lost them still returns routes, still returns plausible
-    distances, and is quietly wrong about which side of the road to drive on — which is why this
-    is asked directly rather than inferred from a route that came back.
+    distances, and is quietly wrong about which side of the road to drive on.
 
-    `trace_attributes` returns an `admins` array alongside the edges, and each edge indexes into
-    it. Asked over a three-point shape so there is something to match against.
+    THE ROUTE IS THE PRIMARY SOURCE, AND THE FIRST VERSION OF THIS PROBE GOT THAT WRONG. It asked
+    `trace_attributes`, which map-matches a three-point shape 400 m long — and that fails to match
+    anything at some perfectly ordinary places. Measured on the four-country build: Budapest and
+    Chișinău matched no edges while routing from those exact points worked, so the probe announced
+    "the admin records did not land" for two countries whose records were fine. That is the same
+    mistake as the timezone probe made about Vienna, shipped again within the hour, which is how
+    strong the pull is to read one silent answer as one specific cause.
+
+    So: route first, since a route is also what a driver's question is; fall back to the trace
+    only if the route carries no admin block; and if neither source says anything, say THAT rather
+    than inventing a reason.
     """
     lat, lon = probe["at"]
     name = probe["name"]
+
+    response = route(config, [lat, lon], [lat + 0.004, lon + 0.004])
+    if response is None or metres(response) is None:
+        report.fail(name, f"the two probe points do not route "
+                          f"({lat:.4f},{lon:.4f} → {lat + 0.004:.4f},{lon + 0.004:.4f}), "
+                          f"so this says NOTHING about admin data — fix the coordinates")
+        return
+
+    codes = _country_codes(response.get("trip", {}).get("admins"))
+    source = "route"
+
+    if not codes:
+        # SECOND: trace the ROUTE'S OWN SHAPE. A straight three-point shape 400 m long is what
+        # failed at Budapest and Chișinău — it runs off the road network and map-matches nothing.
+        # The route we just computed is ON the network by construction, so tracing its polyline
+        # cannot fail for that reason. `trace_attributes` takes `encoded_polyline` directly, so
+        # no decoding is needed.
+        shape = None
+        try:
+            shape = response["trip"]["legs"][0]["shape"]
+        except Exception:                          # noqa: BLE001
+            pass
+        if shape:
+            traced = _trace_polyline(config, shape)
+            codes = _country_codes((traced or {}).get("admins"))
+            source = "the route's own shape"
+
+    if not codes:
+        # THIRD: the straight shape, in case this Valhalla answers there and not above.
+        traced = _trace(config, lat, lon)
+        codes = _country_codes((traced or {}).get("admins"))
+        source = "a straight trace"
+
+    if not codes:
+        report.fail(name, f"no country reported here by the route, by a trace of its own shape, "
+                          f"or by a straight trace — expected {probe['expect']}. Three sources "
+                          f"silent is evidence the records did not land; check what "
+                          f"check-admins.py counted before concluding it")
+    elif probe["expect"] in codes:
+        report.ok(name, codes[0] if len(codes) == 1 else "/".join(codes))
+    else:
+        report.fail(name, f"{'/'.join(codes)} (from the {source}), expected {probe['expect']}")
+
+
+def _country_codes(admins) -> list:
+    return sorted({a.get("country_code") for a in (admins or []) if a.get("country_code")})
+
+
+def _trace_polyline(config: str, encoded: str):
+    """Map-match an ENCODED polyline — used for a route's own shape, which is on the network by
+    construction and therefore cannot fail to match for being off-road."""
+    request = {"encoded_polyline": encoded, "costing": "auto", "shape_match": "map_snap"}
+    try:
+        out = subprocess.run(["valhalla_service", config, "trace_attributes", json.dumps(request)],
+                             capture_output=True, text=True, timeout=180).stdout
+        return json.loads(out)
+    except Exception:                              # noqa: BLE001
+        return None
+
+
+def _trace(config: str, lat: float, lon: float):
+    """A map-matched trace over a short shape. Returns None on any failure — and a caller must
+    treat that as "no answer", never as "no data"."""
     request = {
         "shape": [{"lat": lat, "lon": lon},
                   {"lat": lat + 0.002, "lon": lon + 0.002},
@@ -185,25 +256,9 @@ def probe_admin(config: str, probe: dict, report: Report) -> None:
     try:
         out = subprocess.run(["valhalla_service", config, "trace_attributes", json.dumps(request)],
                              capture_output=True, text=True, timeout=180).stdout
-        answer = json.loads(out)
+        return json.loads(out)
     except Exception:                              # noqa: BLE001
-        answer = None
-
-    if not answer:
-        report.fail(name, "trace_attributes returned nothing, so the admin data is UNKNOWN "
-                          "rather than absent")
-        return
-
-    admins = answer.get("admins") or []
-    codes = sorted({a.get("country_code") for a in admins if a.get("country_code")})
-    if not codes:
-        report.fail(name, f"the graph attributes this point to no country at all, expected "
-                          f"{probe['expect']} — the admin records did not land")
-    elif probe["expect"] in codes:
-        detail = codes[0] if len(codes) == 1 else "/".join(codes)
-        report.ok(name, detail)
-    else:
-        report.fail(name, f"{'/'.join(codes)}, expected {probe['expect']}")
+        return None
 
 
 PROBES = {
