@@ -229,4 +229,17 @@ borders:
 superregions:
   eu-core:
     title: Central and Eastern Europe
-    countries: [AT, HU, MD, RO, UA]
+    # UKRAINE IS OUT FOR NOW, for two reasons that happen to agree. The owner is not driving
+    # there in the near future (2026-09-17), and the five-country build CRASHED —
+    # `valhalla_build_tiles` aborted on level-2 tiles around Budapest with
+    # `vector::_M_range_check` against an empty vector, exit 134.
+    #
+    # The obvious suspicion was Hungarian data, and it was WRONG: Hungary alone builds clean,
+    # 231 tiles, every probe green. What differed was scale — 2287 tiles against 231 — and
+    # Ukraine is by far the largest member at 837 MB of PBF. So dropping it tests the remaining
+    # hypothesis and delivers what was asked, in one run.
+    #
+    # If four countries build, the next question is whether Ukraine alone does, and only then
+    # whether the crash is about total size or about one country's data. Do not put it back
+    # without that answer.
+    countries: [AT, HU, MD, RO]
