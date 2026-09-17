@@ -1,0 +1,115 @@
+name: build maps
+
+# Monthly, and by hand when a region is added. Nothing here needs a computer of ours: the point
+# of the whole arrangement is that adding a country is one entry in regions.yml and the rest
+# happens on someone else's cores (see README).
+on:
+  schedule:
+    - cron: "17 2 1 * *"        # 02:17 UTC on the 1st — overnight for this car's timezone
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Space-separated package ids to build; empty means all of regions.yml"
+        required: false
+        default: ""
+
+concurrency:
+  group: build-maps
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.read.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: read
+        run: python3 scripts/plan.py "${{ inputs.packages }}" >> "$GITHUB_OUTPUT"
+
+  graph:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false          # one country failing must not stop the others
+      matrix:
+        package: ${{ fromJson(needs.plan.outputs.packages) }}
+    # PINNED, never :latest. On 2026-09-17 the floating tag lost `pkg-config` and the build died
+    # at a step that had worked for weeks — a monthly job must not change toolchain under us.
+    container:
+      image: ghcr.io/gis-ops/docker-valhalla/valhalla:3.5.1
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner's ~14 GB of free disk is the real ceiling here, not CPU. Clearing what the
+      # image ships with buys back several gigabytes and is the difference between building
+      # Romania and failing halfway through writing tiles.
+      - name: reclaim disk
+        run: |
+          df -h / | tail -1
+          rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
+          df -h / | tail -1
+
+      - name: build
+        run: |
+          mkdir -p /data
+          cp -r scripts /data/scripts
+          bash /data/scripts/build-graph.sh "${{ matrix.package }}" \
+            $(python3 scripts/regions-of.py "${{ matrix.package }}")
+
+      # THE GATE. A graph that builds is not a graph that routes: the car's runtime has no
+      # version check and will happily read a graph missing half a country. Only a route with a
+      # known answer proves anything (§7's probes).
+      - name: probe
+        run: bash scripts/probe.sh "/data/valhalla_${{ matrix.package }}.json" "${{ matrix.package }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: graph-${{ matrix.package }}
+          path: |
+            /data/out/${{ matrix.package }}.tar
+            /data/out/${{ matrix.package }}-graph.json
+          retention-days: 2
+
+  publish:
+    needs: [plan, graph]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: incoming
+
+      # A release asset is capped at 2 GiB while a release itself has no size or bandwidth
+      # limit, so anything bigger ships as parts and the car reassembles them. The whole file's
+      # sha256 is what gates activation; each part carries its own so a resumed download can be
+      # checked piece by piece.
+      - name: split oversized assets
+        run: python3 scripts/split-assets.py incoming
+
+      - name: upload to the rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view maps >/dev/null 2>&1 || \
+            gh release create maps --title "maps" --notes "Rolling map artifacts. See index.json."
+          find incoming -type f \( -name '*.tar' -o -name '*.tar.part*' -o -name '*.pmtiles' \) \
+            -exec gh release upload maps {} --clobber \;
+
+      # PUBLISH AND PROMOTE ARE DIFFERENT ACTS. The assets can sit in the release while no car
+      # sees them; index.json is what the cars read, and it only moves for packages whose probes
+      # passed. A failed build therefore leaves every car on last month's data rather than on a
+      # graph nobody drove.
+      - name: promote
+        run: python3 scripts/manifest.py incoming index.json
+
+      - name: commit the manifest
+        run: |
+          git config user.name "maps factory"
+          git config user.email "maps@users.noreply.github.com"
+          git add index.json
+          git diff --cached --quiet || git commit -m "maps: $(date -u +%Y-%m-%d)"
+          git push

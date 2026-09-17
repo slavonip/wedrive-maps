@@ -1,0 +1,10 @@
+# Built artifacts never live in git: they are hundreds of megabytes, they are regenerated every
+# month, and anything committed here is dragged down by every clone forever. They ship as release
+# assets instead (see README).
+*.tar
+*.tar.part*
+*.pmtiles
+*.osm.pbf
+/out/
+/src/
+__pycache__/
