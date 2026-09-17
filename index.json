@@ -107,11 +107,53 @@
       },
       "complete": true,
       "vintageSkewDays": 0
+    },
+    "at": {
+      "countries": [
+        "AT"
+      ],
+      "title": "Austria",
+      "regions": [
+        "europe/austria"
+      ],
+      "graph": {
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/at-2026-09-17.tar",
+        "bytes": 814581760,
+        "sha256": "85fe76db4dc14e437566e2160c2e8a3461d22e3bc5bd8c618fa0d626c92d6a79",
+        "parts": null,
+        "dataDate": "2026-09-17",
+        "engineVersion": "3.5.1"
+      },
+      "basemap": {
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/at-2026-09-17.pmtiles",
+        "bytes": 1057871790,
+        "sha256": "651d5b23e9425dae9a96107b484fc880899719b5fec9bf37b418b22aa5142979",
+        "parts": null,
+        "dataDate": "2026-09-17",
+        "schema": "protomaps-v4",
+        "maxzoom": 14,
+        "bbox": [
+          9.53,
+          46.37,
+          17.16,
+          49.02
+        ],
+        "upstreamBuild": "20260917.pmtiles"
+      },
+      "places": {
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/at-places.json",
+        "bytes": 836501,
+        "sha256": "9f9140f61c5401725235b38d85256e170e36983f9b217176f5688faf158d7c71",
+        "count": 12174
+      },
+      "complete": true,
+      "vintageSkewDays": 0
     }
   },
   "release": "2026-09-17",
   "countries": {
-    "HU": "Hungary",
+    "AT": "Austria",
+    "HU": "HU",
     "MD": "MD",
     "RO": "RO"
   }
