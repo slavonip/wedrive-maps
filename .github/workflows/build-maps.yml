@@ -283,15 +283,19 @@ jobs:
             for out in $(find incoming -name '*-output.txt' | sort); do
               echo "### ${out#incoming/}"
               echo '```'
-              cat "$out"
+              head -c 8000 "$out"
               echo '```'
               echo
             done
-            for meta in $(find incoming -name '*.json' | sort); do
+            # MANIFESTS ONLY, never the artifacts beside them. A search index is megabytes of
+            # JSON and GitHub refuses an issue body over 65536 characters — measured 2026-09-17,
+            # when the report step failed and the one notification the owner had asked for did
+            # not arrive, on the very run that most needed reporting.
+            for meta in $(find incoming -name '*-graph.json' -o -name '*-basemap.json'                                -o -name '*-index-meta.json' | sort); do
               echo "<details><summary>${meta#incoming/}</summary>"
               echo
               echo '```json'
-              cat "$meta"
+              head -c 4000 "$meta"
               echo '```'
               echo
               echo "</details>"
