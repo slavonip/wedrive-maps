@@ -44,8 +44,24 @@ def main(incoming: str, manifest: str) -> int:
         return 2
     build_id = build_ids.pop()
 
-    if any(not meta.get("timezones", True) for meta in metas):
-        print(f"{build_id}: built without timezones, NOT promoted")
+    # THE TIMEZONE FIELD IS AN OBJECT NOW, AND A NON-EMPTY DICT IS TRUTHY — so the old
+    # `not meta.get("timezones", True)` would have promoted a graph whose gate said ABSENT while
+    # looking exactly like a check. Read the verdict, not the presence of a verdict.
+    #
+    # The boolean form is still accepted because manifests published before 2026-09-17 carry it,
+    # and a stale manifest must not become unreadable just because the field grew.
+    def timezones_ok(meta) -> bool:
+        field = meta.get("timezones", True)
+        if isinstance(field, dict):
+            return field.get("compatibilityGate") == "PASS"
+        return bool(field)
+
+    unsound = [m for m in metas if not timezones_ok(m)]
+    if unsound:
+        verdicts = {str((m.get("timezones") or {}).get("compatibilityGate")
+                        if isinstance(m.get("timezones"), dict) else m.get("timezones"))
+                    for m in unsound}
+        print(f"{build_id}: timezone gate says {', '.join(sorted(verdicts))}, NOT promoted")
         return 0
 
     index = {

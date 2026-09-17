@@ -39,6 +39,38 @@ MASTER="$WORK/master_$REGION.osm.pbf"
 
 mkdir -p "$SRC" "$POLY" "$TILEDIR" "$CUTS" "$OUT"
 
+# ── WHAT THIS BUILD COSTS, measured rather than estimated ────────────────────────────────────
+# The factory's standing estimate was "roughly half an hour per gigabyte", extrapolated from a
+# handful of whole-JOB wall times that also contained PBF downloads and a basemap extract. The
+# four-country master then built its tiles in 357 s at 1.5 GB, which that rule cannot explain —
+# so the rule was measuring something other than what it claimed.
+#
+# Every build now records its own stages and its own peaks. Nothing here is for a scaling
+# experiment in particular: the point is that the curve accumulates from ORDINARY builds, so the
+# question "how big a master fits a runner" is answered by history rather than by one probe.
+METRICS="$OUT/build-metrics.json"
+STAGES="$WORK/stages.csv"
+SAMPLES="$WORK/samples.csv"
+echo "stage,seconds" > "$STAGES"
+BUILD_STARTED=$(date +%s)
+
+"$(dirname "${BASH_SOURCE[0]}")/sample-resources.sh" "$SAMPLES" "$WORK" &
+SAMPLER=$!
+# Killed however this script leaves, including the abort we spent a week chasing — a build that
+# dies is exactly the build whose peak memory we want to know.
+trap 'kill $SAMPLER 2>/dev/null || true' EXIT
+
+stage() {
+  local name="$1"
+  local now
+  now=$(date +%s)
+  if [ -n "${STAGE_NAME:-}" ]; then
+    echo "$STAGE_NAME,$((now - STAGE_STARTED))" >> "$STAGES"
+  fi
+  STAGE_NAME="$name"
+  STAGE_STARTED=$now
+}
+
 # ── osmium, for the merge ───────────────────────────────────────────────────────────────────
 # From Ubuntu's own archive rather than a third party's release, which is a different risk class
 # from the timezone shapefile that failed us — but it is still a fetch at 02:17, and if it ever
@@ -49,6 +81,7 @@ if ! command -v osmium >/dev/null; then
 fi
 osmium --version | head -1
 
+stage download
 PBFS=()
 CUT_ARGS=()
 for member in "${MEMBERS[@]}"; do
@@ -71,8 +104,10 @@ for member in "${MEMBERS[@]}"; do
   CUT_ARGS+=("$code:$poly")
 done
 
+SOURCE_BYTES=$(du -cb "${PBFS[@]}" | tail -1 | cut -f1)
 echo "==> sources: $(du -ch "${PBFS[@]}" | tail -1 | cut -f1) across ${#PBFS[@]} countries"
 
+stage merge
 echo '==> merging into one coherent extract'
 # Geofabrik extracts overlap at frontiers, so the same way appears in two files. `osmium merge`
 # resolves that properly: it merges sorted inputs and keeps one copy of each object, which is
@@ -84,6 +119,7 @@ echo "    master: $(du -h "$MASTER" | cut -f1)"
 # ── config: a DIRECTORY, not an extract ─────────────────────────────────────────────────────
 # A car assembles its graph from several per-country downloads, so it reads a tile_dir. Measured
 # 2026-09-17 with the engine held open: 175 ms more to open, and nothing measurable per route.
+stage config
 echo '==> config'
 valhalla_build_config \
   --mjolnir-tile-dir "$TILEDIR" \
@@ -101,9 +137,12 @@ PY
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-TIMEZONES=true
+# The gate writes its own verdict here and the manifest embeds it verbatim, so what a graph
+# claims about its timezone data is what the gate actually observed — not a shell variable
+# reassembled alongside it.
+TZ_VERDICT="$WORK/timezones.verdict.json"
+rm -f "$TZ_VERDICT"
 TZ_DATASET=unknown
-TZ_RUNTIME=unknown
 if [ -f /data/vendor/timezones.sqlite ]; then
   TZ_DATASET="$(cat /data/vendor/timezones.version 2>/dev/null || echo vendored)"
   echo "==> timezones (vendored, $TZ_DATASET)"
@@ -116,20 +155,21 @@ if [ -f /data/vendor/timezones.sqlite ]; then
   #
   # `set -e` is on, so a refusal stops the build here. That is the entire point: the alternative
   # is an abort with a core dump and nothing to bisect.
-  rm -f "$WORK/tzdata.runtime"
   python3 "$HERE/check-timezones.py" /data/vendor/timezones.sqlite \
-    --expect-dataset "$TZ_DATASET" --record "$WORK/tzdata.runtime"
-  if [ -f "$WORK/tzdata.runtime" ]; then TZ_RUNTIME="$(cat "$WORK/tzdata.runtime")"; fi
+    --expect-dataset "$TZ_DATASET" --record "$TZ_VERDICT"
 
   cp /data/vendor/timezones.sqlite "$TILEDIR/timezones.sqlite"
 else
   echo '::warning::no timezone database; this region cannot be promoted'
-  TIMEZONES=false
+  printf '{"dataset": null, "runtime": null, "compatibilityGate": "ABSENT", "zoneCount": 0}\n' \
+    > "$TZ_VERDICT"
 fi
 
+stage admins
 echo '==> admins'
 valhalla_build_admins -c "$CONF" "$MASTER"
 
+stage tiles
 echo '==> tiles: ONE build over ONE file'
 valhalla_build_tiles -c "$CONF" "$MASTER"
 
@@ -137,6 +177,7 @@ valhalla_build_tiles -c "$CONF" "$MASTER"
 # downstream needs it.
 rm -f "$MASTER"
 
+stage cut
 echo '==> cutting along national boundaries'
 python3 "$HERE/cut-by-country.py" "$TILEDIR" "$CUTS" "${CUT_ARGS[@]}"
 
@@ -177,6 +218,7 @@ print("   every shared tile is byte-identical")
 PY
 
 # ── one archive per country ─────────────────────────────────────────────────────────────────
+stage archives
 BUILD_ID="$REGION-$(date -u +%Y-%m-%d)"
 ENGINE="$(valhalla_build_tiles --version 2>&1 | awk '{print $2}')"
 
@@ -190,15 +232,16 @@ for member in "${MEMBERS[@]}"; do
   # countries independently: a tile is deleted only when no installed country still claims it,
   # and a month later only the tiles whose hash changed are fetched. Content addressing turns
   # both reference counting and delta updates into the same one mechanism.
-  python3 - "$CUTS/$code" "$code" "$BUILD_ID" "$REGION" "$ENGINE" "$TIMEZONES" "$TZ_DATASET" \
-    "$archive" "$TZ_RUNTIME" <<'META' > "$OUT/$code-tiles.json"
+  python3 - "$CUTS/$code" "$code" "$BUILD_ID" "$REGION" "$ENGINE" "$archive" "$TZ_VERDICT" \
+    <<'META' > "$OUT/$code-tiles.json"
 import hashlib
 import json
 import os
 import pathlib
 import sys
 
-cut, code, build_id, region, engine, timezones, tzdata, archive, tzruntime = sys.argv[1:10]
+cut, code, build_id, region, engine, archive, verdict_path = sys.argv[1:8]
+timezones = json.load(open(verdict_path))
 root = pathlib.Path(cut)
 tiles = []
 for path in sorted(root.rglob("*.gph")):
@@ -227,14 +270,19 @@ print(json.dumps({
     "region": region,
     "dataDate": build_id.rsplit("-", 3)[-3] + "-" + build_id.rsplit("-", 2)[-2] + "-"
                 + build_id.rsplit("-", 1)[-1],
-    "timezones": timezones == "true",
-    # WHICH RULES THIS GRAPH WAS BUILT UNDER, on both sides of the question. The zone is written
-    # into every node at build time and can never be corrected afterwards, so in six months the
-    # only way to know whether a graph predates a zone merge is to have written it down here:
-    # `tzdata` is the polygon dataset (timezone-boundary-builder), `tzdataRuntime` the tzdata of
-    # the image whose library accepted those identifiers.
-    "tzdata": tzdata,
-    "tzdataRuntime": tzruntime,
+    # WHICH RULES THIS GRAPH WAS BUILT UNDER. The zone is written into every node at build time
+    # and can never be corrected afterwards, so in six months the only way to know whether a graph
+    # predates a zone merge is to have written it down here — and BOTH halves are needed, because
+    # a deprecated identifier is a disagreement between the polygon dataset and the runtime's
+    # tzdata rather than a property of either alone.
+    #
+    #   dataset            the timezone-boundary-builder release the polygons came from
+    #   runtime            the tzdata of the image whose library accepted those identifiers
+    #   compatibilityGate  what check-timezones.py concluded before the build was allowed to start
+    #   zoneCount          NOT a check — a forensic fingerprint. A release that suddenly carries
+    #                      444 zones where every previous one carried 304 shows up here at a
+    #                      glance, before anyone opens a CI log.
+    "timezones": timezones,
     "tileCount": len(tiles),
     "bytes": os.path.getsize(archive),
     "sha256": whole.hexdigest(),
@@ -246,5 +294,15 @@ import json,sys
 m = json.load(open('$OUT/$code-tiles.json'))
 print(f\"{m['tileCount']} tiles, {m['bytes'] // 1048576} MB\")")"
 done
+
+stage end           # closes "archives"; "end" is a sentinel and is never reported
+
+# ── the measurement, written beside the artifacts ────────────────────────────────────────────
+kill $SAMPLER 2>/dev/null || true
+python3 "$HERE/summarise-build.py" "$STAGES" "$SAMPLES" "$TILEDIR" "$CUTS" \
+  --region "$REGION" --build-id "$BUILD_ID" --engine "$ENGINE" \
+  --sources "$SOURCE_BYTES" --members "${#MEMBERS[@]}" \
+  --elapsed "$(($(date +%s) - BUILD_STARTED))" > "$METRICS"
+cat "$METRICS"
 
 echo "==> done: $BUILD_ID"

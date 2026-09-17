@@ -1,0 +1,127 @@
+name: scale probe
+
+# HOW BIG A COHERENT MASTER CAN A RUNNER PRODUCE? That is the last open question in the country
+# architecture, and it is now the only thing standing between us and Europe.
+#
+# Everything else is settled by measurement: one master cut into countries gives 86 of 86 shared
+# frontier tiles byte-identical across four countries, so a car can install and remove countries
+# independently and still route across their borders. What is NOT known is where the runner
+# refuses — and the answer decides whether Europe is ONE master or two or three overlapping ones
+# (east and west sharing Austria, say). That is an infrastructure question, never a driver-facing
+# one: which countries share a master is the factory's business.
+#
+# THE ESTIMATE THIS REPLACES WAS MEASURING SOMETHING ELSE. "Roughly half an hour per gigabyte"
+# came from whole-JOB wall times that also contained gigabytes of PBF download and a basemap
+# extract over HTTP range requests. The four-country master then built its tiles in 357 s at
+# 1.5 GB of source — a rate that rule cannot explain. Both numbers were real; only one of them
+# was about tile building. So this probe separates the stages and reports a rate for each.
+#
+# Three limits bind, in an order nobody should guess at:
+#
+#     wall time    6 h per job, hard
+#     peak memory  the runner's RAM, and the likeliest to bind FIRST — a build wanting 17 GB on a
+#                  16 GB runner is killed by the OOM killer, which presents as a crash rather than
+#                  as a limit. We have just spent a week misreading exactly that shape of failure,
+#                  so this probe records the peak even when the build dies.
+#     peak disk    86 GB free after reclaiming
+#
+# It runs `build-master.sh` — the production path, not a lookalike — so the numbers transfer. It
+# publishes NOTHING: no release, no index, no manifest promotion. The output is one JSON row per
+# rung, and the rungs together are the curve.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rungs:
+        description: "Which rungs, comma-separated (e.g. 4,7) or 'all'"
+        required: true
+        default: "all"
+
+concurrency:
+  group: scale-probe
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: pick
+        shell: bash
+        env:
+          RUNGS: ${{ inputs.rungs }}
+        run: |
+          python3 scripts/scale-ladder.py "$RUNGS" >> "$GITHUB_OUTPUT"
+
+  measure:
+    needs: plan
+    strategy:
+      # THE WHOLE POINT IS TO FIND WHERE IT BREAKS, so one rung failing must not cancel the rest.
+      fail-fast: false
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    container:
+      image: ghcr.io/valhalla/valhalla:3.6.3
+      options: --user root
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: what this runner actually is
+        run: |
+          rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
+          echo "cores:  $(nproc)"
+          awk '/MemTotal/{printf "memory: %.1f GB\n", $2/1048576}' /proc/meminfo
+          df -h / | tail -1
+          # The ceiling the OOM killer enforces, which inside a container is not always MemTotal.
+          for f in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
+            if [ -r "$f" ]; then echo "cgroup limit: $(cat "$f")"; fi
+          done
+
+      - name: timezone database
+        run: |
+          mkdir -p /data/vendor
+          base="${{ github.server_url }}/${{ github.repository }}/releases/download/maps-vendor"
+          curl -fsSL -o /data/vendor/timezones.sqlite "$base/timezones.sqlite"
+          curl -fsSL -o /data/vendor/timezones.version "$base/timezones.version"
+
+      # The same gate every production build passes, for the same reason: a dataset that cannot
+      # serve these countries would make the rung measure a crash instead of a build.
+      - name: timezone gate
+        run: |
+          python3 scripts/check-timezones.py /data/vendor/timezones.sqlite \
+            --expect-dataset "$(cat /data/vendor/timezones.version)"
+
+      - name: build the master
+        run: |
+          mkdir -p /data && cp -r scripts /data/scripts
+          bash /data/scripts/build-master.sh "scale-${{ matrix.rung }}" ${{ matrix.members }}
+
+      # Runs even when the build was killed, because a rung that does not fit is the measurement
+      # we came for. `build-metrics.json` exists only if the build reached its end, so the raw
+      # samples are the fallback — and they are what carry the peak.
+      - name: what it cost
+        if: always()
+        env:
+          RUNG: ${{ matrix.rung }}
+          SOURCE_GB: ${{ matrix.gb }}
+        run: |
+          mkdir -p measurements
+          cp /data/out/build-metrics.json "measurements/rung-$RUNG.json" 2>/dev/null \
+            || echo "no metrics file — this build did not reach the end"
+          cp /data/samples.csv "measurements/rung-$RUNG-samples.csv" 2>/dev/null || true
+          cp /data/stages.csv "measurements/rung-$RUNG-stages.csv" 2>/dev/null || true
+          python3 scripts/peak-from-samples.py "measurements/rung-$RUNG-samples.csv" \
+            --label "rung $RUNG ($SOURCE_GB GB)" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scale-rung-${{ matrix.rung }}
+          path: measurements/
+          retention-days: 30

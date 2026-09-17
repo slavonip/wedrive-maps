@@ -28,6 +28,7 @@ A build refused here costs a second. The same build refused by Valhalla costs ha
 a core dump, and — as this week showed — does not necessarily say why.
 """
 import argparse
+import json
 import pathlib
 import sqlite3
 import sys
@@ -106,7 +107,7 @@ def main() -> int:
     parser.add_argument("--expect-dataset", default=None,
                         help="the version the manifest claims, for cross-checking")
     parser.add_argument("--record", default=None,
-                        help="write the runtime's tzdata version here, for the manifest")
+                        help="write this gate's verdict here as JSON, for the manifest")
     parser.add_argument("--zoneinfo", default="/usr/share/zoneinfo",
                         help="the RUNTIME's own tzdata, which decides what it will accept")
     args = parser.parse_args()
@@ -183,10 +184,20 @@ def main() -> int:
         return 2
 
     print("   no deprecated identifiers; safe to build with")
-    if args.record and runtime_version:
-        # Handed back to the build so a graph records the rules it was built under on BOTH sides:
-        # the polygon dataset and the runtime's own tzdata.
-        pathlib.Path(args.record).write_text(runtime_version)
+    if args.record:
+        # Handed back to the build so a graph records the rules it was built under. Both versions,
+        # because a conditional-routing oddity a year from now is only diagnosable if the graph
+        # says which polygon dataset it was cut from AND which tzdata accepted those identifiers.
+        #
+        # `zoneCount` is NOT a compatibility check and must not be read as one — it is a forensic
+        # fingerprint. A release that suddenly carries 444 zones where every previous one carried
+        # 304 is visible in one glance at the manifest, before anyone opens a CI log.
+        pathlib.Path(args.record).write_text(json.dumps({
+            "dataset": args.expect_dataset or "unknown",
+            "runtime": runtime_version or "unknown",
+            "compatibilityGate": "PASS",
+            "zoneCount": len(zones),
+        }, indent=2))
     return 0
 
 
