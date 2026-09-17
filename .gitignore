@@ -8,3 +8,7 @@
 /out/
 /src/
 __pycache__/
+
+# Scratch from interrogating CI logs — never part of the factory
+.*.log
+.rung*.json
