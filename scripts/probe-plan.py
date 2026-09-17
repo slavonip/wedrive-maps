@@ -26,13 +26,14 @@ import itertools
 import json
 import sys
 
-import yaml
+import packages as packages_module
 
-REQUIRED_COUNTRY_PROBES = ("timezone", "timezone_at", "oneway", "grade_separation")
+REQUIRED_COUNTRY_PROBES = ("region", "timezone", "timezone_at", "oneway",
+                           "grade_separation")
 
 
 def load() -> dict:
-    return yaml.safe_load(open("regions.yml", encoding="utf-8"))
+    return packages_module.load()
 
 
 def border_key(a: str, b: str) -> str:
@@ -42,15 +43,14 @@ def border_key(a: str, b: str) -> str:
 
 def coverage_problems(config: dict, package_id: str) -> list:
     """Everything this package is missing, as sentences. Empty means covered."""
-    package = config.get("packages", {}).get(package_id)
-    if package is None:
-        return [f"package '{package_id}' is not in regions.yml"]
-
     countries = config.get("countries", {})
     borders = config.get("borders", {})
     problems = []
 
-    listed = package.get("countries", [])
+    try:
+        listed = packages_module.countries_of(config, package_id)
+    except ValueError as error:
+        return [str(error)]
     if not listed:
         problems.append(f"{package_id} lists no countries")
 
@@ -84,10 +84,9 @@ def coverage_problems(config: dict, package_id: str) -> list:
 
 def plan_for(config: dict, package_id: str) -> dict:
     """The concrete probes, as the container-side runner wants them."""
-    package = config["packages"][package_id]
     countries = config.get("countries", {})
     borders = config.get("borders", {})
-    listed = package.get("countries", [])
+    listed = packages_module.countries_of(config, package_id)
 
     probes = []
     for code in listed:
@@ -117,7 +116,8 @@ def plan_for(config: dict, package_id: str) -> dict:
             "min_km": entry.get("min_km", 1), "max_km": entry.get("max_km", 2000),
         })
 
-    return {"package": package_id, "countries": listed, "probes": probes}
+    return {"package": package_id, "title": packages_module.title_of(config, package_id),
+            "countries": listed, "probes": probes}
 
 
 def main() -> int:

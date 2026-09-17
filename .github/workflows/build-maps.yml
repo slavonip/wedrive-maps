@@ -9,7 +9,12 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: "Space-separated package ids to build; empty means all of regions.yml"
+        description: >
+          Space-separated package ids. Empty builds the named list in regions.yml.
+          An id need not be listed: md-ro-ua is derived from its country codes, so planning a
+          trip through a new combination is a dispatch, not a commit. The countries themselves
+          must have blocks under `countries:` — if one does not, this fails in a second and
+          says which.
         required: false
         default: ""
 

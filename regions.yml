@@ -14,23 +14,23 @@
 # routing tiles and the basemap both come from, so the two halves of a package cannot drift to
 # different vintages.
 
+# NAMED packages are the ones built every month, unattended. They are a short list on purpose:
+# N countries have 2^N subsets and the car drives a handful of them.
+#
+# ANY OTHER COMBINATION IS BUILT ON DEMAND WITHOUT EDITING THIS FILE. A package id that is not
+# listed here but reads as country codes joined by dashes — `md-ro-ua`, `ro-hu` — is derived
+# from the `countries:` block below: its regions are those countries' Geofabrik paths and its
+# probes are those countries' probes plus the border routes between them. So planning a trip
+# through a country the car has never carried is `workflow_dispatch` with `md-ro-ua`, not a
+# commit. Adding a COUNTRY is the real cost, and it is paid once.
 packages:
   md:
     title: Moldova
     countries: [MD]
-    regions:
-      - europe/moldova
 
   md-ro:
     title: Moldova + Romania
     countries: [MD, RO]
-    regions:
-      - europe/moldova
-      - europe/romania
-
-  # Deliberately not enumerated further until the car actually needs them: thirty countries have
-  # a billion subsets, and the factory builds the handful that match how this car is driven.
-  # md-ro-ua, ro-bg and the rest are added the day a trip needs them.
 
 # ── What must hold INSIDE each country ──────────────────────────────────────────────────────
 #
@@ -59,6 +59,7 @@ packages:
 countries:
   MD:
     name: Moldova
+    region: europe/moldova
     timezone: Europe/Chisinau
     timezone_at: [47.0105, 28.8638]                  # Chișinău, city centre
     # Strada Alexandr Pușkin — §7's original one-way measurement, 2026-08-29
@@ -69,6 +70,7 @@ countries:
 
   RO:
     name: Romania
+    region: europe/romania
     timezone: Europe/Bucharest
     timezone_at: [47.1585, 27.6014]                  # Iași
     # Strada Morilor, Iași (OSM way 22970064), 402 m one-way

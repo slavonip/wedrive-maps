@@ -7,26 +7,34 @@ be run locally with the same file it will read in CI.
 import json
 import sys
 
-import yaml
+import packages as packages_module
 
 
 def main() -> int:
     wanted = (sys.argv[1] if len(sys.argv) > 1 else "").split()
-    config = yaml.safe_load(open("regions.yml", encoding="utf-8"))
-    packages = list(config.get("packages", {}))
+    config = packages_module.load()
 
     if wanted:
-        unknown = [p for p in wanted if p not in packages]
-        if unknown:
-            print(f"unknown package(s): {', '.join(unknown)}", file=sys.stderr)
-            return 2
-        packages = wanted
+        # An id need not be named in regions.yml: `md-ro-ua` is derived from its country codes,
+        # which is what makes "plan a trip through a new country" a dispatch rather than a
+        # commit. It still has to RESOLVE, and the error says what is missing.
+        for package_id in wanted:
+            try:
+                packages_module.countries_of(config, package_id)
+            except ValueError as error:
+                print(error, file=sys.stderr)
+                return 2
+        chosen = wanted
+    else:
+        # The scheduled run builds exactly the named list: an unattended monthly job must not
+        # invent work for itself.
+        chosen = list(config.get("packages", {}))
 
-    if not packages:
+    if not chosen:
         print("regions.yml defines no packages", file=sys.stderr)
         return 2
 
-    print("packages=" + json.dumps(packages))
+    print("packages=" + json.dumps(chosen))
     return 0
 
 
