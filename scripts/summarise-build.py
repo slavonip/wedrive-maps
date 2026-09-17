@@ -78,7 +78,7 @@ def counters(path):
     if not path:
         return {}
     try:
-        text = pathlib.Path(path).read_text(errors="replace")
+        text = pathlib.Path(path).read_text(encoding="utf-8", errors="replace")
     except FileNotFoundError:
         return {}
     found = {}

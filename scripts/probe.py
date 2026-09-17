@@ -157,10 +157,60 @@ def probe_border(config: str, probe: dict, report: Report) -> None:
     report.ok(name, f"{km:.1f} km")
 
 
+def probe_admin(config: str, probe: dict, report: Report) -> None:
+    """Which COUNTRY does the finished graph think this point is in?
+
+    `valhalla_build_admins` drops admin records routinely — 30 of them on the four-country build —
+    and upstream says to ignore that on an extract. `check-admins.py` verifies that none of the
+    dropped records name a country we are building; this verifies the other half, that the
+    records which were NOT dropped actually landed in the graph.
+
+    **No routing probe can see this.** Admin records carry driving side, access defaults and
+    country-crossing costs. A graph that lost them still returns routes, still returns plausible
+    distances, and is quietly wrong about which side of the road to drive on — which is why this
+    is asked directly rather than inferred from a route that came back.
+
+    `trace_attributes` returns an `admins` array alongside the edges, and each edge indexes into
+    it. Asked over a three-point shape so there is something to match against.
+    """
+    lat, lon = probe["at"]
+    name = probe["name"]
+    request = {
+        "shape": [{"lat": lat, "lon": lon},
+                  {"lat": lat + 0.002, "lon": lon + 0.002},
+                  {"lat": lat + 0.004, "lon": lon + 0.004}],
+        "costing": "auto",
+        "shape_match": "map_snap",
+    }
+    try:
+        out = subprocess.run(["valhalla_service", config, "trace_attributes", json.dumps(request)],
+                             capture_output=True, text=True, timeout=180).stdout
+        answer = json.loads(out)
+    except Exception:                              # noqa: BLE001
+        answer = None
+
+    if not answer:
+        report.fail(name, "trace_attributes returned nothing, so the admin data is UNKNOWN "
+                          "rather than absent")
+        return
+
+    admins = answer.get("admins") or []
+    codes = sorted({a.get("country_code") for a in admins if a.get("country_code")})
+    if not codes:
+        report.fail(name, f"the graph attributes this point to no country at all, expected "
+                          f"{probe['expect']} — the admin records did not land")
+    elif probe["expect"] in codes:
+        detail = codes[0] if len(codes) == 1 else "/".join(codes)
+        report.ok(name, detail)
+    else:
+        report.fail(name, f"{'/'.join(codes)}, expected {probe['expect']}")
+
+
 PROBES = {
     "oneway": probe_oneway,
     "grade_separation": probe_grade_separation,
     "timezone": probe_timezone,
+    "admin": probe_admin,
     "border": probe_border,
 }
 

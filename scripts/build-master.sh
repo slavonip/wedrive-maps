@@ -197,7 +197,21 @@ fi
 
 stage admins
 echo '==> admins'
-valhalla_build_admins -c "$CONF" "$MASTER"
+valhalla_build_admins -c "$CONF" "$MASTER" 2>&1 | tee "$WORK/admins.log"
+
+# ── DID THE ADMIN BUILD DROP ANYTHING WE ARE BUILDING? ──────────────────────────────────────
+# It drops records routinely — 30 on the four-country build — and upstream says to ignore that on
+# an extract. That is probably right, and "probably right, according to someone else, about a
+# message we have never read" is the exact shape in which the timezone abort survived eight runs.
+# So it is counted rather than silenced: every dropped record naming a country ABSENT from this
+# extract is expected; one naming a country we are building is refused.
+#
+# Admin records carry driving side, access defaults and country-crossing costs. A graph that lost
+# them still returns routes, which is why no routing probe would ever notice.
+ADMIN_VERDICT="$WORK/admins.verdict.json"
+MEMBER_CODES=()
+for member in "${MEMBERS[@]}"; do MEMBER_CODES+=("${member%%:*}"); done
+python3 "$HERE/check-admins.py" "$WORK/admins.log" --record "$ADMIN_VERDICT"   --expect "${MEMBER_CODES[@]}"
 
 stage tiles
 echo '==> tiles: ONE build over ONE file'
@@ -274,14 +288,14 @@ for member in "${MEMBERS[@]}"; do
   # and a month later only the tiles whose hash changed are fetched. Content addressing turns
   # both reference counting and delta updates into the same one mechanism.
   python3 - "$CUTS/$code" "$code" "$BUILD_ID" "$REGION" "$ENGINE" "$archive" \
-    "$TZ_VERDICT" "$OSM_VERDICT" <<'META' > "$OUT/$code-tiles.json"
+    "$TZ_VERDICT" "$OSM_VERDICT" "$ADMIN_VERDICT" <<'META' > "$OUT/$code-tiles.json"
 import hashlib
 import json
 import os
 import pathlib
 import sys
 
-cut, code, build_id, region, engine, archive, tz_path, osm_path = sys.argv[1:9]
+cut, code, build_id, region, engine, archive, tz_path, osm_path, admin_path = sys.argv[1:10]
 timezones = json.load(open(tz_path))
 try:
     osm = json.load(open(osm_path))
@@ -292,6 +306,13 @@ try:
            "maxAgeDays": osm.get("maxAgeDays")}
 except Exception:                                  # noqa: BLE001
     osm = {"snapshot": None, "freshnessGate": "UNCHECKED"}
+
+try:
+    verdict = json.load(open(admin_path))
+    admins = {"adminsGate": verdict.get("adminsGate"),
+              "droppedCount": verdict.get("droppedCount")}
+except Exception:                                  # noqa: BLE001
+    admins = {"adminsGate": "UNCHECKED", "droppedCount": None}
 root = pathlib.Path(cut)
 tiles = []
 for path in sorted(root.rglob("*.gph")):
@@ -337,6 +358,10 @@ print(json.dumps({
     # that ran this morning can be routing on data from three months ago, and the download time
     # cannot tell you which.
     "osm": osm,
+    # How many admin records the build dropped, and the verdict on whether any of them mattered.
+    # Kept because "30 dropped, none of them ours" is a property worth being able to check has
+    # not changed, rather than a warning nobody reads.
+    "admins": admins,
     "tileCount": len(tiles),
     "bytes": os.path.getsize(archive),
     "sha256": whole.hexdigest(),

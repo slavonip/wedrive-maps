@@ -40,6 +40,12 @@ def plan_for_countries(config: dict, plan_id: str, members: list) -> dict:
         probes.append({"kind": "timezone", "name": f"{label}: timezone",
                        "at": [lat, lon], "expect": c["timezone"]})
 
+        # Same coordinate, different question, and no extra configuration: the country code IS
+        # the key in regions.yml. Admin records carry driving side, access defaults and
+        # country-crossing costs, none of which a route coming back would reveal as missing.
+        probes.append({"kind": "admin", "name": f"{label}: country",
+                       "at": [lat, lon], "expect": code})
+
         f_lat, f_lon, t_lat, t_lon = c["oneway"]
         probes.append({"kind": "oneway", "name": f"{label}: one-way",
                        "from": [f_lat, f_lon], "to": [t_lat, t_lon]})
