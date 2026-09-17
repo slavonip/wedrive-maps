@@ -1,0 +1,265 @@
+{
+  "city": "AT",
+  "candidates": [
+    {
+      "bridge": "Hochstraße St. Marx",
+      "under": "Litfaßstraße",
+      "separation_m": 79,
+      "from": [
+        48.187644,
+        16.408707
+      ],
+      "to": [
+        48.18726,
+        16.409606
+      ]
+    },
+    {
+      "bridge": "Südosttangente",
+      "under": "way 1296114321",
+      "separation_m": 77,
+      "from": [
+        48.151392,
+        16.346109
+      ],
+      "to": [
+        48.151675,
+        16.347061
+      ]
+    },
+    {
+      "bridge": "Gürtelbrücke",
+      "under": "Heiligenstädter Lände",
+      "separation_m": 77,
+      "from": [
+        48.236283,
+        16.359579
+      ],
+      "to": [
+        48.23622,
+        16.360617
+      ]
+    },
+    {
+      "bridge": "Floridsdorfer Hauptstraße",
+      "under": "Am Rollerdamm",
+      "separation_m": 77,
+      "from": [
+        48.250261,
+        16.391372
+      ],
+      "to": [
+        48.249588,
+        16.39163
+      ]
+    },
+    {
+      "bridge": "Floridsdorfer Hauptstraße",
+      "under": "Am Rollerdamm",
+      "separation_m": 75,
+      "from": [
+        48.250231,
+        16.391312
+      ],
+      "to": [
+        48.249588,
+        16.39163
+      ]
+    },
+    {
+      "bridge": "Prater Hochstraße",
+      "under": "Südosttangente",
+      "separation_m": 74,
+      "from": [
+        48.200852,
+        16.427927
+      ],
+      "to": [
+        48.201397,
+        16.428507
+      ]
+    },
+    {
+      "bridge": "Floridsdorfer Brücke",
+      "under": "Floridsdorfer Hauptstraße",
+      "separation_m": 74,
+      "from": [
+        48.249597,
+        16.389861
+      ],
+      "to": [
+        48.249957,
+        16.3907
+      ]
+    },
+    {
+      "bridge": "Hochstraße Inzersdorf",
+      "under": "Südosttangente",
+      "separation_m": 72,
+      "from": [
+        48.151392,
+        16.346109
+      ],
+      "to": [
+        48.151742,
+        16.346918
+      ]
+    },
+    {
+      "bridge": "Umfahrung Klosterneuburg",
+      "under": "Wiener Straße",
+      "separation_m": 71,
+      "from": [
+        48.309195,
+        16.32768
+      ],
+      "to": [
+        48.308805,
+        16.326915
+      ]
+    },
+    {
+      "bridge": "Nordbrücke",
+      "under": "Donauufer Autobahn",
+      "separation_m": 71,
+      "from": [
+        48.256627,
+        16.384269
+      ],
+      "to": [
+        48.256746,
+        16.385217
+      ]
+    },
+    {
+      "bridge": "Hochstraße St. Marx",
+      "under": "Erdbergstraße",
+      "separation_m": 70,
+      "from": [
+        48.190788,
+        16.413274
+      ],
+      "to": [
+        48.191264,
+        16.41389
+      ]
+    },
+    {
+      "bridge": "Hochstraße St. Marx",
+      "under": "Geiereckstraße",
+      "separation_m": 70,
+      "from": [
+        48.177381,
+        16.399949
+      ],
+      "to": [
+        48.176789,
+        16.399617
+      ]
+    },
+    {
+      "bridge": "Hochstraße St. Marx",
+      "under": "Erdbergstraße",
+      "separation_m": 69,
+      "from": [
+        48.190869,
+        16.413156
+      ],
+      "to": [
+        48.191362,
+        16.41373
+      ]
+    },
+    {
+      "bridge": "Nordbrücke",
+      "under": "Donauufer Autobahn",
+      "separation_m": 69,
+      "from": [
+        48.256725,
+        16.384289
+      ],
+      "to": [
+        48.256746,
+        16.385217
+      ]
+    },
+    {
+      "bridge": "Schönbrunner Allee",
+      "under": "Ortsstraße",
+      "separation_m": 68,
+      "from": [
+        48.123729,
+        16.328968
+      ],
+      "to": [
+        48.12432,
+        16.329214
+      ]
+    },
+    {
+      "bridge": "Hofkirchnergasse",
+      "under": "Hundskehle",
+      "separation_m": 68,
+      "from": [
+        48.30733,
+        16.323201
+      ],
+      "to": [
+        48.306916,
+        16.323884
+      ]
+    },
+    {
+      "bridge": "Prager Straße",
+      "under": "Einzingergasse",
+      "separation_m": 67,
+      "from": [
+        48.282374,
+        16.38574
+      ],
+      "to": [
+        48.281893,
+        16.385197
+      ]
+    },
+    {
+      "bridge": "Hochstraße St. Marx",
+      "under": "Schlechtastraße",
+      "separation_m": 67,
+      "from": [
+        48.179457,
+        16.400812
+      ],
+      "to": [
+        48.179782,
+        16.400058
+      ]
+    },
+    {
+      "bridge": "Strebersdorfer Straße",
+      "under": "Lieleggweg",
+      "separation_m": 66,
+      "from": [
+        48.285415,
+        16.401717
+      ],
+      "to": [
+        48.284893,
+        16.402148
+      ]
+    },
+    {
+      "bridge": "Hochstraße Handelskai",
+      "under": "way 672348305",
+      "separation_m": 65,
+      "from": [
+        48.251763,
+        16.375297
+      ],
+      "to": [
+        48.252345,
+        16.375186
+      ]
+    }
+  ]
+}

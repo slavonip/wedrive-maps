@@ -1,0 +1,265 @@
+{
+  "city": "HU",
+  "candidates": [
+    {
+      "bridge": "Váci út",
+      "under": "way 395999350",
+      "separation_m": 80,
+      "from": [
+        47.595247,
+        19.08924
+      ],
+      "to": [
+        47.595691,
+        19.090075
+      ]
+    },
+    {
+      "bridge": "Keled út",
+      "under": "way 959059029",
+      "separation_m": 67,
+      "from": [
+        47.566377,
+        19.04488
+      ],
+      "to": [
+        47.565802,
+        19.04462
+      ]
+    },
+    {
+      "bridge": "Árpád híd",
+      "under": "Schulek Frigyes sétány",
+      "separation_m": 63,
+      "from": [
+        47.537445,
+        19.0545
+      ],
+      "to": [
+        47.537498,
+        19.053663
+      ]
+    },
+    {
+      "bridge": "Virágosnyereg út",
+      "under": "way 401109077",
+      "separation_m": 62,
+      "from": [
+        47.576575,
+        19.00876
+      ],
+      "to": [
+        47.577087,
+        19.009086
+      ]
+    },
+    {
+      "bridge": "Keserűvíz utca",
+      "under": "Gyógyvíz utca",
+      "separation_m": 59,
+      "from": [
+        47.455056,
+        19.003287
+      ],
+      "to": [
+        47.454678,
+        19.002746
+      ]
+    },
+    {
+      "bridge": "Ferdinánd híd",
+      "under": "Podmaniczky utca",
+      "separation_m": 58,
+      "from": [
+        47.512831,
+        19.063431
+      ],
+      "to": [
+        47.512416,
+        19.063907
+      ]
+    },
+    {
+      "bridge": "Erzsébet híd",
+      "under": "Raoul Wallenberg rakpart",
+      "separation_m": 57,
+      "from": [
+        47.490444,
+        19.047932
+      ],
+      "to": [
+        47.490347,
+        19.047187
+      ]
+    },
+    {
+      "bridge": "Margit híd",
+      "under": "Schulek Frigyes sétány",
+      "separation_m": 53,
+      "from": [
+        47.515569,
+        19.043754
+      ],
+      "to": [
+        47.516021,
+        19.043964
+      ]
+    },
+    {
+      "bridge": "Margit híd",
+      "under": "Carl Lutz rakpart",
+      "separation_m": 53,
+      "from": [
+        47.513837,
+        19.045838
+      ],
+      "to": [
+        47.513729,
+        19.046519
+      ]
+    },
+    {
+      "bridge": "Leányka utcai felüljáró",
+      "under": "Kőtár út",
+      "separation_m": 52,
+      "from": [
+        47.436142,
+        19.037269
+      ],
+      "to": [
+        47.435928,
+        19.037878
+      ]
+    },
+    {
+      "bridge": "Róbert Károly körút",
+      "under": "Népfürdő utca",
+      "separation_m": 49,
+      "from": [
+        47.536022,
+        19.060499
+      ],
+      "to": [
+        47.535659,
+        19.060131
+      ]
+    },
+    {
+      "bridge": "Ráby Mátyás utca",
+      "under": "Kert sor",
+      "separation_m": 44,
+      "from": [
+        47.59046,
+        19.047122
+      ],
+      "to": [
+        47.590263,
+        19.047633
+      ]
+    },
+    {
+      "bridge": "Flórián téri felüljáró",
+      "under": "Szentendrei út",
+      "separation_m": 43,
+      "from": [
+        47.543695,
+        19.042086
+      ],
+      "to": [
+        47.544018,
+        19.042401
+      ]
+    },
+    {
+      "bridge": "way 516240464",
+      "under": "Ürömi út",
+      "separation_m": 43,
+      "from": [
+        47.584203,
+        19.000711
+      ],
+      "to": [
+        47.583976,
+        19.000248
+      ]
+    },
+    {
+      "bridge": "Ady Endre út",
+      "under": "Katona utca",
+      "separation_m": 41,
+      "from": [
+        47.436373,
+        19.034724
+      ],
+      "to": [
+        47.436351,
+        19.035264
+      ]
+    },
+    {
+      "bridge": "Madarász Viktor utca",
+      "under": "Lomb utca",
+      "separation_m": 41,
+      "from": [
+        47.542737,
+        19.073219
+      ],
+      "to": [
+        47.54239,
+        19.073059
+      ]
+    },
+    {
+      "bridge": "Irinyi József utca",
+      "under": "Goldmann György tér",
+      "separation_m": 39,
+      "from": [
+        47.477509,
+        19.060523
+      ],
+      "to": [
+        47.477807,
+        19.060798
+      ]
+    },
+    {
+      "bridge": "Árpád híd",
+      "under": "Schulek Frigyes sétány",
+      "separation_m": 38,
+      "from": [
+        47.537524,
+        19.054167
+      ],
+      "to": [
+        47.537498,
+        19.053663
+      ]
+    },
+    {
+      "bridge": "Árpád híd",
+      "under": "Schulek Frigyes sétány",
+      "separation_m": 38,
+      "from": [
+        47.537524,
+        19.054167
+      ],
+      "to": [
+        47.537498,
+        19.053663
+      ]
+    },
+    {
+      "bridge": "Deák Ferenc híd",
+      "under": "way 148898547",
+      "separation_m": 37,
+      "from": [
+        47.392822,
+        19.012614
+      ],
+      "to": [
+        47.393121,
+        19.012829
+      ]
+    }
+  ]
+}

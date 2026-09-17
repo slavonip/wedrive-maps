@@ -1,0 +1,168 @@
+name: build region
+
+# THE NEW PIPELINE, RUNNING BESIDE THE OLD ONE ON PURPOSE (owner, 2026-09-17: "чтобы не ломать
+# что есть, можем сделать в копии"). `build-maps.yml` keeps producing whole packages into the
+# `maps` release and `index.json`, which is what the car uses today. This one produces per-country
+# tile sets into a separate `tiles` release and `index-tiles.json`, and nothing switches over
+# until the cut path has proved itself in the vehicle.
+#
+# The difference is the ORDER. A package is built from its own PBFs and shipped whole. A region is
+# built ONCE over every country in it and cut afterwards, so the frontier has edges and a car can
+# hold two countries as separate downloads and still drive between them.
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: "Super-region id from regions.yml (e.g. eu-core)"
+        required: true
+        default: "eu-core"
+  schedule:
+    # A week after the package build, so the two never contend for the same runner minutes while
+    # both exist. Moves to the 1st when the packages are retired.
+    - cron: "17 2 8 * *"
+
+concurrency:
+  group: build-region
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      members: ${{ steps.read.outputs.members }}
+      countries: ${{ steps.read.outputs.countries }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Coverage first, as in the package pipeline: a country with no probes must fail in a
+      # second rather than after an hours-long build over five countries.
+      - name: the region is covered by probes
+        run: |
+          pip install --quiet pyyaml
+          python3 scripts/region-plan.py "${{ inputs.region || 'eu-core' }}" --check
+
+      - id: read
+        run: |
+          pip install --quiet pyyaml
+          python3 scripts/region-plan.py "${{ inputs.region || 'eu-core' }}" \
+            >> "$GITHUB_OUTPUT"
+
+      - name: derive each country's probe plan
+        run: |
+          python3 scripts/region-plan.py "${{ inputs.region || 'eu-core' }}" --plans plan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: region-plan
+          path: plan/
+          retention-days: 2
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/gis-ops/docker-valhalla/valhalla:3.5.1
+      options: --user root
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      # A five-country build is the first thing here big enough for disk to matter. Measured
+      # 2026-09-17: a runner has 145 GB with 86 GB free, an order of magnitude more than the
+      # 14 GB this repo used to assume — but the 6-hour job limit is real and is why all of
+      # Europe (32.6 GB of PBF) is the destination rather than the starting point.
+      - name: reclaim disk
+        run: |
+          rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
+          df -h / | tail -1
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: region-plan
+          path: plan
+
+      - name: vendored timezone database
+        run: |
+          mkdir -p /data/vendor
+          base="${{ github.server_url }}/${{ github.repository }}/releases/download/maps-vendor"
+          if curl -fsSL -o /data/vendor/timezones.sqlite "$base/timezones.sqlite" &&
+             curl -fsSL -o /data/vendor/timezones.version "$base/timezones.version"; then
+            echo "vendored timezones $(cat /data/vendor/timezones.version)"
+          else
+            rm -f /data/vendor/timezones.sqlite
+            echo "::warning::no vendored timezone database; this region cannot be promoted"
+          fi
+
+      - name: build and cut
+        run: |
+          mkdir -p /data
+          cp -r scripts /data/scripts
+          bash /data/scripts/build-region.sh "${{ inputs.region || 'eu-core' }}" \
+            ${{ needs.plan.outputs.members }}
+
+      # THE GATE, over the ASSEMBLED cuts rather than the whole build — because assembled is
+      # what a car will actually read, and the difference between the two is the entire question
+      # this pipeline exists to answer.
+      - name: probe the assembled cuts
+        run: |
+          set +e
+          python3 scripts/probe-cuts.py "/data/cuts_${{ inputs.region || 'eu-core' }}" \
+            plan 2>&1 | tee /data/cuts-output.txt
+          exit "${PIPESTATUS[0]}"
+
+      - name: report the probes
+        if: always()
+        run: |
+          {
+            echo "### region: ${{ inputs.region || 'eu-core' }}"
+            echo
+            echo '```'
+            cat /data/cuts-output.txt 2>/dev/null || echo "the probes did not run"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: country-tiles
+          path: |
+            /data/out/*-tiles.tar
+            /data/out/*-tiles.json
+            /data/cuts-output.txt
+          retention-days: 2
+          if-no-files-found: warn
+
+  publish:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: incoming
+
+      - name: upload to the tiles release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view tiles >/dev/null 2>&1 || gh release create tiles \
+            --title "country tiles" \
+            --notes "Per-country Valhalla tiles, cut from one build so they reassemble. Map data © OpenStreetMap contributors, ODbL."
+          find incoming -name '*-tiles.tar' -exec gh release upload tiles {} --clobber \;
+
+      - name: promote
+        run: |
+          pip install --quiet pyyaml
+          python3 scripts/manifest-tiles.py incoming index-tiles.json
+
+      - name: commit the manifest
+        run: |
+          git config user.name "maps factory"
+          git config user.email "maps@users.noreply.github.com"
+          git add index-tiles.json
+          git diff --cached --quiet || git commit -m "tiles: $(date -u +%Y-%m-%d)"
+          git push

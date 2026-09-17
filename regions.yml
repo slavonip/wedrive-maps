@@ -93,6 +93,44 @@ countries:
     # scripts/verify-candidates.py is for.
     grade_separation: [47.144962, 27.582142, 47.144948, 27.582485, 26]
 
+  UA:
+    name: Ukraine
+    region: europe/ukraine
+    bbox: [22.13, 44.01, 40.24, 52.39]
+    # Europe/KYIV, not Europe/Kiev. Asked of the vendored 2024a database rather than typed from
+    # memory — the rename landed in tzdata 2022b and both spellings are still in circulation.
+    timezone: Europe/Kyiv
+    timezone_at: [50.4501, 30.5234]                  # Kyiv
+    # Вознесенський узвіз (OSM way 729978619), 402 m one-way
+    oneway: [50.459972, 30.505928, 50.462681, 30.506632]
+    # Венеційський міст, 73 m above the way beneath it. UNVERIFIED BY ROUTER: OSM tags cannot
+    # tell a grade separation from an interchange, so the first build that contains Ukraine is
+    # what confirms it. A failing probe here means swapping in the next candidate from
+    # candidates-ua.json, not that the graph is broken.
+    grade_separation: [50.447646, 30.575772, 50.44705, 30.5762, 73]
+
+  HU:
+    name: Hungary
+    region: europe/hungary
+    bbox: [16.11, 45.73, 22.91, 48.59]
+    timezone: Europe/Budapest
+    timezone_at: [47.4979, 19.0402]                  # Budapest
+    # Gubacsi út (OSM way 314724946), 401 m one-way
+    oneway: [47.462230, 19.084799, 47.465331, 19.082089]
+    # Váci út, 80 m. UNVERIFIED BY ROUTER — see UA above.
+    grade_separation: [47.595247, 19.08924, 47.595691, 19.090075, 80]
+
+  AT:
+    name: Austria
+    region: europe/austria
+    bbox: [9.53, 46.37, 17.16, 49.02]
+    timezone: Europe/Vienna
+    timezone_at: [48.2082, 16.3738]                  # Vienna
+    # Urselbrunnengasse (OSM way 365841141), 400 m one-way
+    oneway: [48.166483, 16.392700, 48.169012, 16.396515]
+    # Hochstraße St. Marx over Litfaßstraße, 79 m. UNVERIFIED BY ROUTER — see UA above.
+    grade_separation: [48.187644, 16.408707, 48.18726, 16.409606, 79]
+
 # ── What must hold BETWEEN countries in the same package ────────────────────────────────────
 #
 # THE probe the multi-PBF build exists for. Measured 2026-09-17: two countries built separately
@@ -110,5 +148,85 @@ borders:
   MD-RO:
     from: [47.0105, 28.8638]        # Chișinău
     to: [47.1585, 27.6014]          # Iași
-    min_km: 100                     # ~150 km via Ungheni/Sculeni. A graph cut at the frontier
-    max_km: 250                     # gives NO route at all, not a shorter one
+    min_km: 100                     # measured 150.1 km via Ungheni/Sculeni. A graph cut at the
+    max_km: 250                     # frontier gives NO route at all, not a shorter one
+
+  MD-UA:
+    from: [47.0105, 28.8638]        # Chișinău
+    to: [46.4825, 30.7233]          # Odesa
+    min_km: 120
+    max_km: 320
+
+  RO-UA:
+    from: [47.1585, 27.6014]        # Iași
+    to: [48.2921, 25.9358]          # Chernivtsi, via Siret
+    min_km: 150
+    max_km: 450
+
+  HU-RO:
+    from: [47.0722, 21.9217]        # Oradea
+    to: [47.5316, 21.6273]          # Debrecen
+    min_km: 50
+    max_km: 220
+
+  HU-UA:
+    from: [47.5316, 21.6273]        # Debrecen
+    to: [48.6208, 22.2879]          # Uzhhorod
+    min_km: 120
+    max_km: 380
+
+  AT-HU:
+    from: [47.4979, 19.0402]        # Budapest
+    to: [48.2082, 16.3738]          # Vienna
+    min_km: 180
+    max_km: 380
+
+  # END TO END, and the most valuable probe in the file. Chișinău to Vienna crosses four
+  # frontiers and every country in the super-region; a route of the right length proves the
+  # whole thing was stitched in one pass, which is the property per-country cuts depend on.
+  AT-MD:
+    from: [47.0105, 28.8638]        # Chișinău
+    to: [48.2082, 16.3738]          # Vienna
+    min_km: 1100
+    max_km: 2000
+
+  # NOT ADJACENT, stated rather than left silent — silence is indistinguishable from an
+  # oversight, and the coverage gate refuses a pair it has never been told about. A route
+  # between these does exist inside the region; it simply says nothing about tile building,
+  # because it passes through a third country whose own border probe already covers it.
+  AT-RO: {adjacent: false}
+  AT-UA: {adjacent: false}
+  HU-MD: {adjacent: false}
+
+
+# ── SUPER-REGIONS: one build, cut into countries afterwards (2026-09-17) ────────────────────
+#
+# THE ORDER IS THE WHOLE POINT, and it is the opposite of `packages:` above. A package is built
+# from its own PBFs and shipped whole. A super-region is built ONCE over every country in it and
+# then CUT along national boundaries, which is how Sygic and HERE ship per-country downloads that
+# still route across borders.
+#
+# Measured on md-ro before any of this was written (`scripts/cut-by-country.py`):
+#
+#   Moldova's cut alone : Chișinău → Bălți 137.9 km, Chișinău → Bucharest NO ROUTE
+#   both cuts assembled : Chișinău → Bucharest 456.5 km — identical to the whole build
+#   timezones survive   : Europe/Chisinau and Europe/Bucharest, correct per country
+#   cost of the overlap : 36 shared tiles, 1.11x the whole build across both cuts
+#
+# A frontier tile belongs to both countries as the SAME FILE, which is the entire difference
+# from merging two separate builds (35 shared paths, 0 byte-identical, measured the same day).
+#
+# THE RULE THIS BUYS AND THE RULE IT COSTS. Adding a country then costs that country's tiles
+# rather than a rebuilt package, and removing one is a delete. But `GraphId` carries an index
+# assigned during the build, so EVERY installed country must come from the same build — mixing
+# vintages gives edges pointing at the wrong nodes, silently. Hence `buildId`, and hence a
+# monthly update still replaces everything the car holds.
+#
+# Choose the membership generously: adding a country changes the build and therefore obsoletes
+# every cut. All of Europe is the destination; 32.6 GB of PBF against a runner's 6-hour limit is
+# why it is not the starting point.
+
+superregions:
+  eu-core:
+    title: Central and Eastern Europe
+    countries: [AT, HU, MD, RO, UA]

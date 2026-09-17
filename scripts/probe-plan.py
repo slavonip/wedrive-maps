@@ -28,18 +28,16 @@ import json
 import sys
 
 import packages as packages_module
+import probe_plan_shared as shared
 
-REQUIRED_COUNTRY_PROBES = ("region", "bbox", "timezone", "timezone_at", "oneway",
-                           "grade_separation")
+REQUIRED_COUNTRY_PROBES = shared.REQUIRED_COUNTRY_PROBES
 
 
 def load() -> dict:
     return packages_module.load()
 
 
-def border_key(a: str, b: str) -> str:
-    """Borders are undirected, so the key is the pair sorted — MD-RO, never RO-MD."""
-    return "-".join(sorted((a, b)))
+border_key = shared.border_key
 
 
 def coverage_problems(config: dict, package_id: str) -> list:
@@ -84,54 +82,14 @@ def coverage_problems(config: dict, package_id: str) -> list:
 
 
 def plan_for(config: dict, package_id: str) -> dict:
-    """The concrete probes, as the container-side runner wants them."""
-    countries = config.get("countries", {})
-    borders = config.get("borders", {})
-    listed = packages_module.countries_of(config, package_id)
+    """The concrete probes, built by the module the region pipeline also uses.
 
-    probes = []
-    for code in listed:
-        c = countries[code]
-        label = c.get("name", code)
-
-        lat, lon = c["timezone_at"]
-        probes.append({"kind": "timezone", "name": f"{label}: timezone",
-                       "at": [lat, lon], "expect": c["timezone"]})
-
-        f_lat, f_lon, t_lat, t_lon = c["oneway"]
-        probes.append({"kind": "oneway", "name": f"{label}: one-way",
-                       "from": [f_lat, f_lon], "to": [t_lat, t_lon]})
-
-        b_lat, b_lon, u_lat, u_lon, separation = c["grade_separation"]
-        probes.append({"kind": "grade_separation", "name": f"{label}: grade separation",
-                       "from": [b_lat, b_lon], "to": [u_lat, u_lon],
-                       "separation_m": separation})
-
-    for a, b in itertools.combinations(sorted(listed), 2):
-        entry = borders.get(border_key(a, b), {})
-        if entry.get("adjacent") is False:
-            continue
-        probes.append({
-            "kind": "border", "name": f"{a} → {b}: across the frontier",
-            "from": entry["from"], "to": entry["to"],
-            "min_km": entry.get("min_km", 1), "max_km": entry.get("max_km", 2000),
-        })
-
-    # EVERYTHING the downstream jobs need about this package, in one file. The Valhalla image
-    # has no PyYAML and no pip to install it, and the honest fix is not to teach it: this plan is
-    # computed once on the runner, where the dependency already lives, and every later step reads
-    # plain JSON with the standard library. One fewer thing that has to be reachable at 02:17.
-    return {
-        "package": package_id,
-        "title": packages_module.title_of(config, package_id),
-        "countries": listed,
-        # Carried so the manifest can publish them and the car needs no table of its own: a new
-        # country must be one entry in regions.yml, never an APK release.
-        "countryNames": {code: countries.get(code, {}).get("name", code) for code in listed},
-        "regions": packages_module.regions_of(config, package_id),
-        "bbox": packages_module.bbox_of(config, package_id),
-        "probes": probes,
-    }
+    Shared deliberately: a country's one-way street and its timezone are the same facts whether
+    its tiles ship whole in a package or cut out of a super-region, and two copies of this logic
+    would drift into two different ideas of what "covered" means.
+    """
+    return shared.plan_for_countries(
+        config, package_id, packages_module.countries_of(config, package_id))
 
 
 def main() -> int:
