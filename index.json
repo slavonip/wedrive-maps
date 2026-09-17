@@ -2,18 +2,39 @@
   "schema": 1,
   "packages": {
     "md": {
-      "countries": [],
+      "countries": [
+        "MD"
+      ],
       "regions": [
         "europe/moldova"
       ],
       "graph": {
         "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md.tar",
         "bytes": 118435840,
-        "sha256": "f94a610ebcbbf72c3864135d782f550b0774910ebdb0060e7871f2fe7f0fa253",
+        "sha256": "b8cab46d09ac62628bc04c5f76fffaf18da57368bb546a6d3a1489a5995ed98b",
         "parts": null,
         "dataDate": "2026-09-17",
         "engineVersion": "3.5.1"
-      }
+      },
+      "title": "Moldova",
+      "basemap": {
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps/md.pmtiles",
+        "bytes": 156744547,
+        "sha256": "d150d63eb23ca9a91040b86025824ba19c1a00928deb410c005f8f976ae8571b",
+        "parts": null,
+        "dataDate": "2026-09-17",
+        "schema": "protomaps-basemap",
+        "maxzoom": 14,
+        "bbox": [
+          26.61,
+          45.46,
+          30.19,
+          48.49
+        ],
+        "upstreamBuild": "20260917.pmtiles"
+      },
+      "complete": true,
+      "vintageSkewDays": 0
     }
   },
   "release": "2026-09-17"
