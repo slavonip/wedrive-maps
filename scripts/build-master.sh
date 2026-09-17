@@ -191,7 +191,7 @@ for member in "${MEMBERS[@]}"; do
   # and a month later only the tiles whose hash changed are fetched. Content addressing turns
   # both reference counting and delta updates into the same one mechanism.
   python3 - "$CUTS/$code" "$code" "$BUILD_ID" "$REGION" "$ENGINE" "$TIMEZONES" "$TZ_DATASET" \
-    "$archive" <<'META' > "$OUT/$code-tiles.json"
+    "$archive" "$TZ_RUNTIME" <<'META' > "$OUT/$code-tiles.json"
 import hashlib
 import json
 import os
