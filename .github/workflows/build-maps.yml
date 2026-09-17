@@ -80,7 +80,16 @@ jobs:
     # version string, which is luck rather than design (§13). Building with the same version the
     # car runs turns that into an actual guarantee.
     container:
-      image: ghcr.io/valhalla/valhalla:3.6.3
+      # TEMPORARILY 3.8.3, to find out whether the four-country abort survives it. 3.5.1 and
+      # 3.6.3 fail identically on tile 2/776984 with index 29, so the defect is not a quirk of
+      # one release. If 3.8.3 builds, the pin moves here permanently and the app's allowlist
+      # gains the version; if it aborts too, the next candidate is merging the PBFs before the
+      # build so the multi-input path is never taken.
+      #
+      # 3.6.3 remains the version the APK runs, so a successful 3.8.3 build is not automatically
+      # a package the car may read — that is the allowlist's decision and it is measured, not
+      # assumed (MapCompatibility).
+      image: ghcr.io/valhalla/valhalla:3.8.3
       options: --user root
     defaults:
       run:
