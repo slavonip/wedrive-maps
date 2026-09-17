@@ -119,6 +119,26 @@ def main(incoming: str, manifest: str) -> int:
             print(f"{package}: only {halves[0] if halves else 'nothing'} — "
                   f"NOT a complete package")
 
+    # ── the names a driver reads ────────────────────────────────────────────────────────────
+    #
+    # The car's Maps screen is a list of COUNTRIES, not of packages: packages are how the graph
+    # has to be built (one pass over several PBFs) and mean nothing to a driver. So the manifest
+    # carries the country names, and the app does not hold a table of its own — adding a country
+    # to regions.yml must not require an APK.
+    names = {}
+    for plan in plans.values():
+        for code in plan.get("countries", []):
+            names.setdefault(code, code)
+    for package_id, entry in index["packages"].items():
+        for code in entry.get("countries", []):
+            names.setdefault(code, code)
+    # Prefer the real names where a plan carried them.
+    for plan in plans.values():
+        for code, name in (plan.get("countryNames") or {}).items():
+            names[code] = name
+    if names:
+        index["countries"] = dict(sorted(names.items()))
+
     index["release"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     out.write_text(json.dumps(index, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print("promoted:", ", ".join(promoted) if promoted else "nothing")

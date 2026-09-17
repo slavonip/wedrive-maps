@@ -125,6 +125,9 @@ def plan_for(config: dict, package_id: str) -> dict:
         "package": package_id,
         "title": packages_module.title_of(config, package_id),
         "countries": listed,
+        # Carried so the manifest can publish them and the car needs no table of its own: a new
+        # country must be one entry in regions.yml, never an APK release.
+        "countryNames": {code: countries.get(code, {}).get("name", code) for code in listed},
         "regions": packages_module.regions_of(config, package_id),
         "bbox": packages_module.bbox_of(config, package_id),
         "probes": probes,
