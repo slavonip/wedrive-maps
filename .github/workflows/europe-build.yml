@@ -208,21 +208,36 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # ── THE REAL BUILD, AND IT IS NOT WRITTEN HERE ────────────────────────────────────────────
+  # This calls `build-region.yml` rather than reimplementing it. That workflow already holds the
+  # whole production path — coverage, the timezone gate, `build-master.sh`, the country cuts, the
+  # probes, publication — and it is the path eu-core has been proving for a month.
+  #
+  # Copying those steps into this file would have given the largest, least-tested and only paid
+  # build its own divergent copy, so a defect fixed on eu-core would silently not reach Europe.
+  # One input differs: which machine the BUILD job runs on. Plan and publish stay on GitHub's
+  # free runners; only the build lands on the ephemeral Hetzner box.
+  #
+  # `region: europe` carries `source: europe` in regions.yml, which is what makes the build take
+  # ONE 35.0 GB `europe-latest.osm.pbf` and skip the merge entirely.
   build:
     needs: bootstrap
     if: needs.bootstrap.outputs.created == 'true'
-    runs-on: [self-hosted, europe-builder]
-    timeout-minutes: 300
-    steps:
-      - uses: actions/checkout@v4
-      - name: what this machine actually is
-        run: |
-          echo "arch:   $(uname -m)"
-          echo "cores:  $(nproc)"
-          awk '/MemTotal/{printf "memory: %.1f GB\n", $2/1048576}' /proc/meminfo
-          df -h / | tail -1
+    uses: ./.github/workflows/build-region.yml
+    permissions:
+      contents: write
+    with:
+      region: europe
+      runner: '["self-hosted", "europe-builder"]'
 
   cleanup:
+    # AFTER the build job in every sense: GitHub does not interleave jobs, so every `always()`
+    # step inside the build — including the telemetry upload — has finished before this starts.
+    # The machine is therefore never destroyed with unread measurements on it.
+    #
+    # It waits for publication too, which keeps the builder alive a few minutes longer than it
+    # is needed. That is a handful of cents against the alternative of a second dependency graph
+    # to reason about, and the watchdog and the machine's own uptime poweroff still bound it.
     needs: [bootstrap, build]
     env:
       HAS_APP: ${{ secrets.RUNNER_APP_ID != '' }}

@@ -57,10 +57,32 @@ if [ -r /sys/fs/cgroup/memory.current ]; then MEM_SOURCE=cgroup2
 elif [ -r /sys/fs/cgroup/memory/memory.usage_in_bytes ]; then MEM_SOURCE=cgroup1
 else MEM_SOURCE=meminfo-hostwide
 fi
+# ── THREE MORE SIGNALS, ADDED 2026-09-18 FOR THE FIRST EUROPE BUILD ────────────────────────
+# `anon` against a cgroup limit is the right question on a SHARED runner, where the limit is what
+# we are fighting. On a DEDICATED machine the edge belongs to the whole host, and the number that
+# names it directly is MemAvailable: what a new allocation can still have. Extrapolation puts
+# Europe near that edge, so it is the number this build exists to read.
+#
+# `disk_free_kb` sits beside `disk_kb` because FREE is what decides whether a build survives, and
+# used cannot yield it without knowing the volume size, which differs on every rung.
+#
+# `load1` is the cheapest evidence of what a stalled build is doing. A hierarchy stage that has
+# stopped making progress looks identical to a working one from memory alone; load separates
+# single-threaded-and-grinding from waiting-on-nothing.
+#
+# APPENDED AT THE END of the row. Both readers parse by HEADER NAME (`csv.DictReader`), so older
+# four-column samples still load and this cannot shift a column out from under them.
+avail_now() {
+  awk '/MemAvailable/{print $2 * 1024; found=1} END{if(!found) print 0}' /proc/meminfo
+}
+
 echo "# memory source: $MEM_SOURCE" > "$CSV"
-echo "epoch,mem_bytes,anon_bytes,disk_kb" >> "$CSV"
+echo "epoch,mem_bytes,anon_bytes,disk_kb,mem_available_bytes,disk_free_kb,load1" >> "$CSV"
+INTERVAL="${SAMPLE_INTERVAL:-5}"
 while :; do
-  printf '%s,%s,%s,%s\n' "$(date +%s)" "$(mem_now)" "$(anon_now)" \
-    "$(df -k --output=used "$WATCH" 2>/dev/null | tail -1 | tr -d ' ')" >> "$CSV"
-  sleep 5
+  # ONE `df` call for both numbers. Two calls seconds apart can straddle a large delete and
+  # report a used and a free that never coexisted.
+  set -- $(df -k --output=used,avail "$WATCH" 2>/dev/null | tail -1)
+  printf '%s,%s,%s,%s,%s,%s,%s\n' "$(date +%s)" "$(mem_now)" "$(anon_now)" "${1:-0}" "$(avail_now)" "${2:-0}" "$(cut -d' ' -f1 /proc/loadavg 2>/dev/null || echo 0)" >> "$CSV"
+  sleep "$INTERVAL"
 done

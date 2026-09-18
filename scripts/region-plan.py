@@ -91,6 +91,15 @@ def main() -> int:
     members_arg = " ".join(f"{code}:{countries[code]['region']}" for code in members)
     print(f"members={members_arg}")
     print("countries=" + json.dumps(members))
+    # ── ONE EXTRACT, OR SEVERAL MERGED? ────────────────────────────────────────────────────
+    # A region with `source:` is built from ONE Geofabrik extract that already covers every
+    # country in it — `europe-latest.osm.pbf` is 35.0 GB and needs no merge, because Geofabrik
+    # publishes the merged article itself. Rebuilding it from forty country files would be the
+    # same work done twice and a second chance to get it wrong.
+    #
+    # Empty when absent, which is what eu-core wants: four country PBFs, merged by osmium. The
+    # build script branches on emptiness, so the existing path is untouched.
+    print("source=" + (region(config, region_id).get("source") or ""))
     return 0
 
 

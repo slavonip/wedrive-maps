@@ -26,6 +26,31 @@ on:
     # both exist. Moves to the 1st when the packages are retired.
     - cron: "17 2 8 * *"
 
+  # ── CALLABLE, SO EUROPE DOES NOT GET A SECOND PIPELINE ────────────────────────────────────
+  # `europe-build.yml` creates an ephemeral Hetzner machine and then calls THIS workflow to do
+  # the work. The alternative was copying the build steps into that workflow, which would have
+  # given the largest and least-tested build its own divergent copy of the logic — so a fix
+  # found on eu-core would silently not apply to Europe, and the two would drift in exactly the
+  # direction nobody checks.
+  #
+  # What varies between them is one thing: WHICH MACHINE the build job runs on. Everything else
+  # — coverage, the timezone gate, build-master.sh, the cuts, the probes, publication — is the
+  # same code reached the same way.
+  workflow_call:
+    inputs:
+      region:
+        type: string
+        required: true
+      timezone:
+        type: string
+        required: false
+        default: "vendored"
+      runner:
+        description: "JSON array of runner labels for the BUILD job only. Plan and publish stay free."
+        type: string
+        required: false
+        default: '["ubuntu-latest"]'
+
 concurrency:
   group: build-region
   cancel-in-progress: false
@@ -36,6 +61,8 @@ jobs:
     outputs:
       members: ${{ steps.read.outputs.members }}
       countries: ${{ steps.read.outputs.countries }}
+      # Empty for a merged region, the Geofabrik stem for one built from a single extract.
+      source: ${{ steps.read.outputs.source }}
     steps:
       - uses: actions/checkout@v4
 
@@ -63,7 +90,11 @@ jobs:
 
   build:
     needs: plan
-    runs-on: ubuntu-latest
+    # THE ONLY THING EUROPE CHANGES. `ubuntu-latest` for eu-core and every scheduled run;
+    # the ephemeral Hetzner builder when the caller passes its labels. The `||` fallback is
+    # load-bearing: on `workflow_dispatch` this input does not exist, and `fromJSON('')` is a
+    # hard error rather than a default.
+    runs-on: ${{ fromJSON(inputs.runner || '["ubuntu-latest"]') }}
     container:
       image: ghcr.io/valhalla/valhalla:3.6.3
       options: --user root
@@ -139,6 +170,10 @@ jobs:
           # this it would silently have nothing to compare against and every build would look
           # like a country's first.
           OSM_INDEX: ${{ github.workspace }}/index-tiles.json
+          # ONE EXTRACT, OR SEVERAL MERGED. Empty for eu-core, which keeps the merge path
+          # exactly as it was; `europe` for a region whose Geofabrik extract already covers
+          # every country in it, where no country PBF is downloaded at all.
+          MASTER_SOURCE: ${{ needs.plan.outputs.source }}
         run: |
           mkdir -p /data
           cp -r scripts /data/scripts
@@ -186,8 +221,52 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # ── THE MEASUREMENT MUST OUTLIVE THE MACHINE ────────────────────────────────────────
+      # `summarise-build.py` writes its report at the END of a successful build — which is
+      # exactly the build whose limits are already known. The interesting run is the one that
+      # dies: an OOM leaves no report, no archive and no manifest, and the CSVs that DO survive
+      # (the sampler runs under an EXIT trap) were not in the upload list. They would have died
+      # with the server, which is this project's oldest mistake wearing its third disguise.
+      #
+      # `continue-on-error` on both steps: a telemetry upload that fails must never become the
+      # reason the job is red, or it would mask the build failure it exists to explain.
+      - name: what the build wanted, even if it died wanting it
+        if: always()
+        continue-on-error: true
+        run: |
+          region="${{ inputs.region || 'eu-core' }}"
+          {
+            echo "### telemetry"
+            echo '```'
+            if [ -f /data/stage.current ]; then
+              IFS=, read -r stage started < /data/stage.current
+              echo "last stage entered: $stage"
+            fi
+            echo
+            cat /data/stages.csv 2>/dev/null || echo "no stage log"
+            echo
+            python3 scripts/peak-from-samples.py /data/samples.csv --label "$region" \
+              2>&1 || echo "no samples to read"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p /data/telemetry
+          cp /data/samples.csv /data/stages.csv /data/stage.current \
+             /data/tiles.log /data/admins.log /data/out/build-metrics.json \
+             /data/telemetry/ 2>/dev/null || true
+          ls -la /data/telemetry/ || true
+
       - uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
+        with:
+          name: telemetry
+          path: /data/telemetry/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
         with:
           name: country-tiles
           path: |

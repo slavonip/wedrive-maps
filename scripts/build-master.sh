@@ -5,6 +5,22 @@
 #   e.g.   build-master.sh eu-core AT:europe/austria HU:europe/hungary \
 #                                  MD:europe/moldova RO:europe/romania
 #
+# ── TWO WAYS TO GET ONE MASTER, AND `MASTER_SOURCE` PICKS THE SECOND ────────────────────────
+# Without it, the country PBFs listed are downloaded and merged, which is right for eu-core:
+# four extracts become one coherent file.
+#
+#   MASTER_SOURCE=europe build-master.sh europe AT:europe/austria ... UA:europe/ukraine
+#
+# With it, ONE Geofabrik extract that already covers every country is used as the master
+# directly, with NO merge stage at all. `europe-latest.osm.pbf` is 35.0 GB and Geofabrik
+# publishes it already merged; rebuilding it from forty country files would be the same work
+# done twice, would need every country's extract on disk beside the result, and would be a
+# second chance to get the frontier overlaps wrong.
+#
+# The members are still required in that mode, and still doing two jobs: they name the `.poly`
+# boundaries the cut runs along, and they name the countries the admin gate must not have
+# dropped. What they stop being is the SOURCE.
+#
 # THE MERGE IS THE POINT, and it is doing two jobs at once.
 #
 # First, it is the shape the design wants. A country is the unit of DISTRIBUTION and never the
@@ -51,7 +67,9 @@ mkdir -p "$SRC" "$POLY" "$TILEDIR" "$CUTS" "$OUT"
 METRICS="$OUT/build-metrics.json"
 STAGES="$WORK/stages.csv"
 SAMPLES="$WORK/samples.csv"
-echo "stage,seconds" > "$STAGES"
+# `started_epoch`/`ended_epoch` join this file to samples.csv. Durations alone cannot say WHICH
+# stage a peak fell in, and on a build that dies the stage it died in is the whole finding.
+echo "stage,seconds,started_epoch,ended_epoch" > "$STAGES"
 BUILD_STARTED=$(date +%s)
 
 # Invoked THROUGH bash rather than executed. The exec bit does not survive this repository:
@@ -80,10 +98,15 @@ stage() {
   local now
   now=$(date +%s)
   if [ -n "${STAGE_NAME:-}" ]; then
-    echo "$STAGE_NAME,$((now - STAGE_STARTED))" >> "$STAGES"
+    echo "$STAGE_NAME,$((now - STAGE_STARTED)),$STAGE_STARTED,$now" >> "$STAGES"
   fi
   STAGE_NAME="$name"
   STAGE_STARTED=$now
+  # THE STAGE THAT KILLS THE BUILD NEVER COMPLETES, so it would never write a row — and it is
+  # the only stage anyone would want named. Recorded as it OPENS, into a separate file the
+  # diagnostics read: "the build died in `tiles`, 41 minutes in" instead of a stage list that
+  # simply stops.
+  echo "$name,$now" > "$WORK/stage.current"
 }
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -92,28 +115,56 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # From Ubuntu's own archive rather than a third party's release, which is a different risk class
 # from the timezone shapefile that failed us — but it is still a fetch at 02:17, and if it ever
 # becomes a problem the answer is to bake it into a pinned image of our own.
-if ! command -v osmium >/dev/null; then
-  echo '==> osmium-tool'
-  apt-get update -qq && apt-get install -y -qq osmium-tool >/dev/null
+# Needed ONLY for the merge, so a single-source region does not reach for the network to install
+# a tool it will never call: one fewer thing that can fail at 02:17 on a build that does not
+# need it.
+if [ -z "${MASTER_SOURCE:-}" ]; then
+  if ! command -v osmium >/dev/null; then
+    echo '==> osmium-tool'
+    apt-get update -qq && apt-get install -y -qq osmium-tool >/dev/null
+  fi
+  osmium --version | head -1
 fi
-osmium --version | head -1
 
 stage download
 PBFS=()
 CUT_ARGS=()
 FRESHNESS_ARGS=()
+
+# ONE EXTRACT FOR THE WHOLE REGION, when `MASTER_SOURCE` names one. Downloaded once, before the
+# member loop, because every member points its freshness check at this same file: with a single
+# source there is ONE OSM replication state, not one per country, and recording seven snapshots
+# that are all the same fact would make a shared fact look like seven agreeing measurements.
+SINGLE=""
+if [ -n "${MASTER_SOURCE:-}" ]; then
+  SINGLE="$SRC/$(basename "$MASTER_SOURCE")-latest.osm.pbf"
+  if [ ! -f "$SINGLE" ]; then
+    echo "==> downloading the whole region as ONE extract: $MASTER_SOURCE"
+    # `--retry`, unlike every other download here, because this one is 35 GB: a transfer that
+    # long meets a reset that a 100 MB country file never does, and losing it means losing the
+    # download stage rather than a minute.
+    curl -fSL --retry 3 --retry-delay 10 --retry-connrefused -o "$SINGLE" "https://download.geofabrik.de/${MASTER_SOURCE}-latest.osm.pbf"
+  fi
+  echo "    source: $(du -h "$SINGLE" | cut -f1)"
+fi
+
 for member in "${MEMBERS[@]}"; do
   code="${member%%:*}"
   region="${member#*:}"
   name="$(basename "$region")"
 
-  pbf="$SRC/$name-latest.osm.pbf"
-  if [ ! -f "$pbf" ]; then
-    echo "==> downloading $region"
-    curl -fsSL -o "$pbf" "https://download.geofabrik.de/${region}-latest.osm.pbf"
+  if [ -n "$SINGLE" ]; then
+    # No per-country download AT ALL in this mode. The member still supplies its boundary below.
+    FRESHNESS_ARGS+=(--pbf "$code=$SINGLE")
+  else
+    pbf="$SRC/$name-latest.osm.pbf"
+    if [ ! -f "$pbf" ]; then
+      echo "==> downloading $region"
+      curl -fsSL -o "$pbf" "https://download.geofabrik.de/${region}-latest.osm.pbf"
+    fi
+    PBFS+=("$pbf")
+    FRESHNESS_ARGS+=(--pbf "$code=$pbf")
   fi
-  PBFS+=("$pbf")
-  FRESHNESS_ARGS+=(--pbf "$code=$pbf")
 
   # The BOUNDARY, not the bounding box. Cutting md-ro by bounding box put 100% of the build in
   # Romania's set, because Moldova sits inside Romania's rectangle — and past two countries that
@@ -136,16 +187,31 @@ rm -f "$OSM_VERDICT"
 python3 "$HERE/check-osm-freshness.py" "${FRESHNESS_ARGS[@]}" \
   --index "${OSM_INDEX:-$WORK/index-tiles.json}" --record "$OSM_VERDICT"
 
-SOURCE_BYTES=$(du -cb "${PBFS[@]}" | tail -1 | cut -f1)
-echo "==> sources: $(du -ch "${PBFS[@]}" | tail -1 | cut -f1) across ${#PBFS[@]} countries"
+if [ -n "$SINGLE" ]; then
+  SOURCE_BYTES=$(du -b "$SINGLE" | cut -f1)
+  echo "==> source: $(du -h "$SINGLE" | cut -f1), ONE extract, ${#MEMBERS[@]} countries to cut"
+else
+  SOURCE_BYTES=$(du -cb "${PBFS[@]}" | tail -1 | cut -f1)
+  echo "==> sources: $(du -ch "${PBFS[@]}" | tail -1 | cut -f1) across ${#PBFS[@]} countries"
+fi
 
 stage merge
-echo '==> merging into one coherent extract'
+if [ -n "$SINGLE" ]; then
+  # THE MERGE IS SKIPPED, NOT FAKED. The stage is still entered, so the timing CSV keeps the
+  # same columns in both modes and the two remain comparable; it simply costs nothing.
+  #
+  # MOVED rather than copied: at 35 GB a copy is 35 GB of writes and 35 GB held twice, on the
+  # one stage where disk is already the second-largest number in the build.
+  echo '==> no merge: the source already covers the whole region'
+  mv "$SINGLE" "$MASTER"
+else
+  echo '==> merging into one coherent extract'
 # Geofabrik extracts overlap at frontiers, so the same way appears in two files. `osmium merge`
 # resolves that properly: it merges sorted inputs and keeps one copy of each object, which is
 # exactly what concatenating the files would NOT do.
-rm -f "$MASTER"
-osmium merge "${PBFS[@]}" -o "$MASTER" --overwrite
+  rm -f "$MASTER"
+  osmium merge "${PBFS[@]}" -o "$MASTER" --overwrite
+fi
 echo "    master: $(du -h "$MASTER" | cut -f1)"
 
 # ── config: a DIRECTORY, not an extract ─────────────────────────────────────────────────────
