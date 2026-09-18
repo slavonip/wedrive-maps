@@ -204,7 +204,14 @@ def main() -> int:
     try:
         text = open("infra/cloud-init.yml", encoding="utf-8").read()
         holes = sorted(set(re.findall(r"__[A-Z_]+__", text)))
-        known = {"__RUNNER_VERSION__", "__ARCH__", "__JIT_CONFIG__", "__LABELS__"}
+        # Every placeholder `hetzner.py create` knows how to fill. Anything else is a hole that
+        # would boot a machine which does nothing and bills — which is why create refuses too,
+        # and why this list has to be kept beside that one.
+        known = {"__RUNNER_VERSION__",   # pinned by the workflow
+                 "__ARCH__",             # filled by create, from the rung that wins
+                 "__JIT_CONFIG__",       # the one-job runner credential
+                 "__SSH_PUBKEY__",       # the ephemeral diagnostic key
+                 "__BOOTSTRAP_B64__"}    # the stage-recording script, embedded base64
         unknown = set(holes) - known
         line("cloud-init", f"VALID, placeholders {', '.join(h.strip('_').lower() for h in holes)}",
              not unknown)
