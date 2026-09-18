@@ -12,7 +12,9 @@
 # §17 of CLAUDE.md is the general rule.
 #
 # Placeholders are substituted by the bootstrap job before this is sent:
-#   __RUNNER_VERSION__  __RUNNER_TOKEN__  __REPO_URL__  __LABELS__
+#   __RUNNER_VERSION__  __ARCH__  __JIT_CONFIG__
+# The JIT config carries the repository, the labels and the runner's name, so none of those
+# are placeholders any more — and no credential outlives the one job it authorises.
 
 package_update: true
 packages:
@@ -47,11 +49,15 @@ runcmd:
   - su - runner -c "cd /opt/runner && curl -fsSL -o runner.tar.gz
     https://github.com/actions/runner/releases/download/v__RUNNER_VERSION__/actions-runner-linux-__ARCH__-__RUNNER_VERSION__.tar.gz
     && tar xzf runner.tar.gz && rm runner.tar.gz"
-  # --ephemeral is the whole safety model: GitHub sends exactly ONE job, and the runner
-  # deregisters itself afterwards whatever happened to it. A long-lived self-hosted runner
-  # accepting arbitrary jobs from a public repository would be a different and much worse thing.
-  - su - runner -c "cd /opt/runner && ./config.sh --unattended --ephemeral
-    --url __REPO_URL__ --token __RUNNER_TOKEN__ --labels __LABELS__
-    --name $(hostname) --work _work"
+  # A JIT CONFIG, NOT A REGISTRATION TOKEN AND CERTAINLY NOT A PAT. This file lands in the
+  # `user_data` of a machine on the public internet, readable by anything that reaches its
+  # metadata service — so what it carries has to be worthless by the time it arrives.
+  #
+  #   a PAT                keeps working afterwards, everywhere
+  #   a registration token one hour, and registers a runner that could take further jobs
+  #   a JIT config         ONE job on ONE runner, consumed by the build itself
+  #
+  # There is no config.sh step at all: the JIT config IS the registration, so nothing is ever
+  # written to disk that could register a second runner.
   - touch /var/run/wedrive-build-started
-  - su - runner -c "cd /opt/runner && ./run.sh" &
+  - su - runner -c "cd /opt/runner && ./run.sh --jitconfig __JIT_CONFIG__" &

@@ -35,6 +35,7 @@ import argparse
 import datetime
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -55,6 +56,12 @@ LADDER = [
 ]
 
 IMAGE = "ubuntu-24.04"
+
+# Which runner tarball a machine must fetch. It follows the rung that WINS, which is why the
+# substitution happens here and not in the workflow: only this code knows which type was created,
+# and a machine that downloads a runner for the wrong architecture boots, fails silently and
+# bills until the watchdog notices.
+ARCH_OF = {"cax": "arm64", "cpx": "x64", "ccx": "x64", "cx": "x64"}
 
 
 def call(method: str, path: str, body=None):
@@ -95,7 +102,8 @@ def create(args) -> int:
 
     expires = (datetime.datetime.now(datetime.timezone.utc)
                + datetime.timedelta(hours=args.ttl_hours)).strftime("%Y-%m-%dT%H-%M-%SZ")
-    user_data = open(args.user_data, encoding="utf-8").read() if args.user_data else None
+    template = open(args.user_data, encoding="utf-8").read() if args.user_data else None
+    given = dict(pair.split("=", 1) for pair in (args.sub or []))
 
     last = None
     for server_type, location in LADDER:
@@ -109,8 +117,18 @@ def create(args) -> int:
             "labels": {**OURS, "expires": expires},
             "start_after_create": True,
         }
-        if user_data:
-            body["user_data"] = user_data
+        if template:
+            filled = template.replace("__ARCH__", ARCH_OF.get(server_type[:3], "x64"))
+            for key, value in given.items():
+                filled = filled.replace(f"__{key}__", value)
+            left = re.findall(r"__[A-Z_]+__", filled)
+            if left:
+                # Refuse rather than boot a machine whose cloud-init has holes in it. That
+                # machine would come up, do nothing, and bill until the watchdog swept it.
+                print(f"cloud-init still has {sorted(set(left))} — refusing to create",
+                      file=sys.stderr)
+                return 1
+            body["user_data"] = filled
         if args.dry_run:
             print(f"   would create {server_type} in {location}, expiring {expires}")
             return 0
@@ -204,6 +222,8 @@ def main() -> int:
     make.add_argument("--name", required=True)
     make.add_argument("--ttl-hours", type=float, default=6)
     make.add_argument("--user-data", default=None)
+    make.add_argument("--sub", action="append", metavar="KEY=VALUE",
+                      help="fill __KEY__ in the cloud-init template")
     make.add_argument("--dry-run", action="store_true")
     make.set_defaults(fn=create)
 

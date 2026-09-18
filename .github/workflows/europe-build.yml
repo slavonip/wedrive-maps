@@ -1,0 +1,136 @@
+name: europe build
+
+# ONE COHERENT EUROPE GRAPH, on a machine that exists for the length of one build.
+#
+# Why it cannot stay on GitHub's runners is measured, not assumed: two independently built
+# masters produce incompatible tiles at their seam — 31 shared paths, zero byte-identical — and
+# a route across it came back 937 km at a plausible 78 km/h with a 294.89 km JUMP in its own
+# geometry. So Europe must be ONE build; one build needs ~172 GB of scratch; and the pipeline
+# cannot be split to fit, because its peak is the hierarchy stage, which is what makes the graph
+# one graph and therefore cannot be divided.
+#
+# THREE JOBS, AND THE THIRD IS THE POINT:
+#
+#   bootstrap   free runner. Mints a JIT credential, creates the machine, hands back its name.
+#   build       the ephemeral machine itself. Takes exactly one job and disappears.
+#   cleanup     free runner, `if: always()`. Deletes the machine whatever happened to the build.
+#
+# Cleanup CANNOT run on the builder, because the cases that matter — OOM, kernel panic, a runner
+# that vanishes — are exactly the cases where the builder cannot act. And even cleanup can fail
+# to run at all (a cancelled workflow, a GitHub incident), which is why every machine is born
+# with an `expires` label and `hetzner-watchdog.yml` sweeps hourly from somewhere else entirely.
+# Three mechanisms, failing independently; the machine also powers itself off on uptime if it
+# never gets a job.
+#
+# DELIBERATELY `workflow_dispatch` ONLY. The monthly schedule goes in after one green end-to-end
+# run has shown what CAX41 actually does — wall time, peak anon, peak disk, cost. Turning on a
+# recurring paid job before that would be paying to find out.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preflight only — check everything, create nothing, bill nothing"
+        type: boolean
+        default: true
+      ttl_hours:
+        description: "Hours before the watchdog may delete the builder"
+        default: "6"
+
+concurrency:
+  group: europe-build
+  cancel-in-progress: false
+
+env:
+  BUILDER_NAME: wedrive-europe-builder
+  RUNNER_VERSION: "2.328.0"
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.create.outputs.created }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # EVERY LINK, CHECKED WHILE CHECKING IS STILL FREE. The next step bills by the hour.
+      - name: preflight
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+          RUNNER_ADMIN_TOKEN: ${{ secrets.RUNNER_ADMIN_TOKEN }}
+        run: python3 scripts/preflight-builder.py --ttl-hours "${{ inputs.ttl_hours }}"
+
+      - name: stop here if this is a dry run
+        if: inputs.dry_run
+        run: |
+          echo "### preflight only — nothing was created" >> "$GITHUB_STEP_SUMMARY"
+          echo "Re-run with dry_run unchecked to build Europe." >> "$GITHUB_STEP_SUMMARY"
+
+      # ── FROM HERE ON, MONEY ──────────────────────────────────────────────────────────────
+      - name: mint a just-in-time runner credential
+        if: '!inputs.dry_run'
+        id: jit
+        env:
+          RUNNER_ADMIN_TOKEN: ${{ secrets.RUNNER_ADMIN_TOKEN }}
+        run: |
+          # Bound to ONE job on ONE runner. Even if the machine's user_data leaked wholesale,
+          # what leaks is a credential the build has already consumed.
+          config=$(curl -fsS -X POST \
+            -H "Authorization: Bearer $RUNNER_ADMIN_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runners/generate-jitconfig" \
+            -d "{\"name\":\"$BUILDER_NAME-${{ github.run_id }}\",\"runner_group_id\":1,
+                 \"labels\":[\"self-hosted\",\"europe-builder\"],\"work_folder\":\"_work\"}" \
+            | jq -r .encoded_jit_config)
+          [ -n "$config" ] && [ "$config" != "null" ] || { echo "::error::no JIT config"; exit 1; }
+          echo "::add-mask::$config"
+          echo "config=$config" >> "$GITHUB_OUTPUT"
+
+      - name: create the builder
+        if: '!inputs.dry_run'
+        id: create
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          # __ARCH__ is filled by `create` itself, because only it knows which rung of the ladder
+          # won — cax41 is ARM, everything below it is x86 — and a machine that fetches the wrong
+          # runner tarball boots, does nothing, and bills until the watchdog sweeps it. `create`
+          # refuses outright if any placeholder survives, rather than creating such a machine.
+          python3 scripts/hetzner.py create \
+            --name "$BUILDER_NAME" \
+            --ttl-hours "${{ inputs.ttl_hours }}" \
+            --user-data infra/cloud-init.yml \
+            --sub "RUNNER_VERSION=$RUNNER_VERSION" \
+            --sub "JIT_CONFIG=${{ steps.jit.outputs.config }}"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: bootstrap
+    if: needs.bootstrap.outputs.created == 'true'
+    runs-on: [self-hosted, europe-builder]
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - name: what this machine actually is
+        run: |
+          echo "arch:   $(uname -m)"
+          echo "cores:  $(nproc)"
+          awk '/MemTotal/{printf "memory: %.1f GB\n", $2/1048576}' /proc/meminfo
+          df -h / | tail -1
+
+  cleanup:
+    needs: [bootstrap, build]
+    # ALWAYS. Not on success, not on failure — always. A cancelled run, a failed build and a
+    # builder that stopped answering all reach here, and all of them leave a machine billing if
+    # this does not fire.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: delete the builder
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          python3 scripts/hetzner.py delete --name "$BUILDER_NAME"
+          echo "--- what is left ---"
+          python3 scripts/hetzner.py list
