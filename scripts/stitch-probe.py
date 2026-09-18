@@ -131,8 +131,67 @@ def route_detail(config: str, frm: list, to: list):
     summary = answer["trip"]["summary"]
     seconds = summary.get("time") or 0
     km = metres / 1000
-    return {"km": km, "seconds": seconds,
+    shape = ""
+    for leg in answer["trip"].get("legs") or []:
+        shape += leg.get("shape") or ""
+    return {"km": km, "seconds": seconds, "shape": shape,
             "kmh": (km / (seconds / 3600)) if seconds else None}
+
+
+def decode_polyline6(encoded: str) -> list:
+    """Valhalla returns route geometry as a polyline at 1e-6 precision.
+
+    Decoded here rather than imported, because the container has no polyline library and this is
+    twenty lines of the standard algorithm.
+    """
+    points, index, lat, lon = [], 0, 0, 0
+    while index < len(encoded):
+        for axis in range(2):
+            shift, result = 0, 0
+            while True:
+                byte = ord(encoded[index]) - 63
+                index += 1
+                result |= (byte & 0x1F) << shift
+                shift += 5
+                if byte < 0x20:
+                    break
+            delta = ~(result >> 1) if result & 1 else (result >> 1)
+            if axis == 0:
+                lat += delta
+            else:
+                lon += delta
+        points.append((lat / 1e6, lon / 1e6))
+    return points
+
+
+# A gap bigger than this between consecutive shape points is not a road. Five kilometres rather
+# than one: on a straight motorway OSM may carry few nodes, so genuine shape points can be a
+# kilometre or two apart, and a threshold that flags those would cry wolf on healthy routes. A
+# seam teleport is tens of kilometres, so nothing is lost by being generous here.
+GEOMETRY_GAP_KM = 5.0
+
+
+def largest_gap_km(points: list):
+    """The biggest jump between CONSECUTIVE points of the route's own geometry.
+
+    A real road route is a dense chain: consecutive points are metres apart. A route that
+    traverses an edge whose two ends are not actually joined — which is what a mismatched level-0
+    tile can offer — leaves a gap in the geometry that nothing else explains.
+
+    This is the difference between "the route is long" and "the route is not a route", and no
+    distance or duration figure can tell them apart.
+    """
+    import math
+    worst, where = 0.0, None
+    for (lat1, lon1), (lat2, lon2) in zip(points, points[1:]):
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = (math.sin(dlat / 2) ** 2
+             + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2)
+        km = 6371.0 * 2 * math.asin(min(1.0, math.sqrt(a)))
+        if km > worst:
+            worst, where = km, ((lat1, lon1), (lat2, lon2))
+    return worst, where
 
 
 def main() -> int:
@@ -141,16 +200,43 @@ def main() -> int:
     parser.add_argument("cuts_b")
     parser.add_argument("--seam", nargs=2, required=True, metavar=("LEFT", "RIGHT"))
     parser.add_argument("--across", nargs=4, type=float, required=True,
-                        metavar=("LAT1", "LON1", "LAT2", "LON2"),
-                        help="a route that must cross the seam")
-    parser.add_argument("--expect-km", type=float, default=None)
+                        metavar=("LAT1", "LON1", "LAT2", "LON2"))
+    parser.add_argument("--expect-km", type=float, required=True,
+                        help="the same route measured inside ONE master")
+    parser.add_argument("--inside-a", nargs=5, type=float, required=True,
+                        metavar=("LAT1", "LON1", "LAT2", "LON2", "KM"),
+                        help="a cross-border route WITHIN master A, and its known length")
+    parser.add_argument("--inside-b", nargs=5, type=float, required=True,
+                        metavar=("LAT1", "LON1", "LAT2", "LON2", "KM"))
     args = parser.parse_args()
 
     a_root, b_root = pathlib.Path(args.cuts_a), pathlib.Path(args.cuts_b)
+
     print("=== 1. the seam tiles themselves ===")
     seam = compare_seam(a_root, b_root, args.seam)
 
-    print("\n=== 2. assembled as a car would, from two different masters ===")
+    # ── 2. CONTROLS FIRST, because a result from a broken apparatus is worse than no result ──
+    # Each control is a route that CROSSES A FRONTIER INSIDE ITS OWN MASTER, with a length already
+    # measured on eu-core. If either fails, nothing below means anything — and the first version
+    # of this probe failed both by asking master A to route from a country it does not contain.
+    print("\n=== 2. controls: each master crossing its OWN internal frontier ===")
+    controls_ok = True
+    for label, root, spec in (("master A", a_root, args.inside_a),
+                              ("master B", b_root, args.inside_b)):
+        lat1, lon1, lat2, lon2, known = spec
+        alone = config_for(str(root), f"/tmp/{label.replace(' ', '_')}.json")
+        got = route_km(alone, [lat1, lon1], [lat2, lon2])
+        if got is None:
+            print(f"   {label}: NO ROUTE — the apparatus is broken, not the seam")
+            controls_ok = False
+        else:
+            drift = abs(got - known) / known * 100
+            ok = drift < 5
+            controls_ok &= ok
+            print(f"   {label}: {got:.1f} km against {known:.1f} known "
+                  f"({drift:.1f}% {'ok' if ok else 'OFF — investigate before reading on'})")
+
+    print("\n=== 3. assembled as a car would, from two different masters ===")
     both = pathlib.Path("/data/stitched")
     assemble(sorted(a_root.iterdir()) + sorted(b_root.iterdir()), both)
     print(f"   {len(tiles_of(both))} tiles in one directory")
@@ -158,45 +244,55 @@ def main() -> int:
     config = config_for(str(both), "/tmp/stitched.json")
     lat1, lon1, lat2, lon2 = args.across
     detail = route_detail(config, [lat1, lon1], [lat2, lon2])
-    km = detail["km"] if detail else None
 
-    print("\n=== 3. the route that has to cross it ===")
-    if detail:
-        speed = f"{detail['kmh']:.0f} km/h" if detail["kmh"] else "no duration reported"
-        print(f"   {detail['km']:.1f} km in {detail['seconds'] / 3600:.2f} h -> {speed}")
-        if detail["kmh"] and detail["kmh"] > 130:
-            print("   AN IMPLIED SPEED THIS HIGH IS NOT A ROAD. The router traversed edges that")
-            print("      do not correspond to driveable distance — the signature of a mismatched")
-            print("      level-0 tile offering shortcuts between places that are not joined.")
-    if km is None:
-        print(f"   NO ROUTE across the seam — the two masters do not join")
-        verdict = "SEAM BROKEN"
-    elif args.expect_km and abs(km - args.expect_km) / args.expect_km > 0.15:
-        print(f"   {km:.1f} km, but the same route inside one master is {args.expect_km:.1f} km "
-              f"— a detour of {km - args.expect_km:+.1f} km around the seam")
-        verdict = "SEAM DETOURS"
+    print("\n=== 4. the route that has to cross the seam ===")
+    verdict, gap = "SEAM BROKEN", None
+    if detail is None:
+        print("   NO ROUTE across the seam — the two masters do not join at all")
     else:
-        print(f"   {km:.1f} km" + (f" against {args.expect_km:.1f} km inside one master"
-                                   if args.expect_km else ""))
-        verdict = "SEAM HOLDS"
+        speed = f"{detail['kmh']:.0f} km/h" if detail["kmh"] else "no duration"
+        print(f"   {detail['km']:.1f} km in {detail['seconds'] / 3600:.2f} h -> {speed}")
+        print(f"   inside one master the same journey is {args.expect_km:.1f} km")
 
-    print("\n=== 4. controls — each master alone, so a broken experiment is distinguishable ===")
-    # EACH CONTROL MUST START INSIDE THE MASTER IT TESTS. The first version used the same start
-    # point for both, so master A — which contains no Moldova at all — was asked to route from
-    # Chișinău and "failed" exactly as it should have. A broken control reporting a broken master
-    # is the one thing a control exists to prevent, and it invalidated the whole first reading.
-    for label, root, point in (("master A", a_root, [lat2, lon2]),
-                               ("master B", b_root, [lat1, lon1])):
-        alone = config_for(str(root), f"/tmp/{label.replace(' ', '_')}.json")
-        inside = route_km(alone, point, [point[0] + 0.02, point[1] + 0.02])
-        print(f"   {label} from {point[0]:.3f},{point[1]:.3f}: "
-              + (f"works ({inside:.1f} km)" if inside
-                 else "FAILS — this control should never fail"))
+        points = decode_polyline6(detail["shape"]) if detail["shape"] else []
+        if points:
+            gap, where = largest_gap_km(points)
+            print(f"   geometry: {len(points)} points, largest gap between consecutive "
+                  f"points {gap:.2f} km")
+            if where and gap > GEOMETRY_GAP_KM:
+                (la1, lo1), (la2, lo2) = where
+                print(f"      the jump is {la1:.4f},{lo1:.4f} -> {la2:.4f},{lo2:.4f}")
+
+        # THE THREE OUTCOMES, distinguished by evidence rather than by distance alone.
+        if gap is not None and gap > GEOMETRY_GAP_KM:
+            print("   -> THE GEOMETRY IS NOT CONTINUOUS. The router traversed an edge whose ends")
+            print("      are not joined on the ground — a synthetic connection from a mismatched")
+            print("      tile. This is WORSE than a refusal: a car would follow it.")
+            verdict = "SEAM CORRUPT"
+        elif detail["kmh"] and detail["kmh"] > 130:
+            print("   -> AN IMPLIED SPEED THIS HIGH IS NOT DRIVING.")
+            verdict = "SEAM CORRUPT"
+        elif detail["km"] < args.expect_km * 0.9:
+            print("   -> SHORTER than the true route, with continuous geometry and a plausible")
+            print("      speed. That should not be possible and needs explaining before anything")
+            print("      here is trusted.")
+            verdict = "SEAM SUSPECT"
+        elif detail["km"] > args.expect_km * 1.15:
+            print(f"   -> a detour of {detail['km'] - args.expect_km:+.1f} km around the seam")
+            verdict = "SEAM DETOURS"
+        else:
+            verdict = "SEAM HOLDS"
+
+    if not controls_ok:
+        verdict = f"INCONCLUSIVE (controls failed) — was: {verdict}"
 
     print(f"\nVERDICT: {verdict}")
     print(json.dumps({"verdict": verdict, "seamSharedTiles": seam["shared"],
-                      "seamIdenticalTiles": seam["identical"], "acrossKm": km}, indent=2))
-    # Reports; never gates. This is an experiment about what IS, not a check on what should be.
+                      "seamIdenticalTiles": seam["identical"],
+                      "acrossKm": detail["km"] if detail else None,
+                      "acrossKmh": detail["kmh"] if detail else None,
+                      "largestGeometryGapKm": gap, "controlsOk": controls_ok}, indent=2))
+    # Reports; never gates. An experiment about what IS, not a check on what should be.
     return 0
 
 
