@@ -95,6 +95,17 @@ jobs:
     # load-bearing: on `workflow_dispatch` this input does not exist, and `fromJSON('')` is a
     # hard error rather than a default.
     runs-on: ${{ fromJSON(inputs.runner || '["ubuntu-latest"]') }}
+    # ── THE SIX-HOUR CLIFF IS A JOB DEFAULT, NOT A RUNNER PROPERTY ──────────────────────────
+    # A self-hosted runner may execute a job for five days, but `timeout-minutes` still defaults
+    # to 360 wherever the job runs. Moving Europe onto our own machine and leaving that default
+    # in place would have re-imposed the exact limit the move exists to escape -- and it would
+    # have done so at hour six of a paid build, with the graph nearly finished.
+    #
+    # 720 rather than the maximum: the estimate is 4.5 h with an unknown error, so this is
+    # generous, and a build still running at twelve hours is a build that has gone wrong in a way
+    # more time will not fix. The machine's `expires` label and the hourly watchdog bound the
+    # cost independently, so pass a matching `ttl_hours` when dispatching.
+    timeout-minutes: 720
     container:
       image: ghcr.io/valhalla/valhalla:3.6.3
       options: --user root
