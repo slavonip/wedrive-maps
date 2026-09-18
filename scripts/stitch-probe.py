@@ -224,7 +224,17 @@ def main() -> int:
     for label, root, spec in (("master A", a_root, args.inside_a),
                               ("master B", b_root, args.inside_b)):
         lat1, lon1, lat2, lon2, known = spec
-        alone = config_for(str(root), f"/tmp/{label.replace(' ', '_')}.json")
+        # A CUTS DIRECTORY IS NOT A TILE DIRECTORY. `cuts_stitch-a` holds `AT/0/003/107.gph` and
+        # `HU/...`, while Valhalla wants `0/003/107.gph` at the root — so pointing a config at
+        # the cuts root gives a graph with no tiles and no error, and every route refuses.
+        #
+        # The assembled case worked precisely because it goes through `assemble()`, which
+        # flattens the country prefixes. The controls did not, and "NO ROUTE" from a directory
+        # Valhalla cannot read looked exactly like "this master is broken" — for the third time
+        # today a control reported on my own mistake instead of on its subject.
+        flat = pathlib.Path(f"/data/flat_{label.replace(' ', '_')}")
+        assemble(sorted(root.iterdir()), flat)
+        alone = config_for(str(flat), f"/tmp/{label.replace(' ', '_')}.json")
         got = route_km(alone, [lat1, lon1], [lat2, lon2])
         if got is None:
             print(f"   {label}: NO ROUTE — the apparatus is broken, not the seam")
