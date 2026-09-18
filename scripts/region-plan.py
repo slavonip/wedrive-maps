@@ -59,6 +59,7 @@ def main() -> int:
                             f"add a route across the frontier, or `{key}: {{adjacent: false}}`")
         elif entry.get("adjacent") is not False and not (entry.get("from") and entry.get("to")):
             problems.append(f"{key} has no `from`/`to`")
+    problems += shared.corridor_problems(config, region_id, members)
 
     if problems:
         print(f"UNCOVERED {region_id}:", file=sys.stderr)

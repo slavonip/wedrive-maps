@@ -252,6 +252,72 @@ borders:
   HU-MD: {adjacent: false}
 
 
+# ── CORRIDORS: the probes that only a CONTINENTAL graph can pass ───────────────────────────
+#
+# A border probe is short by design — Chișinău to Iași, one frontier, a few tiles either side.
+# That is exactly right for "did these two countries join", and it cannot ask the question a
+# Europe-wide build raises for the first time: **is this ONE graph?**
+#
+# The reason is the hierarchy stage. Level-0 tiles span the whole build, and a route is planned
+# on them only when it is long enough to need them. Every probe the factory had before this
+# stayed on level 2 — so the tiles that make a continental graph continental were built, shipped
+# and never once used by anything that could tell whether they were right.
+#
+# Each corridor asserts four separate things, and each can be wrong while the others look fine:
+#
+#   a route exists            the chain of frontiers is joined end to end
+#   its length is sane        it did not detour through a country it should have driven across
+#   its geometry is CONTINUOUS   the only check that sees a teleport with a plausible distance
+#   it passed through `through`  a right-length continuous route can still have gone round
+#
+# The third is not theoretical. Two independently built masters answered a Romania → Hungary
+# route with 937 km in 12.04 h at 78 km/h — every summary figure in range — carrying a 294.89 km
+# jump inside its own geometry, from 47.1587,23.8874 to 47.2186,19.9856. Only the shape knew.
+#
+# BOUNDS ARE DELIBERATELY WIDE. §"absolute distances are the wrong assertion" applies here as
+# everywhere: these exist to catch "it went via somewhere else entirely" and "it did not go at
+# all", not to pin a number an ordinary OSM edit would move. A motorway opening should never
+# fail this gate.
+
+corridors:
+  AT-MD-long:
+    name: Vienna → Chișinău, across four countries
+    from: [48.2082, 16.3738]        # Vienna
+    to: [47.0105, 28.8638]          # Chișinău
+    through: [AT, HU, RO, MD]
+    min_km: 1100
+    max_km: 1900
+
+  GR-HU-long:
+    name: Athens → Budapest, up the eastern spine
+    from: [37.9838, 23.7275]        # Athens
+    to: [47.4979, 19.0402]          # Budapest
+    # Serbia is not in this build, so the only way north is GR → BG → RO → HU. That makes this
+    # corridor a stronger assertion than it looks: if any one of those three frontiers failed to
+    # join, there is no alternative for the router to quietly take instead.
+    through: [GR, BG, RO, HU]
+    min_km: 1300
+    max_km: 2300
+
+  MD-BG-long:
+    name: Chișinău → Sofia, down through Romania
+    from: [47.0105, 28.8638]        # Chișinău
+    to: [42.6977, 23.3219]          # Sofia
+    through: [MD, RO, BG]
+    min_km: 550
+    max_km: 1200
+
+  AT-UA-long:
+    name: Vienna → Odesa, the length of the build
+    from: [48.2082, 16.3738]        # Vienna
+    to: [46.4825, 30.7233]          # Odesa
+    # Ukraine may be entered from Hungary or from Romania and both are legitimate, so it is not
+    # named in `through`: asserting a particular way round would fail a healthy graph the day a
+    # router preference changed. What is asserted is that it reaches Ukraine at all.
+    through: [AT, HU, UA]
+    min_km: 1300
+    max_km: 2400
+
 # ── SUPER-REGIONS: one build, cut into countries afterwards (2026-09-17) ────────────────────
 #
 # THE ORDER IS THE WHOLE POINT, and it is the opposite of `packages:` above. A package is built
@@ -296,3 +362,26 @@ superregions:
     # whether the crash is about total size or about one country's data. Do not put it back
     # without that answer.
     countries: [AT, HU, MD, RO]
+
+  europe:
+    title: Europe
+    # ── ONE SOURCE, NOT A LIST OF THEM ──────────────────────────────────────────────────────
+    # `source` makes this region build from a SINGLE Geofabrik extract covering everything, with
+    # no merge stage at all. eu-core merges four country PBFs with `osmium merge`; this does not,
+    # because Geofabrik already publishes the merged article and merging 32.6 GB from parts would
+    # be work done twice and a second chance to get it wrong.
+    #
+    # The countries below are therefore the CUT LIST, not the ingredient list. Every one of them
+    # is built from the same continental graph whether it is listed or not — listing it is what
+    # produces a downloadable artifact for it.
+    source: europe
+    #
+    # SEVEN COUNTRIES, AND THE LIST IS SHORT ON PURPOSE. Europe has forty-odd; these are the ones
+    # that carry a timezone, a one-way, a grade separation and a border route for every pair —
+    # which is to say, the ones a gate can actually assert. Cutting the rest would ship graphs
+    # nothing had ever checked, and "the gate was running the probes it had" is precisely the
+    # failure this project has already made once and written down.
+    #
+    # Adding one later costs `add-country.py` plus a rebuild, because a GraphId index belongs to
+    # its build and cuts cannot be mixed across vintages. That is a known price, not an oversight.
+    countries: [AT, BG, GR, HU, MD, RO, UA]

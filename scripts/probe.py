@@ -20,8 +20,12 @@ What survives from it: every probe runs even after one fails, because "which of 
 the only useful output from a gate.
 """
 import json
+import os
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import geometry  # noqa: E402  — shared with stitch-probe.py, one definition for both
 
 # Going against a one-way must cost at least this much more than going with it. 1.4 is the
 # smallest a real diversion round a block can be; two directions agreeing more closely than that
@@ -144,7 +148,8 @@ def probe_timezone(config: str, probe: dict, report: Report) -> None:
 def probe_border(config: str, probe: dict, report: Report) -> None:
     """Two countries built separately are each cut at the frontier, so this is the probe the
     whole single-pass multi-PBF build exists for. A cut graph answers 'no route'."""
-    driven = metres(route(config, probe["from"], probe["to"]))
+    answer = route(config, probe["from"], probe["to"])
+    driven = metres(answer)
     name = probe["name"]
     if driven is None:
         report.fail(name, "NO ROUTE — the frontier has no edges across it, so this package was "
@@ -154,7 +159,119 @@ def probe_border(config: str, probe: dict, report: Report) -> None:
     if not probe["min_km"] <= km <= probe["max_km"]:
         report.fail(name, f"{km:.1f} km, expected {probe['min_km']}..{probe['max_km']} km")
         return
-    report.ok(name, f"{km:.1f} km")
+    # DISTANCE IS NOT ENOUGH, and this is the probe that proves it. A route across the seam of
+    # two independently built masters came back 937 km at a plausible 78 km/h with a 294.89 km
+    # jump inside its own geometry. Every number this probe used to check was in range.
+    gap, where = geometry.continuity(answer)
+    if gap is None:
+        report.fail(name, "the route carries no geometry, so its continuity cannot be checked")
+        return
+    if gap > geometry.GEOMETRY_GAP_KM:
+        a, b = where
+        report.fail(name, f"{km:.1f} km but the geometry JUMPS {gap:.2f} km "
+                          f"({a[0]:.4f},{a[1]:.4f} -> {b[0]:.4f},{b[1]:.4f}) — "
+                          f"not a road a car could follow")
+        return
+    report.ok(name, f"{km:.1f} km, continuous (largest step {gap * 1000:.0f} m)")
+
+
+def probe_corridor(config: str, probe: dict, report: Report) -> None:
+    """A LONG route across SEVERAL frontiers, checked for the three things that can each be
+    wrong on their own.
+
+    A border probe crosses one frontier and is short by design, so it exercises one seam and a
+    few tiles either side. That is the right shape for asking "did these two countries join",
+    and the wrong shape for asking "is this one graph". A continental graph fails differently:
+    the hierarchy stage builds level-0 tiles spanning the whole build, and a route long enough
+    to be planned ON those tiles is the only thing that uses them.
+
+    So this asserts, in order of what each can catch alone:
+
+      1. **a route exists at all** — the frontier chain is joined end to end;
+      2. **its length is sane** — not a detour through a third country because one seam is
+         missing, which a mere "it routed" would accept;
+      3. **its geometry is continuous** — the only check that sees the 294.89 km teleport, which
+         had a plausible distance, duration and average speed;
+      4. **it really passes through the countries named** — because a route of the right length
+         with continuous geometry can still have gone the wrong way round, and the admin data
+         is the only thing that knows which ground it covered.
+
+    The fourth is what makes this more than a long border probe.
+    """
+    name = probe["name"]
+    answer = route(config, probe["from"], probe["to"])
+    driven = metres(answer)
+    if driven is None:
+        report.fail(name, "NO ROUTE — the corridor is broken somewhere along its length")
+        return
+
+    km = driven / 1000
+    if not probe["min_km"] <= km <= probe["max_km"]:
+        report.fail(name, f"{km:.1f} km, expected {probe['min_km']}..{probe['max_km']} km")
+        return
+
+    gap, where = geometry.continuity(answer)
+    if gap is None:
+        report.fail(name, "the route carries no geometry, so its continuity cannot be checked")
+        return
+    if gap > geometry.GEOMETRY_GAP_KM:
+        a, b = where
+        report.fail(name, f"{km:.1f} km but the geometry JUMPS {gap:.2f} km "
+                          f"({a[0]:.4f},{a[1]:.4f} -> {b[0]:.4f},{b[1]:.4f}) — "
+                          f"not a road a car could follow")
+        return
+
+    # WHICH GROUND DID IT ACTUALLY COVER? Map-match the route's own shape and read the admin
+    # country of every matched edge. The shape is on the network by construction, so a failure
+    # to match is a fact about the graph rather than about the coordinates.
+    want = set(probe.get("through") or [])
+    if not want:
+        report.ok(name, f"{km:.1f} km, continuous (largest step {gap * 1000:.0f} m)")
+        return
+
+    trace = _trace_polyline(config, geometry.shape_of(answer))
+    seen = set()
+    for edge in ((trace or {}).get("edges") or []):
+        for admin in _admins_of(edge, trace):
+            if admin:
+                seen.add(admin)
+    if not seen:
+        # UNCHECKED, and therefore a FAILURE here rather than a pass with a caveat. The trace
+        # returning nothing means the question was not answered, and §13's vocabulary is explicit
+        # that an unanswered check is never a PASS.
+        report.fail(name, f"{km:.1f} km, continuous — but the trace named NO country, so the "
+                          f"countries it passes through are UNCHECKED")
+        return
+
+    missing = sorted(want - seen)
+    if missing:
+        report.fail(name, f"{km:.1f} km, continuous, but never entered {'/'.join(missing)} "
+                          f"(saw {'/'.join(sorted(seen))}) — it went somewhere else")
+        return
+    report.ok(name, f"{km:.1f} km through {'/'.join(sorted(want))}, "
+                    f"continuous (largest step {gap * 1000:.0f} m)")
+
+
+def _admins_of(edge: dict, trace: dict) -> list:
+    """The country code(s) an edge sits in, however this Valhalla version chose to say it.
+
+    `trace_attributes` reports admins either inline on the edge or as an index into a
+    trace-level `admins` array, and which one arrives has changed between versions. Reading only
+    one shape is how a check quietly measures nothing — the failure this project has now made
+    three times. Both are read, and neither is required.
+    """
+    codes = []
+    end = edge.get("end_node") or {}
+    inline = end.get("admin") or edge.get("admin")
+    if isinstance(inline, dict) and inline.get("country_code"):
+        codes.append(inline["country_code"])
+    index = end.get("admin_index", edge.get("admin_index"))
+    admins = (trace or {}).get("admins") or []
+    if isinstance(index, int) and 0 <= index < len(admins):
+        code = admins[index].get("country_code")
+        if code:
+            codes.append(code)
+    return codes
 
 
 def probe_admin(config: str, probe: dict, report: Report) -> None:
@@ -267,6 +384,7 @@ PROBES = {
     "timezone": probe_timezone,
     "admin": probe_admin,
     "border": probe_border,
+    "corridor": probe_corridor,
 }
 
 

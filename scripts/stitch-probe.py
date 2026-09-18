@@ -46,6 +46,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import geometry  # noqa: E402 — one definition of the continuity check, shared with the gate
 import probe as package_probe  # noqa: E402 — the route helpers, shared with the gate
 
 
@@ -138,60 +139,13 @@ def route_detail(config: str, frm: list, to: list):
             "kmh": (km / (seconds / 3600)) if seconds else None}
 
 
-def decode_polyline6(encoded: str) -> list:
-    """Valhalla returns route geometry as a polyline at 1e-6 precision.
-
-    Decoded here rather than imported, because the container has no polyline library and this is
-    twenty lines of the standard algorithm.
-    """
-    points, index, lat, lon = [], 0, 0, 0
-    while index < len(encoded):
-        for axis in range(2):
-            shift, result = 0, 0
-            while True:
-                byte = ord(encoded[index]) - 63
-                index += 1
-                result |= (byte & 0x1F) << shift
-                shift += 5
-                if byte < 0x20:
-                    break
-            delta = ~(result >> 1) if result & 1 else (result >> 1)
-            if axis == 0:
-                lat += delta
-            else:
-                lon += delta
-        points.append((lat / 1e6, lon / 1e6))
-    return points
-
-
-# A gap bigger than this between consecutive shape points is not a road. Five kilometres rather
-# than one: on a straight motorway OSM may carry few nodes, so genuine shape points can be a
-# kilometre or two apart, and a threshold that flags those would cry wolf on healthy routes. A
-# seam teleport is tens of kilometres, so nothing is lost by being generous here.
-GEOMETRY_GAP_KM = 5.0
-
-
-def largest_gap_km(points: list):
-    """The biggest jump between CONSECUTIVE points of the route's own geometry.
-
-    A real road route is a dense chain: consecutive points are metres apart. A route that
-    traverses an edge whose two ends are not actually joined — which is what a mismatched level-0
-    tile can offer — leaves a gap in the geometry that nothing else explains.
-
-    This is the difference between "the route is long" and "the route is not a route", and no
-    distance or duration figure can tell them apart.
-    """
-    import math
-    worst, where = 0.0, None
-    for (lat1, lon1), (lat2, lon2) in zip(points, points[1:]):
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(lon2 - lon1)
-        a = (math.sin(dlat / 2) ** 2
-             + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2)
-        km = 6371.0 * 2 * math.asin(min(1.0, math.sqrt(a)))
-        if km > worst:
-            worst, where = km, ((lat1, lon1), (lat2, lon2))
-    return worst, where
+# `decode_polyline6`, `GEOMETRY_GAP_KM` and `largest_gap_km` MOVED to geometry.py on
+# 2026-09-18. They lived here, in an experiment, while the gate that decides what ships
+# had no continuity check at all — so the one measurement that caught a 294.89 km
+# teleport could never have caught it on the production path.
+decode_polyline6 = geometry.decode_polyline6
+largest_gap_km = geometry.largest_gap_km
+GEOMETRY_GAP_KM = geometry.GEOMETRY_GAP_KM
 
 
 def main() -> int:

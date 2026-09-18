@@ -78,6 +78,10 @@ def coverage_problems(config: dict, package_id: str) -> list:
         elif not (entry.get("from") and entry.get("to")):
             problems.append(f"{key} has no `from`/`to`")
 
+    # Lives in probe_plan_shared so the region pipeline enforces the identical rule; the
+    # two coverage checks in this repository have drifted once already.
+    problems += shared.corridor_problems(config, package_id, listed)
+
     return problems
 
 

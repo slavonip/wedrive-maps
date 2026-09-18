@@ -19,6 +19,34 @@ def border_key(a: str, b: str) -> str:
     return "-".join(sorted((a, b)))
 
 
+def corridor_problems(config: dict, plan_id: str, members: list) -> list:
+    """Is a build of this size asserted as a build of this size?
+
+    Lives here rather than in either pipeline because BOTH check coverage and the two copies
+    have already drifted once. A rule enforced in one pipeline and not the other is worse than
+    no rule: it looks like a gate from whichever side you read.
+
+    Every other probe is local. A one-way is one street; a border route is a few tiles either
+    side of a single frontier. None of them is ever planned on the LEVEL-0 tiles, which is what
+    the hierarchy stage spends the build's peak memory creating and what makes a continental
+    graph one graph instead of a pile of countries. From three countries up, at least one
+    corridor must cross three of them — three being the first size at which a route can cross a
+    frontier, keep going, and cross another.
+    """
+    if len(members) < 3:
+        return []
+    corridors = config.get("corridors") or {}
+    usable = [key for key, entry in corridors.items()
+              if len(entry.get("through") or []) >= 3
+              and set(entry.get("through") or []) <= set(members)
+              and entry.get("from") and entry.get("to")]
+    if usable:
+        return []
+    return [f"'{plan_id}' has {len(members)} countries and no `corridors:` entry whose "
+            f"`through` is three or more of them — every probe it has is local, so nothing "
+            f"would ever route on the level-0 tiles this build exists to create"]
+
+
 def plan_for_countries(config: dict, plan_id: str, members: list) -> dict:
     """Every probe that applies to this set of countries, plus what they are made of.
 
@@ -63,6 +91,23 @@ def plan_for_countries(config: dict, plan_id: str, members: list) -> dict:
             "kind": "border", "name": f"{a} → {b}: across the frontier",
             "from": entry["from"], "to": entry["to"],
             "min_km": entry.get("min_km", 1), "max_km": entry.get("max_km", 2000),
+        })
+
+    # A CORRIDOR APPLIES ONLY WHEN EVERY COUNTRY IT NAMES IS PRESENT, which is the same rule the
+    # borders follow and for the same reason: a cut installed on its own must NOT reach the next
+    # country, so a corridor probe on a lone cut would demand exactly the behaviour that would be
+    # a defect. Present them all and the corridor becomes the only probe that uses the level-0
+    # tiles a continental build spends its peak memory creating.
+    for key, entry in sorted((config.get("corridors") or {}).items()):
+        through = entry.get("through") or []
+        if not through or not set(through) <= set(members):
+            continue
+        probes.append({
+            "kind": "corridor",
+            "name": entry.get("name", f"{key}: corridor"),
+            "from": entry["from"], "to": entry["to"],
+            "through": sorted(through),
+            "min_km": entry.get("min_km", 1), "max_km": entry.get("max_km", 5000),
         })
 
     return {
