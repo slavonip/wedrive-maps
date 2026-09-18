@@ -2,19 +2,28 @@
 # WHAT A FRESH BUILDER DOES TO ITSELF, before GitHub has said a word to it.
 #
 # The machine is created by the Hetzner API with this as `user_data`, boots, installs the little
-# it needs, registers as an EPHEMERAL runner, takes exactly one job, and deregisters. Nobody
-# connects to it; there is no SSH key in the production path at all.
+# it needs, registers as an EPHEMERAL runner via a JIT config, takes exactly one job, and
+# deregisters. Nobody connects to it; there is no SSH key in the production path at all.
+#
+# Placeholders filled by `hetzner.py create`, which is the only code that knows which rung of the
+# ladder won:   __RUNNER_VERSION__  __ARCH__  __JIT_CONFIG__
 #
 # WHAT IS DELIBERATELY *NOT* INSTALLED: Valhalla, osmium, spatialite, python libraries. All of it
-# lives in a version-pinned container image. A builder that installs its toolchain from a
-# distribution's repositories is a builder whose output changes when that distribution updates —
-# which is exactly the failure the timezone dataset already inflicted on this factory once, and
-# §17 of CLAUDE.md is the general rule.
+# lives in a version-pinned container image, because a builder that installs its toolchain from a
+# distribution's repositories is a builder whose output changes when that distribution updates.
 #
-# Placeholders are substituted by the bootstrap job before this is sent:
-#   __RUNNER_VERSION__  __ARCH__  __JIT_CONFIG__
-# The JIT config carries the repository, the labels and the runner's name, so none of those
-# are placeholders any more — and no credential outlives the one job it authorises.
+# ── WHY THE RUNNER IS A SYSTEMD UNIT AND NOT A BACKGROUNDED COMMAND ────────────────────────────
+# The first paid attempt created a machine that never connected, and burned 28 minutes before
+# anyone noticed. The previous version of this file ended with:
+#
+#     - su - runner -c "cd /opt/runner && ./run.sh --jitconfig ..." &
+#
+# cloud-init executes `runcmd` from a systemd service. When that service finishes, systemd cleans
+# up its cgroup — and takes any process backgrounded from inside it along with it. So the runner
+# was started and then killed, reliably, by design, leaving nothing in any log we could reach.
+#
+# A unit is owned by systemd instead: it survives cloud-init exiting, and — the part that matters
+# as much — it leaves `journalctl -u github-runner` behind for anyone who does get onto a machine.
 
 package_update: true
 packages:
@@ -24,40 +33,82 @@ packages:
   - tar
 
 write_files:
-  # A belt-and-braces expiry ON THE MACHINE ITSELF. The watchdog is the real guarantee, but it
-  # depends on GitHub being reachable; this one does not, and a machine that powers itself off
-  # costs nothing even if every other mechanism has failed.
+  - path: /etc/systemd/system/github-runner.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=GitHub Actions ephemeral runner
+      After=network-online.target docker.service
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      User=runner
+      WorkingDirectory=/opt/runner
+      ExecStart=/opt/runner/run.sh --jitconfig __JIT_CONFIG__
+      # The runner is ephemeral: it takes ONE job and exits, so exiting is success and systemd
+      # must not restart it. A restart would try to reuse a JIT config that has been consumed,
+      # fail in a loop, and keep the machine alive and billing.
+      Restart=no
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+
+  # A last-resort expiry ON THE MACHINE ITSELF, independent of GitHub being reachable. The
+  # watchdog is the real guarantee; this one still works when GitHub is not.
   - path: /usr/local/bin/self-destruct
     permissions: "0755"
     content: |
       #!/bin/sh
-      # Runs from a systemd timer. If the runner has been idle far longer than any build takes,
-      # something went wrong before the job ever started — shut down rather than idle at cost.
-      if [ ! -f /var/run/wedrive-build-started ]; then
-        UPTIME=$(cut -d. -f1 /proc/uptime)
-        [ "$UPTIME" -gt 3600 ] && poweroff
-      fi
+      # If the runner unit is not active and the machine has been up an hour, nothing is ever
+      # going to happen here: power off rather than idle at cost.
+      #
+      # The previous version tested for a marker file that runcmd created unconditionally, so it
+      # could never fire — and the situation it existed to prevent is exactly the one that then
+      # cost 28 minutes of a machine doing nothing at all.
+      systemctl is-active --quiet github-runner && exit 0
+      UPTIME=$(cut -d. -f1 /proc/uptime)
+      [ "$UPTIME" -gt 3600 ] && poweroff
+      exit 0
+
+  - path: /etc/systemd/system/self-destruct.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Power off a builder that never got a job
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/self-destruct
+
+  - path: /etc/systemd/system/self-destruct.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Power off a builder that never got a job
+      [Timer]
+      OnBootSec=20min
+      OnUnitActiveSec=10min
+      [Install]
+      WantedBy=timers.target
 
 # Everything below runs once, in order, as root.
 runcmd:
   - systemctl enable --now docker
-  - useradd -m -s /bin/bash runner && usermod -aG docker runner
+  - useradd -m -s /bin/bash runner || true
+  - usermod -aG docker runner
   - mkdir -p /opt/runner && chown runner:runner /opt/runner
-  # The runner tarball is pinned by the bootstrap job, not resolved to "latest" here: a builder
-  # that picks up a new runner release mid-month is a builder that changed without anyone
-  # deciding it should.
-  - su - runner -c "cd /opt/runner && curl -fsSL -o runner.tar.gz
-    https://github.com/actions/runner/releases/download/v__RUNNER_VERSION__/actions-runner-linux-__ARCH__-__RUNNER_VERSION__.tar.gz
-    && tar xzf runner.tar.gz && rm runner.tar.gz"
-  # A JIT CONFIG, NOT A REGISTRATION TOKEN AND CERTAINLY NOT A PAT. This file lands in the
-  # `user_data` of a machine on the public internet, readable by anything that reaches its
-  # metadata service — so what it carries has to be worthless by the time it arrives.
-  #
-  #   a PAT                keeps working afterwards, everywhere
-  #   a registration token one hour, and registers a runner that could take further jobs
-  #   a JIT config         ONE job on ONE runner, consumed by the build itself
-  #
-  # There is no config.sh step at all: the JIT config IS the registration, so nothing is ever
-  # written to disk that could register a second runner.
-  - touch /var/run/wedrive-build-started
-  - su - runner -c "cd /opt/runner && ./run.sh --jitconfig __JIT_CONFIG__" &
+  # Pinned by the bootstrap job rather than resolved to "latest": a builder that picks up a new
+  # runner release mid-month is a builder that changed without anyone deciding it should. Written
+  # on ONE line — a folded YAML entry works, and a line that has to survive folding is a line
+  # that will eventually be broken by an edit.
+  - su - runner -c "cd /opt/runner && curl -fsSL -o runner.tar.gz https://github.com/actions/runner/releases/download/v__RUNNER_VERSION__/actions-runner-linux-__ARCH__-__RUNNER_VERSION__.tar.gz && tar xzf runner.tar.gz && rm runner.tar.gz"
+  # The runner ships its own dependency installer, which knows what this release needs on this
+  # distribution — including ICU, without which a .NET runner refuses to start with a message
+  # about globalization that reads like nothing to do with CI. That is the second candidate for
+  # the silent failure above, and running this costs nothing whether or not it was the cause.
+  - /opt/runner/bin/installdependencies.sh || true
+  - systemctl daemon-reload
+  - systemctl enable --now github-runner.service
+  - systemctl enable --now self-destruct.timer

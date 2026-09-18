@@ -134,6 +134,34 @@ jobs:
             --sub "JIT_CONFIG=${{ steps.jit.outputs.config }}"
           echo "created=true" >> "$GITHUB_OUTPUT"
 
+      # ── WAIT FOR THE MACHINE TO ACTUALLY ARRIVE, AND GIVE UP IF IT DOES NOT ─────────────────
+      # The first paid attempt created a server whose runner never connected, and nothing noticed
+      # for 28 minutes: the build job simply sat queued while the machine billed. `create`
+      # returning success says a machine EXISTS, which is a different claim from a runner being
+      # online, and the gap between them is paid for by the minute.
+      #
+      # Six minutes is generous — boot plus apt plus a 200 MB runner download measured well under
+      # that — and failing here hands control to `cleanup`, which deletes the machine. A bounded
+      # loss instead of an open-ended one.
+      - name: wait for the runner to come online
+        if: '!inputs.dry_run'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RUNNER_ADMIN_TOKEN }}
+        run: |
+          want="$BUILDER_NAME-${{ github.run_id }}"
+          deadline=$(( $(date +%s) + 360 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            status=$(gh api "repos/${{ github.repository }}/actions/runners"                        --jq ".runners[] | select(.name==\"$want\") | .status" 2>/dev/null || true)
+            if [ "$status" = "online" ]; then
+              echo "runner online after $(( 360 - (deadline - $(date +%s)) ))s"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::the runner never came online in 6 minutes. The machine exists and is"
+          echo "::error::billing; cleanup will delete it. Nothing was built."
+          exit 1
+
   build:
     needs: bootstrap
     if: needs.bootstrap.outputs.created == 'true'

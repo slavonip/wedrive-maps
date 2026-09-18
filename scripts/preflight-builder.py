@@ -82,24 +82,42 @@ def main() -> int:
         for tid in (dc.get("server_types") or {}).get("available", []):
             available.setdefault(tid, set()).add(dc["location"]["name"])
 
-    # ── the ladder, and which rung would actually be taken ───────────────────────────────────
+    # ── the ladder, and what /datacenters DOES AND DOES NOT PROVE ────────────────────────────
+    # MEASURED THE HARD WAY, 2026-09-18: this preflight reported `cax41` available in nbg1 and
+    # hel1 — straight from `/datacenters`.`server_types.available` — and the create call was
+    # refused in BOTH with HTTP 422 `unsupported location for server type`. The listing and the
+    # create path do not agree, and only one of them is authoritative.
+    #
+    # So availability here is a HINT, never a verdict. A rung is "listed" or "not listed", and
+    # neither is proof of create capacity; the ladder discovers the truth by trying, which is
+    # exactly what it did — falling through to cpx62/nbg1 and succeeding there.
+    #
+    # The earlier wording said "no capacity" and printed a confident selection, which is how an
+    # unknown became a PASS. It does not get to do that again.
     chosen = None
     rungs = []
     for name, location in hetzner.LADDER:
         spec = types.get(name)
-        here = spec and location in available.get(spec["id"], set())
-        rungs.append(f"{name}/{location}{'' if here else ' (no capacity)'}")
-        if here and chosen is None:
+        listed = spec and location in available.get(spec["id"], set())
+        rungs.append(f"{name}/{location}{'' if listed else ' (not listed)'}")
+        if listed and chosen is None:
             chosen = (name, location, spec)
 
     if chosen is None:
-        line("selected server", "NONE — every rung is unavailable", False)
-        problems.append("no rung of the ladder has capacity")
-    else:
+        line("first rung listed", "NONE — the ladder will still try every rung in order", None)
+        # NOT a problem: the listing has already been wrong in the optimistic direction, so it
+        # may equally be wrong in the pessimistic one. Refusing to proceed on its say-so would
+        # be trusting it exactly as much as before.
+        chosen = (hetzner.LADDER[0][0], hetzner.LADDER[0][1], types.get(hetzner.LADDER[0][0]))
+        if not chosen[2]:
+            line("server types", "the API lists none of our ladder at all", False)
+            problems.append("no rung of the ladder exists as a server type")
+    if chosen and chosen[2]:
         name, location, spec = chosen
         hourly = min((float(p["price_hourly"]["net"]) for p in spec.get("prices", [])
                       if p.get("price_hourly")), default=0.0)
-        line("selected server", name)
+        line("first rung to be tried", f"{name}  (listed in {location}; the API's listing is"
+                                       f" not proof, and has been wrong)")
         line("architecture", ARCH_OF.get(name[:3], "?"))
         line("location", location)
         line("vCPU / RAM", f"{spec['cores']} / {spec['memory']:.0f} GB")
@@ -108,7 +126,8 @@ def main() -> int:
                                        f"(~EUR {hourly * 4:.2f} for a 4 h build)")
         if spec["disk"] < 241:
             problems.append(f"{name} has {spec['disk']} GB, under the 241 GB target")
-    line("fallback", " -> ".join(rungs))
+    line("ladder, in order", " -> ".join(rungs))
+    line("", "   a rung not listed is still attempted; only a create call settles capacity")
 
     # ── GitHub: can we actually mint a runner credential, and from what? ─────────────────────
     # The workflow prefers a GITHUB APP and falls back to a PAT. Which one answered is reported,
