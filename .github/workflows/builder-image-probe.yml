@@ -1,0 +1,79 @@
+name: builder image probe
+
+# DOES THE arm64 IMAGE ACTUALLY CONTAIN OUR FACTORY, or does it merely exist?
+#
+# `ghcr.io/valhalla/valhalla:3.6.3` publishes linux/amd64 AND linux/arm64 — checked in the
+# registry manifest. That makes Hetzner's CAX41 (16 ARM vCPU, 32 GB, 320 GB NVMe, EUR 0.0657/h)
+# a candidate at a SEVENTH the price of CCX43, without changing the Valhalla version, which is
+# the one thing worth not changing at the same time as the CPU architecture.
+#
+# But a manifest entry is a promise. This repo has been wrong about exactly this class of thing
+# before: the runner's disk, the timezone builder's target release, a "harmless" admin warning
+# with a 21% routing consequence. So the image is opened and asked, under QEMU emulation, which
+# is slow for building and instant for `--version`.
+#
+# It also settles a debt: whether `valhalla_build_tiles` has `--start_stage`/`--end_stage`. Those
+# were claimed from upstream documentation and never verified here, and although the staging
+# question is already moot for disk — the peak is the hierarchy stage, which is indivisible —
+# leaving an unverified claim in the record is how this project has gone wrong before.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - name: emulation, so arm64 can be inspected on an x86 runner
+        if: matrix.platform == 'linux/arm64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: what is actually in this image
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -e
+          IMAGE=ghcr.io/valhalla/valhalla:3.6.3
+          echo "=== $PLATFORM ==="
+          docker pull --platform "$PLATFORM" "$IMAGE" >/dev/null
+          run() { docker run --rm --platform "$PLATFORM" --entrypoint "$1" "$IMAGE" "${@:2}"; }
+
+          echo "-- architecture the image reports --"
+          docker run --rm --platform "$PLATFORM" --entrypoint uname "$IMAGE" -m
+
+          echo "-- every binary the factory calls --"
+          for tool in valhalla_build_tiles valhalla_build_admins valhalla_build_config \
+                      valhalla_service valhalla_build_timezones spatialite python3; do
+            if docker run --rm --platform "$PLATFORM" --entrypoint which "$IMAGE" "$tool" \
+                 >/dev/null 2>&1; then
+              echo "   present  $tool"
+            else
+              echo "   MISSING  $tool"
+              echo "MISSING=$tool" >> "$GITHUB_ENV"
+            fi
+          done
+
+          echo "-- the graph format, which is what a car has to read --"
+          run valhalla_build_tiles --version 2>&1 | head -2 || true
+
+          echo "-- the stage flags, claimed from docs and never checked here --"
+          if run valhalla_build_tiles --help 2>&1 | grep -qE "start[_-]stage"; then
+            run valhalla_build_tiles --help 2>&1 | grep -iE "stage" | head -6
+          else
+            echo "   NO stage flags in this build — the claim was wrong"
+          fi
+
+          echo "-- the timezone builder's hardcoded release --"
+          docker run --rm --platform "$PLATFORM" --entrypoint sh "$IMAGE" -c \
+            'grep -o "releases/download/[^/]*" "$(which valhalla_build_timezones)" | head -1' \
+            2>&1 || echo "   could not read it"
+
+      - name: a missing binary is a failure, not a note
+        if: env.MISSING != ''
+        run: |
+          echo "::error::${{ matrix.platform }} is missing ${{ env.MISSING }} — this image cannot run the factory"
+          exit 1
