@@ -191,12 +191,12 @@ jobs:
           # sshd may still be starting: a machine too broken to run a runner is often not too
           # broken to answer, but it may need a minute.
           for attempt in $(seq 1 10); do
-            if ssh -i /tmp/builder_key -o StrictHostKeyChecking=no                    -o ConnectTimeout=10 -o BatchMode=yes "root@$ip" true 2>/dev/null; then
+            if ssh -i /tmp/builder_key -o StrictHostKeyChecking=no                    -o ConnectTimeout=10 -o BatchMode=yes "diagnostic@$ip" true 2>/dev/null; then
               break
             fi
             echo "   ssh not answering yet (attempt $attempt)"; sleep 15
           done
-          ssh -i /tmp/builder_key -o StrictHostKeyChecking=no -o BatchMode=yes               "root@$ip" 'bash -s' < infra/diagnose.sh 2>&1 | tee /tmp/diag.txt ||             echo "SSH never answered — the machine did not reach a state where it could"
+          ssh -i /tmp/builder_key -o StrictHostKeyChecking=no -o BatchMode=yes               "diagnostic@$ip" 'bash -s' < infra/diagnose.sh 2>&1 | tee /tmp/diag.txt ||             echo "SSH never answered — the machine did not reach a state where it could"
           {
             echo "### the builder could not be reached by GitHub — here is what it said"
             echo '```'

@@ -57,12 +57,19 @@ stage workdir bash -c 'mkdir -p /opt/runner && chown runner:runner /opt/runner'
 
 URL="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz"
 echo "runner tarball: $URL"
-# `runuser`, NOT `su -`. `su` runs PAM's account phase against the target user, which is the
-# very check that refused the diagnostic SSH session with "password change required". `runuser`
-# is made for running a command as another user from root without PAM authentication, so a
-# password policy on the image cannot silently break the build.
-stage runner_download runuser -u runner -- curl -fsSL -o /opt/runner/runner.tar.gz "$URL"
-stage runner_extract runuser -u runner -- bash -c "cd /opt/runner && tar xzf runner.tar.gz && rm runner.tar.gz"
+# DELIBERATELY STILL `su - runner`, and this is a reversal.
+#
+# When the diagnostic SSH failed on an expired root password I also swapped this for `runuser`,
+# reasoning that PAM's account phase would refuse `su` the same way. That may well be true — and
+# there is NO evidence for it. Changing the mechanism under investigation at the same moment as
+# fixing the instrument would have meant that a fourth green run proved nothing about which of
+# the two changes mattered, and a fourth red one would have lost the original symptom.
+#
+# The next run is an OBSERVATION, not a repair. If `runner_download` fails with a password
+# message, the swap is justified by evidence and takes one line. If it passes, the whole theory
+# was wrong and the cause is somewhere else entirely.
+stage runner_download su - runner -c "curl -fsSL -o /opt/runner/runner.tar.gz '$URL'"
+stage runner_extract su - runner -c "cd /opt/runner && tar xzf runner.tar.gz && rm runner.tar.gz"
 
 # The check the previous version never made: the unit is about to point at this file, and with a
 # restart policy a missing binary would either loop or sit dead. Either way the cause would be

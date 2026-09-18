@@ -37,12 +37,14 @@
 # Hetzner's image marks root's password expired when a server is created without a stored SSH key
 # resource. That blocks every non-interactive session — which is what a diagnostic dump is.
 #
-# `expire: false` turns that off. And the same PAM account check applies to `su - runner`, which
-# is how the bootstrap script fetched the runner, so this may be the whole story rather than only
-# the diagnostic half. The stage file will say: if it is, `runner_download` was failing all along
-# with the same message, and nothing downstream ever had a chance.
-chpasswd:
-  expire: false
+# THE FIX IS A SEPARATE USER, NOT A SYSTEM-WIDE POLICY CHANGE. Turning the expiry off globally
+# (`chpasswd: expire: false`) would very likely also repair `su - runner` — and that is precisely
+# why it is not done here. The next run has to OBSERVE the machine that fails, not a repaired one,
+# or a green result tells us nothing about which change mattered.
+#
+# So a dedicated account exists only to be logged into: created by cloud-init's `users` module,
+# key-only, with a locked password rather than an expired one, and passwordless sudo so the dump
+# can read root-owned logs. It changes nothing about how the runner is installed or started.
 ssh_pwauth: false
 
 package_update: true
@@ -53,11 +55,22 @@ packages:
   - tar
   - psmisc
 
-# Ephemeral, for diagnosis only. Generated per run, used within one job, and destroyed with the
-# machine. It is NOT stored as a Hetzner SSH key resource — there is no long-lived credential
+# Ephemeral, for diagnosis only. Generated per run, used within one job, destroyed with the
+# machine, and NOT stored as a Hetzner SSH key resource — there is no long-lived credential
 # anywhere in this path.
-ssh_authorized_keys:
-  - __SSH_PUBKEY__
+#
+# `lock_passwd: true` gives this account no password at all, which is a different state from
+# root's EXPIRED one: PAM refuses an expired password on the account phase even when the key
+# authenticated, and accepts a locked one. That distinction is the whole reason the diagnostics
+# could not be read last time.
+users:
+  - default
+  - name: diagnostic
+    shell: /bin/bash
+    lock_passwd: true
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - __SSH_PUBKEY__
 
 write_files:
   - path: /usr/local/bin/bootstrap-runner
