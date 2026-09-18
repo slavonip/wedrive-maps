@@ -57,8 +57,12 @@ stage workdir bash -c 'mkdir -p /opt/runner && chown runner:runner /opt/runner'
 
 URL="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz"
 echo "runner tarball: $URL"
-stage runner_download su - runner -c "curl -fsSL -o /opt/runner/runner.tar.gz '$URL'"
-stage runner_extract su - runner -c "cd /opt/runner && tar xzf runner.tar.gz && rm runner.tar.gz"
+# `runuser`, NOT `su -`. `su` runs PAM's account phase against the target user, which is the
+# very check that refused the diagnostic SSH session with "password change required". `runuser`
+# is made for running a command as another user from root without PAM authentication, so a
+# password policy on the image cannot silently break the build.
+stage runner_download runuser -u runner -- curl -fsSL -o /opt/runner/runner.tar.gz "$URL"
+stage runner_extract runuser -u runner -- bash -c "cd /opt/runner && tar xzf runner.tar.gz && rm runner.tar.gz"
 
 # The check the previous version never made: the unit is about to point at this file, and with a
 # restart policy a missing binary would either loop or sit dead. Either way the cause would be
@@ -73,6 +77,13 @@ stage dependencies /opt/runner/bin/installdependencies.sh
 stage service_install systemctl daemon-reload
 stage service_start systemctl enable --now github-runner.service
 stage timer_start systemctl enable --now self-destruct.timer
+
+# Recorded whether or not anything failed: if a password policy is in play, this is the line
+# that shows it, and it costs nothing to have it already in the log.
+echo "=== account state ==="
+chage -l runner 2>&1 | head -5
+passwd -S root 2>&1
+passwd -S runner 2>&1
 
 echo "=== stages ==="
 cat "$STAGES"

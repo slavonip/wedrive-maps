@@ -27,6 +27,24 @@
 # in a version-pinned container image, because a builder that installs its toolchain from a
 # distribution's repositories is a builder whose output changes when that distribution updates.
 
+# ── MEASURED, THIRD PAID ATTEMPT, 2026-09-18 ─────────────────────────────────────────────────
+# The diagnostic SSH path authenticated by key and was then refused by the login itself:
+#
+#     You are required to change your password immediately (administrator enforced).
+#     WARNING: Your password has expired.
+#     Password change required but no TTY available.
+#
+# Hetzner's image marks root's password expired when a server is created without a stored SSH key
+# resource. That blocks every non-interactive session — which is what a diagnostic dump is.
+#
+# `expire: false` turns that off. And the same PAM account check applies to `su - runner`, which
+# is how the bootstrap script fetched the runner, so this may be the whole story rather than only
+# the diagnostic half. The stage file will say: if it is, `runner_download` was failing all along
+# with the same message, and nothing downstream ever had a chance.
+chpasswd:
+  expire: false
+ssh_pwauth: false
+
 package_update: true
 packages:
   - docker.io
