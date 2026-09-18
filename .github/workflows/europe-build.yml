@@ -50,14 +50,44 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       created: ${{ steps.create.outputs.created }}
+    env:
+      # `secrets` is NOT available in a step's `if` — checked in GitHub's context-availability
+      # table, not assumed — but it IS available in a job's `env`. So the presence of the App is
+      # turned into an env var here and tested there. Written as `if: secrets.X != ''` the
+      # condition would simply never be true, and the workflow would fall back to a PAT forever
+      # while looking like it preferred the App.
+      HAS_APP: ${{ secrets.RUNNER_APP_ID != '' }}
     steps:
       - uses: actions/checkout@v4
+
+      # ── A GITHUB APP, NOT A PERSON'S TOKEN ─────────────────────────────────────────────────
+      # `create-github-app-token` exchanges the App's private key for an INSTALLATION token that
+      # lives one hour, is scoped to this repository, and — because of `permission-administration`
+      # — carries only the one permission minting a runner config needs, even if the App itself
+      # was granted more. It belongs to no person, so it survives someone leaving and cannot be
+      # used anywhere else.
+      #
+      # This is the control plane's only long-lived secret, and it is a key rather than a token:
+      # a leaked App key can be rotated in one place without touching anyone's account.
+      - name: a short-lived credential from the App
+        id: app
+        if: env.HAS_APP == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.RUNNER_APP_ID }}
+          private-key: ${{ secrets.RUNNER_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-administration: write
 
       # EVERY LINK, CHECKED WHILE CHECKING IS STILL FREE. The next step bills by the hour.
       - name: preflight
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
-          RUNNER_ADMIN_TOKEN: ${{ secrets.RUNNER_ADMIN_TOKEN }}
+          # The App if it is configured, a PAT only as a fallback — and the preflight SAYS which
+          # answered, because a silent downgrade from an App to a person's token is exactly the
+          # kind of thing that goes unnoticed for a year.
+          RUNNER_TOKEN: ${{ steps.app.outputs.token || secrets.RUNNER_ADMIN_TOKEN }}
+          RUNNER_TOKEN_SOURCE: ${{ steps.app.outputs.token && 'github-app' || 'personal-token' }}
         run: python3 scripts/preflight-builder.py --ttl-hours "${{ inputs.ttl_hours }}"
 
       - name: stop here if this is a dry run
@@ -71,7 +101,7 @@ jobs:
         if: '!inputs.dry_run'
         id: jit
         env:
-          RUNNER_ADMIN_TOKEN: ${{ secrets.RUNNER_ADMIN_TOKEN }}
+          RUNNER_ADMIN_TOKEN: ${{ steps.app.outputs.token || secrets.RUNNER_ADMIN_TOKEN }}
         run: |
           # Bound to ONE job on ONE runner. Even if the machine's user_data leaked wholesale,
           # what leaks is a credential the build has already consumed.

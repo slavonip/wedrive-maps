@@ -106,13 +106,19 @@ def main() -> int:
             problems.append(f"{name} has {spec['disk']} GB, under the 241 GB target")
     line("fallback", " -> ".join(rungs))
 
-    # ── GitHub: can we actually mint a runner credential? ────────────────────────────────────
-    token = os.environ.get("RUNNER_ADMIN_TOKEN", "").strip()
+    # ── GitHub: can we actually mint a runner credential, and from what? ─────────────────────
+    # The workflow prefers a GITHUB APP and falls back to a PAT. Which one answered is reported,
+    # because they are not equivalent and a silent fallback would hide a downgrade: an App token
+    # lives an hour, is scoped to this repository and to `administration` alone, and belongs to
+    # no person — a PAT is a human's credential with a human's blast radius.
+    token = os.environ.get("RUNNER_TOKEN", "").strip()
+    source = os.environ.get("RUNNER_TOKEN_SOURCE", "unknown")
     if not token:
-        line("GitHub runner token", "MISSING — set RUNNER_ADMIN_TOKEN", False)
-        problems.append("RUNNER_ADMIN_TOKEN is not set")
+        line("GitHub runner credential",
+             "MISSING — set the App secrets (RUNNER_APP_ID + RUNNER_APP_PRIVATE_KEY)", False)
+        problems.append("no credential for minting a runner config")
     elif not args.repo:
-        line("GitHub runner token", "no repository known", False)
+        line("GitHub runner credential", "no repository known", False)
         problems.append("GITHUB_REPOSITORY is not set")
     else:
         try:
@@ -121,14 +127,19 @@ def main() -> int:
                                   "labels": ["self-hosted", "europe-builder"],
                                   "work_folder": "_work"})
             # Minted and thrown away. It authorises one job on a runner that will never exist.
-            line("GitHub runner token", f"READY (JIT config, {len(jit.get('encoded_jit_config',''))} chars)")
+            line("GitHub runner credential",
+                 f"READY via {source} — JIT config minted "
+                 f"({len(jit.get('encoded_jit_config', ''))} chars) and discarded")
+            if source != "github-app":
+                line("", "   note: a PAT is in use; a GitHub App is the intended mechanism")
         except urllib.error.HTTPError as error:
-            hint = ("the credential needs Administration: read and write on this repository"
+            hint = ("the App installation needs Administration: read and write on this "
+                    "repository, and must be installed on it"
                     if error.code in (403, 404) else "")
-            line("GitHub runner token", f"FAIL — HTTP {error.code}. {hint}", False)
+            line("GitHub runner credential", f"FAIL — HTTP {error.code}. {hint}", False)
             problems.append("cannot mint a runner credential")
         except Exception as error:                  # noqa: BLE001
-            line("GitHub runner token", f"FAIL — {str(error)[:60]}", False)
+            line("GitHub runner credential", f"FAIL — {str(error)[:60]}", False)
             problems.append("cannot mint a runner credential")
 
     # ── cloud-init: valid YAML, and every placeholder accounted for ──────────────────────────
