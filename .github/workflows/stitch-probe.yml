@@ -1,0 +1,114 @@
+name: stitch probe
+
+# CAN A CAR DRIVE ACROSS A SEAM BETWEEN TWO SEPARATE MASTERS?
+#
+# This is the last fundamental question in the routing architecture, and it exists because the
+# scale ladder answered the previous one. A standard runner holds a master of about 11 GB of
+# source (measured: rung 10 at 10.65 GB used 67 of 82 GB of scratch disk). Europe is 32.6 GB. So
+# Europe is three or four masters, and the moment two neighbouring countries come from DIFFERENT
+# masters, the property everything rests on is no longer guaranteed by construction:
+#
+#     within a master   the frontier tile is ONE file, built once, appearing in two packages
+#                       — measured, 86 of 86 byte-identical across four countries
+#     across a seam     each master built its own version of that grid cell, from its own inputs
+#
+# The experiment is deliberately the one we already understand: take `eu-core`, whose four
+# countries are known to work as a single master, and build it as TWO masters instead —
+#
+#     master A = AT + HU          master B = MD + RO
+#
+# — then install all four country packages together and ask for AT -> MD, a route that is 1345.7 km
+# through three frontiers inside one master. The HU|RO seam is the one under test.
+#
+# WHAT IS EXPECTED, AND WHY IT IS STILL WORTH RUNNING. The seam should break: `GraphId` indices
+# are assigned per build, so the two versions of the frontier cell are different graphs and
+# unpacking both keeps whichever landed last. But "should break" has been wrong here before —
+# and even when it is right, HOW it breaks is what decides the remedy. A refusal and a 400 km
+# detour need different answers, and only one of them is noticeable in a car.
+#
+# It publishes nothing and gates nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      left:
+        description: "Master A members (space-separated CC:geofabrik-path)"
+        required: true
+        default: "AT:europe/austria HU:europe/hungary"
+      right:
+        description: "Master B members"
+        required: true
+        default: "MD:europe/moldova RO:europe/romania"
+      seam:
+        description: "The two country codes either side of the seam"
+        required: true
+        default: "HU RO"
+
+concurrency:
+  group: stitch-probe
+  cancel-in-progress: false
+
+jobs:
+  stitch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    container:
+      image: ghcr.io/valhalla/valhalla:3.6.3
+      options: --user root
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: reclaim disk
+        run: |
+          rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
+          df -h / | tail -1
+
+      - name: timezone database
+        run: |
+          mkdir -p /data/vendor
+          base="${{ github.server_url }}/${{ github.repository }}/releases/download/maps-vendor"
+          curl -fsSL -o /data/vendor/timezones.sqlite "$base/timezones.sqlite"
+          curl -fsSL -o /data/vendor/timezones.version "$base/timezones.version"
+          python3 scripts/check-timezones.py /data/vendor/timezones.sqlite \
+            --expect-dataset "$(cat /data/vendor/timezones.version)"
+
+      # TWO SEPARATE MASTERS, built by the production script so nothing about the comparison is
+      # an artefact of a special path. Each is small — together they are the eu-core fixture —
+      # so both fit one job comfortably.
+      - name: master A
+        run: |
+          mkdir -p /data && cp -r scripts /data/scripts
+          bash /data/scripts/build-master.sh stitch-a ${{ inputs.left }}
+
+      - name: master B
+        run: |
+          bash /data/scripts/build-master.sh stitch-b ${{ inputs.right }}
+
+      - name: does the seam hold
+        run: |
+          # Chișinău -> Vienna: 1345.7 km inside one master, measured repeatedly on eu-core.
+          python3 scripts/stitch-probe.py /data/cuts_stitch-a /data/cuts_stitch-b \
+            --seam ${{ inputs.seam }} \
+            --across 47.0105 28.8638 48.1950 16.2700 \
+            --expect-km 1345.7 | tee /data/stitch.txt
+
+      - name: say it on the run itself
+        if: always()
+        run: |
+          {
+            echo "### stitch probe: ${{ inputs.left }} | ${{ inputs.right }}"
+            echo
+            echo '```'
+            cat /data/stitch.txt 2>/dev/null || echo "the probe did not run"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stitch-probe
+          path: /data/stitch.txt
+          retention-days: 30
