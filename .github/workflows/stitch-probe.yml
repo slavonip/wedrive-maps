@@ -103,10 +103,16 @@ jobs:
       - name: does the seam hold
         run: |
           # Chișinău -> Vienna: 1345.7 km inside one master, measured repeatedly on eu-core.
+          # Every number is one eu-core has already measured as a SINGLE master, so a
+          # disagreement is about the seam rather than about the route being unfamiliar:
+          #   across    Chisinau -> Vienna    1345.7 km, three frontiers
+          #   inside A  Vienna -> Budapest     243.6 km, crossing AT|HU within master A
+          #   inside B  Chisinau -> Iasi       150.2 km, crossing MD|RO within master B
           python3 scripts/stitch-probe.py /data/cuts_stitch-a /data/cuts_stitch-b \
             --seam ${{ inputs.seam }} \
-            --across 47.0105 28.8638 48.1950 16.2700 \
-            --expect-km 1345.7 | tee /data/stitch.txt
+            --across 47.0105 28.8638 48.1950 16.2700 --expect-km 1345.7 \
+            --inside-a 48.1950 16.2700 47.4979 19.0402 243.6 \
+            --inside-b 47.0105 28.8638 47.1585 27.6014 150.2 | tee /data/stitch.txt
 
       - name: say it on the run itself
         if: always()
