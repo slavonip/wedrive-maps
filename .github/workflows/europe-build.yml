@@ -150,6 +150,8 @@ jobs:
 
   cleanup:
     needs: [bootstrap, build]
+    env:
+      HAS_APP: ${{ secrets.RUNNER_APP_ID != '' }}
     # ALWAYS. Not on success, not on failure — always. A cancelled run, a failed build and a
     # builder that stopped answering all reach here, and all of them leave a machine billing if
     # this does not fire.
@@ -157,6 +159,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: a credential for tidying the runner list
+        id: app
+        if: env.HAS_APP == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.RUNNER_APP_ID }}
+          private-key: ${{ secrets.RUNNER_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-administration: write
+
       - name: delete the builder
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
@@ -164,3 +177,23 @@ jobs:
           python3 scripts/hetzner.py delete --name "$BUILDER_NAME"
           echo "--- what is left ---"
           python3 scripts/hetzner.py list
+
+      # THE OTHER HALF OF THE LEAK. Minting a JIT config registers a runner immediately, and an
+      # ephemeral runner only removes itself after it has RUN a job. If the machine never came up
+      # — no capacity, a cloud-init failure, a build cancelled before it started — the
+      # registration survives as an offline phantom, and the next run collides with it.
+      #
+      # That is exactly how the first paid attempt failed: HTTP 409 on a name a previous probe
+      # had taken.
+      - name: deregister a runner that never ran
+        if: always() && steps.app.outputs.token != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          id=$(gh api "repos/${{ github.repository }}/actions/runners"                  --jq ".runners[] | select(.name==\"$BUILDER_NAME-${{ github.run_id }}\") | .id")
+          if [ -n "$id" ]; then
+            gh api -X DELETE "repos/${{ github.repository }}/actions/runners/$id"
+            echo "deregistered the runner for this run ($id) — it never consumed its job"
+          else
+            echo "no runner left registered for this run"
+          fi

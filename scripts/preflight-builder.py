@@ -7,9 +7,13 @@ checking is still free, and the output is one table a human can read in five sec
 
 It is READ-ONLY against Hetzner — it reuses `hetzner.py` only through its GET paths and never
 calls `create`. Against GitHub it does one thing that is not a read: it mints a **just-in-time
-runner config**, because that is the only way to know the credential actually works, and a JIT
-config is worth minting precisely because it is safe to waste — it authorises exactly one job on
-one runner and expires unused.
+runner config**, because that is the only way to know the credential actually works.
+
+**And minting one REGISTERS A RUNNER, at mint time.** This file used to say the config was "minted
+and discarded", which was true of the config and false of the registration — the second run then
+failed with HTTP 409 on a name already taken. The registration is deleted again now, and stale
+ones are swept, so running this twice is exactly as safe as running it once. A probe that claims
+to be side-effect-free must be made so, not described so.
 
 WHY JIT AND NOT A REGISTRATION TOKEN, LET ALONE A PAT. A personal access token in cloud-init
 would sit in the `user_data` of a machine on the public internet, readable by anything that can
@@ -121,21 +125,55 @@ def main() -> int:
         line("GitHub runner credential", "no repository known", False)
         problems.append("GITHUB_REPOSITORY is not set")
     else:
+        # MINTING A JIT CONFIG REGISTERS A RUNNER IMMEDIATELY — at mint time, not when a machine
+        # connects. An earlier version of this file claimed the config was "minted and
+        # discarded", which was true of the config and false of the registration: it left a
+        # phantom runner behind, and the SECOND run failed with HTTP 409 because the name was
+        # taken. The probe was not side-effect-free, and said it was.
+        #
+        # So: a unique name, and the registration is deleted again. Stale ones from before this
+        # fix are swept too, because a repository full of offline phantom runners is confusing
+        # at best and, for a self-hosted setup, worth not having at all.
+        stale = [r for r in github(f"/repos/{args.repo}/actions/runners", token).get("runners", [])
+                 if r["name"].startswith("preflight-probe")]
+        for runner in stale:
+            try:
+                github(f"/repos/{args.repo}/actions/runners/{runner['id']}", token, "DELETE")
+                print(f"   (removed a stale probe runner: {runner['name']})")
+            except Exception:                       # noqa: BLE001
+                pass
+
+        probe_name = f"preflight-probe-{os.environ.get('GITHUB_RUN_ID', 'local')}"
         try:
             jit = github(f"/repos/{args.repo}/actions/runners/generate-jitconfig", token,
-                         "POST", {"name": "preflight-probe", "runner_group_id": 1,
+                         "POST", {"name": probe_name, "runner_group_id": 1,
                                   "labels": ["self-hosted", "europe-builder"],
                                   "work_folder": "_work"})
-            # Minted and thrown away. It authorises one job on a runner that will never exist.
+            size = len(jit.get("encoded_jit_config", ""))
+            # Undo the registration this just made, so running the preflight twice in a row is
+            # exactly as safe as running it once.
+            runner_id = (jit.get("runner") or {}).get("id")
+            removed = False
+            if runner_id:
+                try:
+                    github(f"/repos/{args.repo}/actions/runners/{runner_id}", token, "DELETE")
+                    removed = True
+                except Exception:                   # noqa: BLE001
+                    pass
             line("GitHub runner credential",
-                 f"READY via {source} — JIT config minted "
-                 f"({len(jit.get('encoded_jit_config', ''))} chars) and discarded")
+                 f"READY via {source} — JIT config minted ({size} chars) and the runner "
+                 f"{'deregistered again' if removed else 'COULD NOT be deregistered'}")
+            if not removed:
+                problems.append("a probe runner was left registered")
             if source != "github-app":
                 line("", "   note: a PAT is in use; a GitHub App is the intended mechanism")
         except urllib.error.HTTPError as error:
             hint = ("the App installation needs Administration: read and write on this "
                     "repository, and must be installed on it"
-                    if error.code in (403, 404) else "")
+                    if error.code in (403, 404)
+                    else "a runner with this name already exists — minting a JIT config "
+                         "registers one immediately, and an earlier one was not cleaned up"
+                    if error.code == 409 else "")
             line("GitHub runner credential", f"FAIL — HTTP {error.code}. {hint}", False)
             problems.append("cannot mint a runner credential")
         except Exception as error:                  # noqa: BLE001
