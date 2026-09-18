@@ -32,6 +32,7 @@ publishes linux/arm64 and every binary the factory calls was found inside it —
 the image under emulation, not by reading its manifest.
 """
 import argparse
+import base64
 import datetime
 import json
 import os
@@ -119,6 +120,17 @@ def create(args) -> int:
         }
         if template:
             filled = template.replace("__ARCH__", ARCH_OF.get(server_type[:3], "x64"))
+            # The bootstrap script is carried base64-encoded inside the cloud-init, so its own
+            # quoting and indentation cannot collide with YAML. It needs __ARCH__ and
+            # __RUNNER_VERSION__ too, so it is substituted first and encoded after.
+            if "__BOOTSTRAP_B64__" in filled and args.bootstrap:
+                script = open(args.bootstrap, encoding="utf-8").read()
+                script = script.replace("__ARCH__", ARCH_OF.get(server_type[:3], "x64"))
+                for key, value in given.items():
+                    script = script.replace(f"__{key}__", value)
+                filled = filled.replace(
+                    "__BOOTSTRAP_B64__",
+                    base64.b64encode(script.encode()).decode())
             for key, value in given.items():
                 filled = filled.replace(f"__{key}__", value)
             left = re.findall(r"__[A-Z_]+__", filled)
@@ -222,6 +234,8 @@ def main() -> int:
     make.add_argument("--name", required=True)
     make.add_argument("--ttl-hours", type=float, default=6)
     make.add_argument("--user-data", default=None)
+    make.add_argument("--bootstrap", default=None,
+                      help="a script to embed base64 into __BOOTSTRAP_B64__")
     make.add_argument("--sub", action="append", metavar="KEY=VALUE",
                       help="fill __KEY__ in the cloud-init template")
     make.add_argument("--dry-run", action="store_true")

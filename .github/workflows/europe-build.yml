@@ -116,6 +116,17 @@ jobs:
           echo "::add-mask::$config"
           echo "config=$config" >> "$GITHUB_OUTPUT"
 
+      # AN EPHEMERAL KEY, GENERATED HERE AND NEVER STORED. It is not created as a Hetzner SSH
+      # key resource, so no long-lived credential exists anywhere: the public half rides in the
+      # cloud-init, the private half lives in this job's filesystem for a few minutes, and both
+      # die with the machine. Its only purpose is reading logs off a builder that failed.
+      - name: an ephemeral key, for reading logs off a failure
+        if: '!inputs.dry_run'
+        id: key
+        run: |
+          ssh-keygen -t ed25519 -N "" -C "wedrive-${{ github.run_id }}" -f /tmp/builder_key -q
+          echo "pub=$(cat /tmp/builder_key.pub)" >> "$GITHUB_OUTPUT"
+
       - name: create the builder
         if: '!inputs.dry_run'
         id: create
@@ -131,7 +142,7 @@ jobs:
             --ttl-hours "${{ inputs.ttl_hours }}" \
             --user-data infra/cloud-init.yml \
             --sub "RUNNER_VERSION=$RUNNER_VERSION" \
-            --sub "JIT_CONFIG=${{ steps.jit.outputs.config }}"
+            --bootstrap infra/bootstrap-runner.sh             --sub "JIT_CONFIG=${{ steps.jit.outputs.config }}"             --sub "SSH_PUBKEY=${{ steps.key.outputs.pub }}"
           echo "created=true" >> "$GITHUB_OUTPUT"
 
       # ── WAIT FOR THE MACHINE TO ACTUALLY ARRIVE, AND GIVE UP IF IT DOES NOT ─────────────────
@@ -158,9 +169,40 @@ jobs:
             fi
             sleep 15
           done
-          echo "::error::the runner never came online in 6 minutes. The machine exists and is"
-          echo "::error::billing; cleanup will delete it. Nothing was built."
+          echo "::error::the runner never came online in 6 minutes."
           exit 1
+
+      # ── ASK THE MACHINE BEFORE DESTROYING IT ───────────────────────────────────────────────
+      # Two builders have now been created, billed and deleted without anyone learning why their
+      # runner never connected. The second had a journal explaining it, on a host removed ten
+      # seconds later. The logs existed and were unreachable — the same blindness in better
+      # clothes, and it is what this step exists to end.
+      #
+      # It runs BEFORE cleanup, because cleanup is a separate job and jobs do not interleave. It
+      # never fails the run: a diagnosis that could mask the failure it is diagnosing would be
+      # worse than none.
+      - name: what the machine has to say for itself
+        if: failure() && steps.create.outputs.created == 'true'
+        continue-on-error: true
+        run: |
+          ip="${{ steps.create.outputs.hetzner_server_ip }}"
+          echo "reading logs from $ip before it is deleted"
+          mkdir -p ~/.ssh && ssh-keyscan -H "$ip" >> ~/.ssh/known_hosts 2>/dev/null || true
+          # sshd may still be starting: a machine too broken to run a runner is often not too
+          # broken to answer, but it may need a minute.
+          for attempt in $(seq 1 10); do
+            if ssh -i /tmp/builder_key -o StrictHostKeyChecking=no                    -o ConnectTimeout=10 -o BatchMode=yes "root@$ip" true 2>/dev/null; then
+              break
+            fi
+            echo "   ssh not answering yet (attempt $attempt)"; sleep 15
+          done
+          ssh -i /tmp/builder_key -o StrictHostKeyChecking=no -o BatchMode=yes               "root@$ip" 'bash -s' < infra/diagnose.sh 2>&1 | tee /tmp/diag.txt ||             echo "SSH never answered — the machine did not reach a state where it could"
+          {
+            echo "### the builder could not be reached by GitHub — here is what it said"
+            echo '```'
+            tail -300 /tmp/diag.txt 2>/dev/null || echo "no diagnostics were obtained"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build:
     needs: bootstrap
