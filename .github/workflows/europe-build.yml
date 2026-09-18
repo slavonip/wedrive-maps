@@ -43,7 +43,10 @@ concurrency:
 
 env:
   BUILDER_NAME: wedrive-europe-builder
-  RUNNER_VERSION: "2.328.0"
+  # Pinned deliberately, and GATED by the preflight against GitHub's release list. 2.328.0
+  # was refused as deprecated on 2026-09-18 after a machine had already been created — the pin
+  # had rotted, and "the tarball still downloads" was the wrong thing to have checked.
+  RUNNER_VERSION: "2.337.0"
 
 jobs:
   bootstrap:
@@ -88,6 +91,7 @@ jobs:
           # kind of thing that goes unnoticed for a year.
           RUNNER_TOKEN: ${{ steps.app.outputs.token || secrets.RUNNER_ADMIN_TOKEN }}
           RUNNER_TOKEN_SOURCE: ${{ steps.app.outputs.token && 'github-app' || 'personal-token' }}
+          RUNNER_VERSION: ${{ env.RUNNER_VERSION }}
         run: python3 scripts/preflight-builder.py --ttl-hours "${{ inputs.ttl_hours }}"
 
       - name: stop here if this is a dry run

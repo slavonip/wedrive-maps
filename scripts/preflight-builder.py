@@ -35,6 +35,11 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import hetzner  # noqa: E402 — for LADDER, OURS and its GET-only `call`
 
+# How far behind GitHub's newest runner a pin may be before this refuses. Three is roughly a
+# quarter of releases: recent enough that deprecation has never reached it, loose enough that the
+# factory does not fail every time upstream ships.
+RUNNER_VERSION_WINDOW = 3
+
 ARCH_OF = {"cax": "arm64", "cpx": "amd64", "ccx": "amd64", "cx": "amd64"}
 
 
@@ -198,6 +203,42 @@ def main() -> int:
         except Exception as error:                  # noqa: BLE001
             line("GitHub runner credential", f"FAIL — {str(error)[:60]}", False)
             problems.append("cannot mint a runner credential")
+
+    # ── THE RUNNER VERSION IS A VERSIONED INPUT, AND IT GOES STALE ───────────────────────────
+    # MEASURED, fourth paid attempt: every stage of the build passed, the runner installed,
+    # started, and CONNECTED — and GitHub then refused it:
+    #
+    #     √ Connected to GitHub
+    #     An error occured: Runner version v2.328.0 is deprecated and cannot receive messages.
+    #
+    # The machine was perfect. The pin had rotted. And this repository had already checked that
+    # version — by confirming its tarball returned HTTP 200, which proves it EXISTS and says
+    # nothing about whether GitHub accepts it. Verifying the wrong property is the same mistake
+    # as trusting a timezone database because the file opened.
+    #
+    # So the pin is gated like every other external input here: it must be among the most recent
+    # releases, checked against GitHub's own list. A pin that has drifted out of that window is a
+    # build that will fail after creating a machine, which is the expensive place to find out.
+    pinned = os.environ.get("RUNNER_VERSION", "").strip()
+    if pinned:
+        try:
+            releases = [r["tag_name"].lstrip("v") for r in
+                        github("/repos/actions/runner/releases?per_page=10", token or "")]
+        except Exception:                           # noqa: BLE001
+            releases = []
+        if not releases:
+            line("runner version", f"{pinned} — could not read GitHub's release list to check it")
+        elif pinned == releases[0]:
+            line("runner version", f"{pinned} — the current release")
+        elif pinned in releases[:RUNNER_VERSION_WINDOW]:
+            line("runner version", f"{pinned} — {releases.index(pinned)} behind "
+                                   f"{releases[0]}, still inside the window")
+        else:
+            where = (f"{releases.index(pinned)} releases behind" if pinned in releases
+                     else "not among the last 10 releases")
+            line("runner version", f"{pinned} — {where}; newest is {releases[0]}", False)
+            problems.append(f"the runner pin {pinned} is stale: GitHub refuses deprecated "
+                            f"runners AFTER the machine has been created and billed")
 
     # ── cloud-init: valid YAML, and every placeholder accounted for ──────────────────────────
     import re
