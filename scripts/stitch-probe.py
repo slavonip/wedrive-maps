@@ -110,6 +110,31 @@ def route_km(config: str, frm: list, to: list):
     return (metres / 1000) if metres else None
 
 
+def route_detail(config: str, frm: list, to: list):
+    """Length, duration, and the average speed those imply.
+
+    THE FIRST RUN CAME BACK SHORTER THAN THE TRUE ROUTE — 937 km against the 1345.7 km the same
+    journey takes inside one master — and a detour cannot be shorter. Straight-line Chisinau to
+    Vienna is about 900 km, so a 937 km "road route" is barely above the crow's flight.
+
+    The suspicion this measures: level-0 tiles carry the long shortcut edges of the hierarchy,
+    and `0/003/110.gph` differs between the two masters. A mismatched tile at that level can
+    offer edges joining places that are not joined, and the router will use them without
+    complaint. That is far worse than a refusal — it is a plausible route that does not
+    physically exist — and the implied speed is what exposes it, because a shortcut across
+    nothing costs almost no time.
+    """
+    answer = package_probe.route(config, frm, to)
+    metres = package_probe.metres(answer)
+    if not metres:
+        return None
+    summary = answer["trip"]["summary"]
+    seconds = summary.get("time") or 0
+    km = metres / 1000
+    return {"km": km, "seconds": seconds,
+            "kmh": (km / (seconds / 3600)) if seconds else None}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("cuts_a")
@@ -132,9 +157,17 @@ def main() -> int:
 
     config = config_for(str(both), "/tmp/stitched.json")
     lat1, lon1, lat2, lon2 = args.across
-    km = route_km(config, [lat1, lon1], [lat2, lon2])
+    detail = route_detail(config, [lat1, lon1], [lat2, lon2])
+    km = detail["km"] if detail else None
 
     print("\n=== 3. the route that has to cross it ===")
+    if detail:
+        speed = f"{detail['kmh']:.0f} km/h" if detail["kmh"] else "no duration reported"
+        print(f"   {detail['km']:.1f} km in {detail['seconds'] / 3600:.2f} h -> {speed}")
+        if detail["kmh"] and detail["kmh"] > 130:
+            print("   AN IMPLIED SPEED THIS HIGH IS NOT A ROAD. The router traversed edges that")
+            print("      do not correspond to driveable distance — the signature of a mismatched")
+            print("      level-0 tile offering shortcuts between places that are not joined.")
     if km is None:
         print(f"   NO ROUTE across the seam — the two masters do not join")
         verdict = "SEAM BROKEN"
@@ -148,11 +181,17 @@ def main() -> int:
         verdict = "SEAM HOLDS"
 
     print("\n=== 4. controls — each master alone, so a broken experiment is distinguishable ===")
-    for label, root in (("master A", a_root), ("master B", b_root)):
+    # EACH CONTROL MUST START INSIDE THE MASTER IT TESTS. The first version used the same start
+    # point for both, so master A — which contains no Moldova at all — was asked to route from
+    # Chișinău and "failed" exactly as it should have. A broken control reporting a broken master
+    # is the one thing a control exists to prevent, and it invalidated the whole first reading.
+    for label, root, point in (("master A", a_root, [lat2, lon2]),
+                               ("master B", b_root, [lat1, lon1])):
         alone = config_for(str(root), f"/tmp/{label.replace(' ', '_')}.json")
-        inside = route_km(alone, [lat1, lon1], [lat1 + 0.02, lon1 + 0.02])
-        print(f"   {label}: a short local route {'works' if inside else 'FAILS'}"
-              + (f" ({inside:.1f} km)" if inside else " — this control should never fail"))
+        inside = route_km(alone, point, [point[0] + 0.02, point[1] + 0.02])
+        print(f"   {label} from {point[0]:.3f},{point[1]:.3f}: "
+              + (f"works ({inside:.1f} km)" if inside
+                 else "FAILS — this control should never fail"))
 
     print(f"\nVERDICT: {verdict}")
     print(json.dumps({"verdict": verdict, "seamSharedTiles": seam["shared"],
