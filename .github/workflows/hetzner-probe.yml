@@ -1,0 +1,60 @@
+name: hetzner probe
+
+# ASK THE ACCOUNT, BUY NOTHING.
+#
+# The factory is about to gain the ability to create machines that bill by the hour, and this is
+# the step before that: confirm the token works, confirm the project is empty, and find out which
+# server types actually clear our MEASURED requirement.
+#
+# Read-only by construction, not by intention: `hetzner-probe.py` has exactly one request
+# function and it hardcodes GET. Nothing in this workflow creates, attaches, resizes or deletes
+# anything, and it never prints the token.
+#
+# The question it settles: our Europe build peaks at ~172 GB of scratch (32.6 GB of source plus
+# 139 GB of build growth, with no merge stage because europe-latest.osm.pbf is one file). If a
+# type's LOCAL NVMe clears that with margin, no Hetzner Volume is needed — which matters, because
+# a Volume is network block storage at roughly 200 MB/s and this build is disk-bound at its peak.
+
+on:
+  workflow_dispatch:
+  # Weekly, purely as a leak alarm: if a build ever leaves a server or a volume behind, this says
+  # so within seven days instead of at the end of the month on an invoice. It cannot delete
+  # anything — that is the watchdog's job, and the watchdog does not exist yet.
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: what does this project actually have
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          if [ -z "$HETZNER_API_TOKEN" ]; then
+            echo "::error::HETZNER_API_TOKEN is not set in this repository's secrets"
+            exit 1
+          fi
+          python3 scripts/hetzner-probe.py | tee /tmp/hetzner.txt
+
+      - name: say it on the run itself
+        if: always()
+        run: |
+          {
+            echo "### Hetzner project"
+            echo
+            echo '```'
+            cat /tmp/hetzner.txt 2>/dev/null || echo "the probe did not run"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A leak is worth an explicit failure rather than a line in a log nobody opens.
+      - name: nothing should be running
+        if: always()
+        run: |
+          if grep -q "SOMETHING IS BILLING" /tmp/hetzner.txt 2>/dev/null; then
+            echo "::error::a server or volume exists in the project — a build may have leaked one"
+            exit 1
+          fi
