@@ -1,0 +1,57 @@
+#cloud-config
+# WHAT A FRESH BUILDER DOES TO ITSELF, before GitHub has said a word to it.
+#
+# The machine is created by the Hetzner API with this as `user_data`, boots, installs the little
+# it needs, registers as an EPHEMERAL runner, takes exactly one job, and deregisters. Nobody
+# connects to it; there is no SSH key in the production path at all.
+#
+# WHAT IS DELIBERATELY *NOT* INSTALLED: Valhalla, osmium, spatialite, python libraries. All of it
+# lives in a version-pinned container image. A builder that installs its toolchain from a
+# distribution's repositories is a builder whose output changes when that distribution updates —
+# which is exactly the failure the timezone dataset already inflicted on this factory once, and
+# §17 of CLAUDE.md is the general rule.
+#
+# Placeholders are substituted by the bootstrap job before this is sent:
+#   __RUNNER_VERSION__  __RUNNER_TOKEN__  __REPO_URL__  __LABELS__
+
+package_update: true
+packages:
+  - docker.io
+  - curl
+  - jq
+  - tar
+
+write_files:
+  # A belt-and-braces expiry ON THE MACHINE ITSELF. The watchdog is the real guarantee, but it
+  # depends on GitHub being reachable; this one does not, and a machine that powers itself off
+  # costs nothing even if every other mechanism has failed.
+  - path: /usr/local/bin/self-destruct
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      # Runs from a systemd timer. If the runner has been idle far longer than any build takes,
+      # something went wrong before the job ever started — shut down rather than idle at cost.
+      if [ ! -f /var/run/wedrive-build-started ]; then
+        UPTIME=$(cut -d. -f1 /proc/uptime)
+        [ "$UPTIME" -gt 3600 ] && poweroff
+      fi
+
+# Everything below runs once, in order, as root.
+runcmd:
+  - systemctl enable --now docker
+  - useradd -m -s /bin/bash runner && usermod -aG docker runner
+  - mkdir -p /opt/runner && chown runner:runner /opt/runner
+  # The runner tarball is pinned by the bootstrap job, not resolved to "latest" here: a builder
+  # that picks up a new runner release mid-month is a builder that changed without anyone
+  # deciding it should.
+  - su - runner -c "cd /opt/runner && curl -fsSL -o runner.tar.gz
+    https://github.com/actions/runner/releases/download/v__RUNNER_VERSION__/actions-runner-linux-__ARCH__-__RUNNER_VERSION__.tar.gz
+    && tar xzf runner.tar.gz && rm runner.tar.gz"
+  # --ephemeral is the whole safety model: GitHub sends exactly ONE job, and the runner
+  # deregisters itself afterwards whatever happened to it. A long-lived self-hosted runner
+  # accepting arbitrary jobs from a public repository would be a different and much worse thing.
+  - su - runner -c "cd /opt/runner && ./config.sh --unattended --ephemeral
+    --url __REPO_URL__ --token __RUNNER_TOKEN__ --labels __LABELS__
+    --name $(hostname) --work _work"
+  - touch /var/run/wedrive-build-started
+  - su - runner -c "cd /opt/runner && ./run.sh" &
