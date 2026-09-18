@@ -37,6 +37,16 @@ RUNNER_APP_PRIVATE_KEY   the whole .pem, BEGIN and END lines included
 > involved in the incident. Everything downstream is short-lived: the installation token lives an
 > hour, and what actually reaches the machine is a JIT config valid for one job.
 
+### The fallback nobody should use
+
+`RUNNER_ADMIN_TOKEN` is read if — and only if — `RUNNER_APP_ID` is unset: a fine-grained PAT with
+`Administration: Read and write` on this repository. It exists so the control plane can be
+debugged without an App, and the preflight prints which credential answered precisely so that
+using it is a visible choice rather than a quiet default.
+
+Leave it unset. A PAT is a person's credential: it outlives their involvement with the project,
+and rotating it touches their account rather than this repository.
+
 ## 2. A Hetzner project and its API token
 
 Create a project — `WeDrive Map Factory` — containing nothing else, and an API token **scoped to
