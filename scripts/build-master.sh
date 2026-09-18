@@ -211,7 +211,18 @@ valhalla_build_admins -c "$CONF" "$MASTER" 2>&1 | tee "$WORK/admins.log"
 ADMIN_VERDICT="$WORK/admins.verdict.json"
 MEMBER_CODES=()
 for member in "${MEMBERS[@]}"; do MEMBER_CODES+=("${member%%:*}"); done
-python3 "$HERE/check-admins.py" "$WORK/admins.log" --record "$ADMIN_VERDICT"   --expect "${MEMBER_CODES[@]}"
+# ADVISORY ONLY IN AN EXPERIMENT, and never in a build whose output could ship. The stitch probe
+# deliberately constructs masters we would not publish — two countries where production would use
+# five — precisely to find out what such a master does differently. Having the gate stop it would
+# be the gate preventing the measurement of its own subject.
+#
+# Nothing sets this on a path that publishes: `build-region.yml` does not pass it, so a production
+# master still refuses outright.
+if [ "${ADMINS_ADVISORY:-}" = "1" ]; then
+  python3 "$HERE/check-admins.py" "$WORK/admins.log" --record "$ADMIN_VERDICT"     --expect "${MEMBER_CODES[@]}" || echo "::warning::admin records were dropped for a country in this build — ADVISORY, because this is an experiment and publishes nothing"
+else
+  python3 "$HERE/check-admins.py" "$WORK/admins.log" --record "$ADMIN_VERDICT"     --expect "${MEMBER_CODES[@]}"
+fi
 
 stage tiles
 echo '==> tiles: ONE build over ONE file'

@@ -78,12 +78,25 @@ jobs:
       # TWO SEPARATE MASTERS, built by the production script so nothing about the comparison is
       # an artefact of a special path. Each is small — together they are the eu-core fixture —
       # so both fit one job comfortably.
+      # ADMINS_ADVISORY, and the reason is itself a finding. On its first real firing the admin
+      # gate refused master A: building AT+HU alone drops Austria's `admin_access` record, which
+      # the four-country master did not do. Austria borders eight countries and only one of them
+      # is in this extract, so most of its boundary references ways that are not there.
+      #
+      # That is a genuine constraint on how Europe may be split — a master must carry enough of a
+      # country's surroundings for its admin data to build — and it is exactly what this probe
+      # exists to discover. Letting the gate stop the run would be the gate preventing the
+      # measurement of its own subject. Nothing here publishes.
       - name: master A
+        env:
+          ADMINS_ADVISORY: "1"
         run: |
           mkdir -p /data && cp -r scripts /data/scripts
           bash /data/scripts/build-master.sh stitch-a ${{ inputs.left }}
 
       - name: master B
+        env:
+          ADMINS_ADVISORY: "1"
         run: |
           bash /data/scripts/build-master.sh stitch-b ${{ inputs.right }}
 
