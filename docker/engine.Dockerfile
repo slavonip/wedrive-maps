@@ -22,7 +22,7 @@ ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
 ENV LD_LIBRARY_PATH=/usr/local/lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      git ca-certificates sudo python3 python3-distutils \
+      git ca-certificates sudo python3 \
  && rm -rf /var/lib/apt/lists/*
 
 # --recurse-submodules обязателен: third_party копируется в upstream-образ, и обычного клона
@@ -55,14 +55,18 @@ RUN cd wedrive/tools \
 RUN echo "${ENGINE_REF}" > /etc/wedrive-engine-ref \
  && git -C /src/valhalla rev-parse HEAD > /etc/wedrive-engine-sha
 
-# Собранное дерево не нужно в готовом образе — только бинарники и библиотеки.
-FROM ubuntu:24.04
+# РАБОЧИЙ ОБРАЗ СТРОИТСЯ НА СТОКОВОМ VALHALLA ТОЙ ЖЕ ВЕРСИИ, а не на голой ubuntu.
+#
+# Перечислять runtime-библиотеки руками — значит угадывать имена пакетов для конкретного
+# выпуска дистрибутива (libgdal34, libspatialite8t64 и прочее), и ошибка вскроется не при
+# сборке образа, а при первом запуске. Стоковый образ 3.6.3 — ровно то окружение, в котором
+# наш форк и собран; мы заменяем в нём только бинарники на патченые.
+FROM ghcr.io/valhalla/valhalla:3.6.3
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LD_LIBRARY_PATH=/usr/local/lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libluajit-5.1-2 libgeos-c1v5 libgdal34 libprotobuf-lite32t64 libsqlite3-0 \
-      libspatialite8t64 libcurl4 zlib1g libzmq5 libczmq4 python3 curl ca-certificates \
-      osmium-tool jq \
+      osmium-tool jq curl ca-certificates python3 \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /usr/local/lib/ /usr/local/lib/
