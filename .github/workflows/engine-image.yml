@@ -1,0 +1,77 @@
+name: engine image
+
+# Патченый движок собирается ОДИН РАЗ на тег и дальше только скачивается.
+#
+# Фабрике карт нужен именно наш форк, а не ghcr.io/valhalla/valhalla: одна строка multi-region
+# живёт в Mjolnir (can_contract отказывает kBorderControl), и тайлы, собранные стоковым
+# сборщиком, для нашей схемы непригодны — шорткат накрывает пограничный пост и прячет от поиска
+# 600 секунд.
+#
+# Сборка Valhalla из исходников на runner'е занимает десятки минут, поэтому она НЕ должна
+# происходить при каждой сборке страны. Отсюда отдельный workflow и образ в GHCR.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Тег или ветка slavonip/wedrive-valhalla"
+        required: false
+        default: "multi-region-runtime-v2"
+  push:
+    paths:
+      - "docker/engine.Dockerfile"
+      - ".github/workflows/engine-image.yml"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: какой тег движка собираем
+        id: ref
+        run: |
+          REF="${{ github.event.inputs.ref }}"
+          if [ -z "$REF" ]; then
+            REF="$(python3 -c 'import json;print(json.load(open("regional.json"))["engine"]["ref"])')"
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "движок: $REF"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Тег образа — это тег ДВИЖКА, а не дата сборки. Пакет карт в манифесте называет
+      # версию движка, которым собран, и она обязана быть воспроизводимо адресуемой.
+      - name: собрать и опубликовать
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/engine.Dockerfile
+          push: true
+          build-args: |
+            ENGINE_REF=${{ steps.ref.outputs.ref }}
+          tags: ghcr.io/${{ github.repository_owner }}/wedrive-engine:${{ steps.ref.outputs.ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: что внутри
+        run: |
+          IMG=ghcr.io/${{ github.repository_owner }}/wedrive-engine:${{ steps.ref.outputs.ref }}
+          docker pull -q "$IMG"
+          echo "--- версия движка в образе:"
+          docker run --rm "$IMG" sh -c 'cat /etc/wedrive-engine-ref; cat /etc/wedrive-engine-sha'
+          echo "--- инвариант GraphId:"
+          docker run --rm "$IMG" gid_test | tail -4
+          echo "--- инструменты:"
+          docker run --rm "$IMG" sh -c 'ls /usr/local/bin | grep -E "valhalla_build_tiles|valhalla_build_admins|valhalla_build_extract|valhalla_service|portal_border"'
