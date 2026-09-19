@@ -10,7 +10,7 @@
       "title": "Moldova",
       "graph_version": "2026-09-18",
       "package": "md-2026-09-18.tar",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-2/md-2026-09-18.tar",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-3/md-2026-09-18.tar",
       "bytes": 118446080,
       "sha256": "d318052f57f83013efdb4aa14b117ec7d3daef5efb346d6d8708012cce81550c",
       "tiles": 114,
@@ -21,9 +21,9 @@
       "title": "Romania",
       "graph_version": "2026-09-18",
       "package": "ro-2026-09-18.tar",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-2/ro-2026-09-18.tar",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-3/ro-2026-09-18.tar",
       "bytes": 390912000,
-      "sha256": "d60a61ec0a21488f0eaf30cb38e569d502affe2d2e698dfeb7c57e1395077627",
+      "sha256": "e6f81d123f69d6baee950281dde1fee50290766e5ddcb032795b85c372d0aee5",
       "tiles": 636,
       "engine": "multi-region-runtime-v2"
     },
@@ -32,7 +32,7 @@
       "title": "Hungary",
       "graph_version": "2026-09-18",
       "package": "hu-2026-09-18.tar",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-2/hu-2026-09-18.tar",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-3/hu-2026-09-18.tar",
       "bytes": 373073920,
       "sha256": "28c9ddc4ca10a43c42dae7d679a3eaf8dd3dd1785fcea7c5cf7bc7071f5b15f5",
       "tiles": 256,
@@ -46,7 +46,7 @@
         "RO-2026-09-18"
       ],
       "file": "md-ro.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-2/md-ro.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-3/md-ro.portals",
       "bytes": 1856,
       "sha256": "fcd8305271949bc66f762e653f9d85258eafede493e65838589d0aaaa066c440",
       "rows": 32
@@ -57,7 +57,7 @@
         "HU-2026-09-18"
       ],
       "file": "ro-hu.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-2/ro-hu.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-19-3/ro-hu.portals",
       "bytes": 15222,
       "sha256": "ae9545447920cc0d11730bffe0b9dd3df9a8ca0a7d1daf249cae57d124930a5e",
       "rows": 258
