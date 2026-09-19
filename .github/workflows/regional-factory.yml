@@ -185,39 +185,6 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           cat "$WORK/manifest.json"
 
-      - name: неизменяемый релиз
-        if: ${{ github.event.inputs.publish != 'false' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          TAG="${{ steps.manifest.outputs.tag }}"
-          # Неизменяемый: свой тег на прогон, ничего не перезаписывается. Откат — это
-          # переключение current-манифеста на прошлый тег, а не пересборка.
-          gh release create "$TAG" --repo "${{ github.repository }}" \
-            --title "Региональные пакеты $TAG" --notes "Собрано движком $(cat /etc/wedrive-engine-ref)."
-          for f in "$WORK"/*.tar "$WORK"/*.portals "$WORK"/manifest.json; do
-            [ -e "$f" ] || continue
-            case "$(basename "$f")" in all.portals) continue;; esac
-            gh release upload "$TAG" "$f" --repo "${{ github.repository }}"
-          done
-
-      # Манифест переключается ПОСЛЕДНИМ. Он обещает устройству, что набор проверен; сделать это
-      # раньше регрессии значит пообещать непроверенное.
-      - name: переключить current
-        if: ${{ github.event.inputs.publish != 'false' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          cp "$WORK/manifest.json" manifest.json
-          git config user.name "wedrive-factory"
-          git config user.email "factory@users.noreply.github.com"
-          git add manifest.json
-          git commit -m "Региональный манифест -> ${{ steps.manifest.outputs.tag }}" || exit 0
-          git push
-          echo "current манифест указывает на ${{ steps.manifest.outputs.tag }}"
-
       - name: план обновления, для журнала
         run: |
           for code in $(echo "${{ steps.plan.outputs.all }}" | tr ',' ' '); do
@@ -225,3 +192,73 @@ jobs:
             python3 scripts/regional-manifest.py plan "$WORK/manifest.json" "$code" || true
             echo "::endgroup::"
           done
+
+      # Собранное отдаётся наружу артефактом, потому что публикует ДРУГОЕ задание. В контейнере
+      # движка нет `gh`, и это не мелочь: заметив её только на шаге релиза, мы бы потеряли час
+      # сборки. Этот репозиторий уже записывал ровно это наблюдение про свой прежний конвейер.
+      - name: отдать собранное
+        uses: actions/upload-artifact@v4
+        with:
+          name: regional-${{ github.run_number }}
+          path: |
+            /data/regional/*.tar
+            /data/regional/*.portals
+            /data/regional/manifest.json
+            !/data/regional/all.portals
+          retention-days: 3
+          if-no-files-found: error
+
+  # ── ПУБЛИКАЦИЯ: на runner'е, а не в контейнере ──────────────────────────────────────────────
+  publish:
+    needs: factory
+    if: ${{ github.event.inputs.publish != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: regional-${{ github.run_number }}
+          path: dist
+
+      - name: что publish собирается выложить
+        run: ls -la dist | sed 's/^/   /'
+
+      # Тег берётся ИЗ МАНИФЕСТА, а не вычисляется заново: манифест уже содержит ссылки на этот
+      # тег внутри себя, и разъехавшись, они указали бы в пустоту.
+      - name: тег из манифеста
+        id: tag
+        run: |
+          TAG=$(python3 -c "import json,sys;m=json.load(open('dist/manifest.json'));import re;u=next(iter(m['regions'].values()))['url'];print(u.split('/download/')[1].split('/')[0])")
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "тег: $TAG"
+
+      - name: неизменяемый релиз
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="${{ steps.tag.outputs.tag }}"
+          # Неизменяемый: свой тег на прогон, ничего не перезаписывается. Откат — это
+          # переключение current-манифеста на прошлый тег, а не пересборка.
+          gh release create "$TAG" --repo "${{ github.repository }}" \
+            --title "Региональные пакеты $TAG" \
+            --notes "Региональные пакеты и таблицы порталов. Манифест внутри релиза." \
+          || echo "релиз уже существует"
+          for f in dist/*; do
+            [ -f "$f" ] || continue
+            gh release upload "$TAG" "$f" --repo "${{ github.repository }}" --clobber
+          done
+
+      # Манифест переключается ПОСЛЕДНИМ. Он обещает устройству, что набор проверен; сделать это
+      # раньше регрессии и раньше выкладки значит пообещать то, чего ещё нет.
+      - name: переключить current
+        run: |
+          set -e
+          cp dist/manifest.json manifest.json
+          git config user.name "wedrive-factory"
+          git config user.email "factory@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "Региональный манифест -> ${{ steps.tag.outputs.tag }}" || exit 0
+          git push
+          echo "current манифест указывает на ${{ steps.tag.outputs.tag }}"
