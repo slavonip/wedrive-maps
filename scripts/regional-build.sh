@@ -71,13 +71,28 @@ TILES="$(find "$WORK/tiles" -name '*.gph' | wc -l)"
 [ "$TILES" -gt 0 ] || { echo "тайлов не получилось"; tail -30 "$WORK/tiles.log"; exit 1; }
 echo "==> тайлов: $TILES, $(du -sh "$WORK/tiles" | cut -f1)"
 
-# -O обязателен. Без него valhalla_build_extract отказывается заменить существующий архив, а
-# set -e убивает скрипт до того, как это станет заметно: рядом с новыми тайлами остаётся СТАРЫЙ
-# .tar, и публикуется он. Этот репозиторий уже ловил такое на md-ro.
+# ПУТЬ АРХИВА ЗАДАЁТСЯ В КОНФИГЕ, а не аргументом: valhalla_build_extract пишет туда, куда
+# указывает mjolnir.tile_extract. Позиционного аргумента у него нет вовсе, и переданный
+# argparse отвергает с кодом 2. Отдельный конфиг под упаковку нужен потому, что в основном
+# tile_extract снят намеренно — иначе читатель при сборке тайлов ищет несуществующий архив и
+# засоряет журнал ошибкой, которая ошибкой не является.
+#
+# -O обязателен. Без него отказ заменить существующий архив, и рядом с новыми тайлами остаётся
+# СТАРЫЙ .tar — а публикуется он. Этот репозиторий уже ловил такое на md-ro.
 TAR="$OUT/${low}-${DATA_DATE}.tar"
-echo "==> упаковка"
-valhalla_build_extract -c "$CONF" -O -v "$TAR" > "$WORK/extract.log" 2>&1
-test -s "$TAR" || { echo "архив не собрался"; tail -20 "$WORK/extract.log"; exit 1; }
+PACKCONF="$WORK/valhalla_pack.json"
+python3 - "$CONF" "$PACKCONF" "$TAR" <<'PY'
+import json, sys
+c = json.load(open(sys.argv[1]))
+c["mjolnir"]["tile_extract"] = sys.argv[3]
+json.dump(c, open(sys.argv[2], "w"), indent=2)
+PY
+echo "==> упаковка -> $TAR"
+# Без `|| { ... }` набор set -e убивает скрипт кодом самой программы, и журнал, ради которого
+# он писался, остаётся непрочитанным.
+valhalla_build_extract -c "$PACKCONF" -O > "$WORK/extract.log" 2>&1 || {
+  echo "valhalla_build_extract упал:"; tail -25 "$WORK/extract.log"; exit 1; }
+test -s "$TAR" || { echo "архив не собрался:"; tail -25 "$WORK/extract.log"; exit 1; }
 
 SHA="$(sha256sum "$TAR" | cut -d' ' -f1)"
 BYTES="$(stat -c %s "$TAR")"
