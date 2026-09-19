@@ -1,0 +1,227 @@
+name: regional factory
+
+# Региональная фабрика: одна страна — один пакет, границы — отдельные таблицы порталов.
+#
+# Идёт РЯДОМ со старым конвейером, а не вместо него. build-maps.yml продолжает выпускать
+# когерентные многострановые пакеты в релиз `maps` и index.json — то, чем машина пользуется
+# сегодня. Ничего не переключается, пока региональная схема не проверена целиком.
+#
+# ЧТО ДЕЛАЕТ ОДИН ПРОГОН:
+#   1. собирает названные страны с нуля (экстракт Geofabrik -> admin -> тайлы -> .tar -> sha256)
+#   2. берёт остальные страны набора из ТЕКУЩЕГО манифеста, скачивая опубликованные пакеты
+#   3. перегенерирует таблицы порталов всех границ, которых касаются пересобранные страны
+#   4. прогоняет регрессию на СОБРАННОМ НАБОРЕ, а не на исходниках
+#   5. публикует неизменяемый релиз
+#   6. и только после успеха переключает current-манифест
+#
+# Порядок не случаен. Манифест — это обещание устройству; переключать его до регрессии значит
+# обещать то, что не проверено.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: "Какие страны пересобрать (через запятую, например RO). Пусто = все."
+        required: false
+        default: ""
+      publish:
+        description: "Публиковать релиз и переключать манифест"
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: write
+  packages: read
+
+env:
+  RELEASE_TAG_CURRENT: regional
+  WORK: /data/regional
+
+jobs:
+  factory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    container:
+      # Патченый движок: одна строка multi-region живёт в Mjolnir, и тайлы, собранные стоковым
+      # сборщиком, для этой схемы непригодны.
+      image: ghcr.io/slavonip/wedrive-engine:multi-region-runtime-v2
+      options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: место и движок
+        run: |
+          df -h / | tail -1
+          echo "движок в образе: $(cat /etc/wedrive-engine-ref) $(cut -c1-12 /etc/wedrive-engine-sha)"
+          gid_test | tail -2
+
+      - name: что пересобираем
+        id: plan
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          cfg = json.load(open("regional.json"))
+          asked = [c.strip().upper() for c in os.environ.get("REBUILD", "").split(",") if c.strip()]
+          allc = list(cfg["countries"])
+          rebuild = asked or allc
+          bad = [c for c in rebuild if c not in cfg["countries"]]
+          if bad:
+              raise SystemExit("нет таких стран в regional.json: %s" % bad)
+          print("rebuild=%s" % ",".join(rebuild))
+          print("all=%s" % ",".join(allc))
+          PY
+        env:
+          REBUILD: ${{ github.event.inputs.rebuild }}
+
+      - name: собрать страны
+        run: |
+          set -e
+          mkdir -p "$WORK"
+          for code in $(echo "${{ steps.plan.outputs.rebuild }}" | tr ',' ' '); do
+            geo=$(python3 -c "import json;print(json.load(open('regional.json'))['countries']['$code']['geofabrik'])")
+            echo "::group::$code ($geo)"
+            bash scripts/regional-build.sh "$code" "$geo" "$WORK"
+            echo "::endgroup::"
+            df -h / | tail -1
+          done
+
+      # Страны, которые НЕ пересобирали, берутся из уже опубликованного — иначе «обновить одну
+      # страну» превращается в «собрать все», и вся схема теряет смысл.
+      - name: добрать остальные страны из текущего манифеста
+        run: |
+          set -e
+          cur=manifest.json
+          if [ ! -f "$cur" ]; then
+            echo "текущего манифеста ещё нет — первый прогон собирает всё сам"
+            exit 0
+          fi
+          for code in $(echo "${{ steps.plan.outputs.all }}" | tr ',' ' '); do
+            case ",${{ steps.plan.outputs.rebuild }}," in *",$code,"*) continue;; esac
+            python3 - "$cur" "$code" "$WORK" <<'PY'
+          import json, os, subprocess, sys
+          man, code, work = json.load(open(sys.argv[1], encoding="utf-8")), sys.argv[2], sys.argv[3]
+          r = man.get("regions", {}).get(code)
+          if not r:
+              print("   %s нет в манифесте — пропуск" % code); raise SystemExit(0)
+          dst = os.path.join(work, r["package"])
+          if not os.path.isfile(dst):
+              print("   качаю %s" % r["url"])
+              subprocess.run(["curl", "-fsSL", "-o", dst, r["url"]], check=True)
+          json.dump({"code": code, "geofabrik": "", "graph_version": r["graph_version"],
+                     "tiles": r.get("tiles", 0), "package": r["package"],
+                     "bytes": r["bytes"], "sha256": r["sha256"],
+                     "engine": r.get("engine", "unknown"), "engine_sha": ""},
+                    open(os.path.join(work, "%s.package.json" % code.lower()), "w"))
+          print("   %s взят из манифеста: %s" % (code, r["package"]))
+          PY
+          done
+
+      - name: распаковать набор
+        run: |
+          set -e
+          for desc in "$WORK"/*.package.json; do
+            code=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['code'])" "$desc")
+            pkg=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['package'])" "$desc")
+            dir="$WORK/installed/$code"
+            mkdir -p "$dir/tiles"
+            echo "   $code <- $pkg"
+            # Пакет — это tile_extract; читателю нужен либо он, либо каталог. Порталам нужен
+            # каталог, поэтому распаковываем.
+            tar -xf "$WORK/$pkg" -C "$dir/tiles"
+            find "$dir/tiles" -name '*.gph' | wc -l | sed 's/^/      тайлов: /'
+          done
+
+      - name: таблицы порталов
+        run: |
+          python3 scripts/regional-portals.py regional.json "$WORK/installed" "$WORK" \
+            $(echo "${{ steps.plan.outputs.rebuild }}" | tr ',' ' ')
+
+      - name: конфигурация маршрутизатора на собранном наборе
+        run: |
+          python3 - <<'PY'
+          import json, os
+          work = os.environ["WORK"]
+          cfg = json.load(open("regional.json"))
+          installed = sorted(os.listdir(os.path.join(work, "installed")))
+          os.system("valhalla_build_config --mjolnir-tile-dir %s/installed/%s/tiles > %s/router.json"
+                    % (work, installed[0], work))
+          c = json.load(open("%s/router.json" % work))
+          m = c["mjolnir"]
+          m.pop("tile_extract", None)
+          m["wedrive_regions"] = [{"id": cfg["countries"][code]["region_id"],
+                                   "dir": "%s/installed/%s/tiles" % (work, code)}
+                                  for code in installed]
+          tables = [os.path.join(work, f) for f in sorted(os.listdir(work)) if f.endswith(".portals")]
+          allp = os.path.join(work, "all.portals")
+          with open(allp, "w") as out:
+              for t in tables:
+                  out.write(open(t, encoding="utf-8").read())
+          m["wedrive_portals"] = allp
+          json.dump(c, open("%s/router.json" % work, "w"), indent=1)
+          print("   регионов: %s" % ", ".join(installed))
+          print("   таблиц: %d" % len(tables))
+          PY
+
+      - name: регрессия на собранном наборе
+        run: |
+          installed=$(ls "$WORK/installed")
+          python3 scripts/regional-regress.py regional.json "$WORK/router.json" $installed
+
+      - name: манифест
+        id: manifest
+        run: |
+          set -e
+          DATE=$(date -u +%Y-%m-%d)
+          TAG="regional-$DATE-${{ github.run_number }}"
+          BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
+          python3 scripts/regional-manifest.py build regional.json "$WORK" "$BASE" > "$WORK/manifest.json"
+          echo "--- сверка манифеста с файлами:"
+          python3 scripts/regional-manifest.py check "$WORK/manifest.json" "$WORK"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          cat "$WORK/manifest.json"
+
+      - name: неизменяемый релиз
+        if: ${{ github.event.inputs.publish != 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="${{ steps.manifest.outputs.tag }}"
+          # Неизменяемый: свой тег на прогон, ничего не перезаписывается. Откат — это
+          # переключение current-манифеста на прошлый тег, а не пересборка.
+          gh release create "$TAG" --repo "${{ github.repository }}" \
+            --title "Региональные пакеты $TAG" --notes "Собрано движком $(cat /etc/wedrive-engine-ref)."
+          for f in "$WORK"/*.tar "$WORK"/*.portals "$WORK"/manifest.json; do
+            [ -e "$f" ] || continue
+            case "$(basename "$f")" in all.portals) continue;; esac
+            gh release upload "$TAG" "$f" --repo "${{ github.repository }}"
+          done
+
+      # Манифест переключается ПОСЛЕДНИМ. Он обещает устройству, что набор проверен; сделать это
+      # раньше регрессии значит пообещать непроверенное.
+      - name: переключить current
+        if: ${{ github.event.inputs.publish != 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cp "$WORK/manifest.json" manifest.json
+          git config user.name "wedrive-factory"
+          git config user.email "factory@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "Региональный манифест -> ${{ steps.manifest.outputs.tag }}" || exit 0
+          git push
+          echo "current манифест указывает на ${{ steps.manifest.outputs.tag }}"
+
+      - name: план обновления, для журнала
+        run: |
+          for code in $(echo "${{ steps.plan.outputs.all }}" | tr ',' ' '); do
+            echo "::group::если обновится $code"
+            python3 scripts/regional-manifest.py plan "$WORK/manifest.json" "$code" || true
+            echo "::endgroup::"
+          done
