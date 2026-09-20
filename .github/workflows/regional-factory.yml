@@ -114,8 +114,28 @@ jobs:
               print("   %s нет в манифесте — пропуск" % code); raise SystemExit(0)
           dst = os.path.join(work, r["package"])
           if not os.path.isfile(dst):
-              print("   качаю %s" % r["url"])
-              subprocess.run(["curl", "-fsSL", "-o", dst, r["url"]], check=True)
+              # ПАКЕТ МОЖЕТ БЫТЬ РАЗРЕЗАН, и тогда по r["url"] актива нет вовсе: резчик удаляет
+              # целый .tar, а в релиз уходят только части. Скачать один URL значило бы получить
+              # 404 через час после начала сборки — ровно там, где потеря дороже всего.
+              base = r["url"].rsplit("/", 1)[0]
+              parts = r.get("parts") or []
+              if parts:
+                  print("   качаю %s частями: %d" % (r["package"], len(parts)))
+                  with open(dst, "wb") as out:
+                      for p in parts:
+                          tmp = os.path.join(work, p["name"])
+                          subprocess.run(["curl", "-fsSL", "-o", tmp, "%s/%s" % (base, p["name"])],
+                                         check=True)
+                          with open(tmp, "rb") as f:
+                              while True:
+                                  chunk = f.read(1 << 20)
+                                  if not chunk:
+                                      break
+                                  out.write(chunk)
+                          os.remove(tmp)
+              else:
+                  print("   качаю %s" % r["url"])
+                  subprocess.run(["curl", "-fsSL", "-o", dst, r["url"]], check=True)
           json.dump({"code": code, "geofabrik": "", "graph_version": r["graph_version"],
                      "tiles": r.get("tiles", 0), "package": r["package"],
                      "bytes": r["bytes"], "sha256": r["sha256"],
