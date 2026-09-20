@@ -10,44 +10,147 @@
       "title": "Moldova",
       "graph_version": "2026-09-19",
       "package": "md-2026-09-19.tar",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-5/md-2026-09-19.tar",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-7/md-2026-09-19.tar",
       "bytes": 118446080,
-      "sha256": "9b3632baec0285720f874dc00c632b602b98f5a8e03b9b1e8b75bf5e9b4f3e14",
+      "sha256": "d8bfe26b70d93ba7686c6804d789811533ad19be166987ced387bcd5f5f698e9",
       "tiles": 114,
-      "engine": "multi-region-runtime-v2"
+      "engine": "multi-region-runtime-v2",
+      "parts": [
+        {
+          "name": "md-2026-09-19.tar.part001",
+          "bytes": 100000000,
+          "sha256": "c461ee0283eb2a3b38003d264c2e27a04d9e02261b15ac42786e60a57f974c6f"
+        },
+        {
+          "name": "md-2026-09-19.tar.part002",
+          "bytes": 18446080,
+          "sha256": "8ef40a3b560bf00ca2d3e4fa10e6dbe24e7f028af71d300777cf45dc2d12d073"
+        }
+      ]
     },
     "RO": {
       "region_id": 2,
       "title": "Romania",
       "graph_version": "2026-09-19",
       "package": "ro-2026-09-19.tar",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-5/ro-2026-09-19.tar",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-7/ro-2026-09-19.tar",
       "bytes": 391065600,
       "sha256": "9cbd603fe23992b96c0511f21c05ee64cc96f8936186352d462149ddd4f5113a",
       "tiles": 636,
-      "engine": "multi-region-runtime-v2"
+      "engine": "multi-region-runtime-v2",
+      "parts": [
+        {
+          "name": "ro-2026-09-19.tar.part001",
+          "bytes": 100000000,
+          "sha256": "680c80c32804ff93e44b2fc97c3838a923ce1940c77f65589c34831e9af37887"
+        },
+        {
+          "name": "ro-2026-09-19.tar.part002",
+          "bytes": 100000000,
+          "sha256": "29ae02ba978db3eb6c2d469f5da13fbb13039c8265a4a16cd8f2ac14722cb4d2"
+        },
+        {
+          "name": "ro-2026-09-19.tar.part003",
+          "bytes": 100000000,
+          "sha256": "98d747e9e3fb24ddd5c5ec7ef8dd50c23f4ddfe5e50970bf234d7f221d44c697"
+        },
+        {
+          "name": "ro-2026-09-19.tar.part004",
+          "bytes": 91065600,
+          "sha256": "ca8732f003b18b7f2ea1ee79c42e24562705e2b27cd24c6898f568c266f1a5be"
+        }
+      ]
     },
     "HU": {
       "region_id": 3,
       "title": "Hungary",
       "graph_version": "2026-09-19",
       "package": "hu-2026-09-19.tar",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-5/hu-2026-09-19.tar",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-7/hu-2026-09-19.tar",
       "bytes": 373125120,
       "sha256": "fa40c2644ff854d00dd8e78c39f46a6824ae372a5c22192f8cec7fd4b63681b9",
       "tiles": 256,
-      "engine": "multi-region-runtime-v2"
+      "engine": "multi-region-runtime-v2",
+      "parts": [
+        {
+          "name": "hu-2026-09-19.tar.part001",
+          "bytes": 100000000,
+          "sha256": "3e9bc75091f3431a8bde091d86794e402199df06b0ce935017754be32002b97a"
+        },
+        {
+          "name": "hu-2026-09-19.tar.part002",
+          "bytes": 100000000,
+          "sha256": "c84ce729eab66052ec68b1131ab68b42f9d8f4f967a77167604f2b673cd3d3a1"
+        },
+        {
+          "name": "hu-2026-09-19.tar.part003",
+          "bytes": 100000000,
+          "sha256": "00ed3fca55ca66d32ac073fc665bfcb26653724103d568afdb349e1179355e63"
+        },
+        {
+          "name": "hu-2026-09-19.tar.part004",
+          "bytes": 73125120,
+          "sha256": "41b6861dbaf380b01ea046d895ab81659d444667c8610dff6755bf0210d6382c"
+        }
+      ]
     },
     "AT": {
       "region_id": 4,
       "title": "Austria",
       "graph_version": "2026-09-19",
       "package": "at-2026-09-19.tar",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-5/at-2026-09-19.tar",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-7/at-2026-09-19.tar",
       "bytes": 815493120,
       "sha256": "8eb5534b788030742998f427ea5432ddd8aa6a0d18c12cc76cc6a87118e59964",
       "tiles": 248,
-      "engine": "multi-region-runtime-v2"
+      "engine": "multi-region-runtime-v2",
+      "parts": [
+        {
+          "name": "at-2026-09-19.tar.part001",
+          "bytes": 100000000,
+          "sha256": "0d957789ef78bb80bc3b5ca989a230a286317a2a0674b99a09e73f84a28540b3"
+        },
+        {
+          "name": "at-2026-09-19.tar.part002",
+          "bytes": 100000000,
+          "sha256": "c03c132f893139bc6592631403f5240ea5f8c8bdf0ea82a7e27b083f94ffaee2"
+        },
+        {
+          "name": "at-2026-09-19.tar.part003",
+          "bytes": 100000000,
+          "sha256": "0be959d877ae73f0447332e59377f53909c45a05b363db71877d0935ebdc51e6"
+        },
+        {
+          "name": "at-2026-09-19.tar.part004",
+          "bytes": 100000000,
+          "sha256": "69b9d15c7cace49928e3f221a217d8c9d4890c5b6973c1e082ed430202dd397e"
+        },
+        {
+          "name": "at-2026-09-19.tar.part005",
+          "bytes": 100000000,
+          "sha256": "35f4a8b67e78896add189cb1d28fff239b8fef33eff37f80e10a80320571aab0"
+        },
+        {
+          "name": "at-2026-09-19.tar.part006",
+          "bytes": 100000000,
+          "sha256": "30159ef16c1daa4b492d1a544305e524af0dc1e5fe5a16de522f60c98f0a4a62"
+        },
+        {
+          "name": "at-2026-09-19.tar.part007",
+          "bytes": 100000000,
+          "sha256": "a71bdbe2cc8d8cb61922fa0d1bf44a4bb69e68cc8c0d0fd622baac119fcbb878"
+        },
+        {
+          "name": "at-2026-09-19.tar.part008",
+          "bytes": 100000000,
+          "sha256": "cd67c56af008349ccff688a4b103f8ce4b1433d2a052092a10236a18747018fe"
+        },
+        {
+          "name": "at-2026-09-19.tar.part009",
+          "bytes": 15493120,
+          "sha256": "e503f0e81b106c4990592b4d8df492d178b581d1d70d92caae4faf8ebb19010c"
+        }
+      ]
     }
   },
   "portals": {
@@ -57,7 +160,7 @@
         "RO-2026-09-19"
       ],
       "file": "md-ro.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-5/md-ro.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-7/md-ro.portals",
       "bytes": 1856,
       "sha256": "99e5c332202f123ee5143482ba3fa6ae917beff0b5ee16f591bb8c58b40c22aa",
       "rows": 32
@@ -68,7 +171,7 @@
         "HU-2026-09-19"
       ],
       "file": "ro-hu.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-5/ro-hu.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-7/ro-hu.portals",
       "bytes": 15222,
       "sha256": "9cefbf9c097ed2c96b01743d242680a859a0836dd1c3f77ed5587338b45c5bc4",
       "rows": 258
@@ -79,7 +182,7 @@
         "AT-2026-09-19"
       ],
       "file": "hu-at.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-5/hu-at.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-20-7/hu-at.portals",
       "bytes": 32096,
       "sha256": "53d672b1fe9c106b0ba7bdb02f547bf4bf1582676f2eaba19c8323e4cf908b87",
       "rows": 544
