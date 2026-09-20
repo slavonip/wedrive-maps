@@ -48,6 +48,10 @@ def build(cfg_path, work, base_url):
             "tiles": d["tiles"],
             "engine": d.get("engine", "unknown"),
         }
+        # Части — только когда они есть. У обычного пакета поля нет вовсе, и это не «ещё не
+        # заполнено», а «одним файлом»: устройство различает эти случаи по наличию поля.
+        if d.get("parts"):
+            regions[code]["parts"] = d["parts"]
 
     for border in cfg["borders"]:
         a, b = border["between"]
@@ -107,6 +111,30 @@ def check(manifest_path, work):
     m = json.load(open(manifest_path, encoding="utf-8"))
     bad = 0
     for code, r in m["regions"].items():
+        # РАЗРЕЗАННЫЙ ПАКЕТ: целого файла рядом уже нет, его удалил резчик. Сверяются части и
+        # сумма их размеров.
+        #
+        # Сумму ЦЕЛОГО здесь не пересчитать, не склеив обратно несколько гигабайт, — а считать её
+        # заново незачем: она снята резчиком с того самого файла, который он только что разрезал.
+        # Устройство всё равно проверит её у собранного файла, и вот там она и решает.
+        if r.get("parts"):
+            total = 0
+            broken = 0
+            for part in r["parts"]:
+                p = os.path.join(work, part["name"])
+                if not os.path.isfile(p):
+                    print("   НЕТ ЧАСТИ %s (%s)" % (part["name"], code)); bad += 1; continue
+                ok = sha256(p) == part["sha256"] and os.path.getsize(p) == part["bytes"]
+                if not ok:
+                    print("   %-8s %-28s ЧАСТЬ НЕ СОШЛАСЬ" % (code, part["name"]))
+                    bad += 1; broken += 1
+                total += os.path.getsize(p)
+            if total != r["bytes"]:
+                print("   %-8s сумма размеров частей %d против %d в манифесте"
+                      % (code, total, r["bytes"])); bad += 1
+            elif not broken:
+                print("   %-8s %-28s ok  частей %d" % (code, r["package"], len(r["parts"])))
+            continue
         p = os.path.join(work, r["package"])
         if not os.path.isfile(p):
             print("   НЕТ ФАЙЛА %s (%s)" % (r["package"], code)); bad += 1; continue

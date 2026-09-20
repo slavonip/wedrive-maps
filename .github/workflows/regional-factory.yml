@@ -29,6 +29,10 @@ on:
         type: boolean
         required: false
         default: true
+      part_bytes:
+        description: "Порог разрезания пакета, байт. Пусто = предел актива GitHub (1.9 ГиБ). Меньшее значение — чтобы проверить механику на небольшой стране."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -89,6 +93,46 @@ jobs:
             echo "::endgroup::"
             df -h / | tail -1
           done
+
+      # РЕЖЕМ ТО, ЧТО НЕ ВЛЕЗАЕТ В АКТИВ РЕЛИЗА.
+      #
+      # GitHub держит актив чуть меньше 2 ГиБ, а граф Германии около 5.4 ГБ (экстракт 4.51 ГБ,
+      # отношение графа к PBF ~1.2 на всех собранных странах). Большая страна публикуется
+      # частями или не публикуется вовсе, и узнать об этом на шаге выгрузки — значит потерять
+      # всю сборку, которая к тому моменту уже сделана.
+      #
+      # Целый .tar после резки удаляется самим split-assets.py: выгружать и его, и части значило
+      # бы удвоить релиз ради файла, который всё равно не принимается.
+      #
+      # Порог можно занизить входом part_bytes — так механика проверяется на стране, которую не
+      # нужно собирать час.
+      - name: разрезать пакеты сверх предела актива
+        env:
+          PART_BYTES: ${{ github.event.inputs.part_bytes }}
+        run: |
+          python3 - <<'PY'
+          import importlib.util, json, os, pathlib
+          spec = importlib.util.spec_from_file_location("split_assets", "scripts/split-assets.py")
+          sa = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(sa)
+          limit = int(os.environ.get("PART_BYTES") or 0) or sa.PART_BYTES
+          sa.PART_BYTES = limit
+          work = pathlib.Path(os.environ["WORK"])
+          print("   порог: %d байт" % limit)
+          for desc in sorted(work.glob("*.package.json")):
+              d = json.loads(desc.read_text(encoding="utf-8"))
+              tar = work / d["package"]
+              if not tar.is_file():
+                  continue
+              info = sa.split(tar)
+              if not info["parts"]:
+                  print("   %-3s %s: %d байт, одним активом" % (d["code"], d["package"], info["bytes"]))
+                  continue
+              d["bytes"], d["sha256"], d["parts"] = info["bytes"], info["sha256"], info["parts"]
+              desc.write_text(json.dumps(d, indent=2), encoding="utf-8")
+              print("   %-3s %s: %d байт -> %d частей"
+                    % (d["code"], d["package"], info["bytes"], len(info["parts"])))
+          PY
 
       # Страны, которые НЕ пересобирали, берутся из уже опубликованного — иначе «обновить одну
       # страну» превращается в «собрать все», и вся схема теряет смысл.
@@ -209,6 +253,7 @@ jobs:
           name: regional-${{ github.run_number }}
           path: |
             /data/regional/*.tar
+            /data/regional/*.tar.part*
             /data/regional/*.portals
             /data/regional/manifest.json
             !/data/regional/all.portals
