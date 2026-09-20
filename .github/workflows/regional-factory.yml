@@ -94,46 +94,6 @@ jobs:
             df -h / | tail -1
           done
 
-      # РЕЖЕМ ТО, ЧТО НЕ ВЛЕЗАЕТ В АКТИВ РЕЛИЗА.
-      #
-      # GitHub держит актив чуть меньше 2 ГиБ, а граф Германии около 5.4 ГБ (экстракт 4.51 ГБ,
-      # отношение графа к PBF ~1.2 на всех собранных странах). Большая страна публикуется
-      # частями или не публикуется вовсе, и узнать об этом на шаге выгрузки — значит потерять
-      # всю сборку, которая к тому моменту уже сделана.
-      #
-      # Целый .tar после резки удаляется самим split-assets.py: выгружать и его, и части значило
-      # бы удвоить релиз ради файла, который всё равно не принимается.
-      #
-      # Порог можно занизить входом part_bytes — так механика проверяется на стране, которую не
-      # нужно собирать час.
-      - name: разрезать пакеты сверх предела актива
-        env:
-          PART_BYTES: ${{ github.event.inputs.part_bytes }}
-        run: |
-          python3 - <<'PY'
-          import importlib.util, json, os, pathlib
-          spec = importlib.util.spec_from_file_location("split_assets", "scripts/split-assets.py")
-          sa = importlib.util.module_from_spec(spec)
-          spec.loader.exec_module(sa)
-          limit = int(os.environ.get("PART_BYTES") or 0) or sa.PART_BYTES
-          sa.PART_BYTES = limit
-          work = pathlib.Path(os.environ["WORK"])
-          print("   порог: %d байт" % limit)
-          for desc in sorted(work.glob("*.package.json")):
-              d = json.loads(desc.read_text(encoding="utf-8"))
-              tar = work / d["package"]
-              if not tar.is_file():
-                  continue
-              info = sa.split(tar)
-              if not info["parts"]:
-                  print("   %-3s %s: %d байт, одним активом" % (d["code"], d["package"], info["bytes"]))
-                  continue
-              d["bytes"], d["sha256"], d["parts"] = info["bytes"], info["sha256"], info["parts"]
-              desc.write_text(json.dumps(d, indent=2), encoding="utf-8")
-              print("   %-3s %s: %d байт -> %d частей"
-                    % (d["code"], d["package"], info["bytes"], len(info["parts"])))
-          PY
-
       # Страны, которые НЕ пересобирали, берутся из уже опубликованного — иначе «обновить одну
       # страну» превращается в «собрать все», и вся схема теряет смысл.
       - name: добрать остальные страны из текущего манифеста
@@ -222,6 +182,55 @@ jobs:
         run: |
           installed=$(ls "$WORK/installed")
           python3 scripts/regional-regress.py regional.json "$WORK/router.json" $installed
+
+      # РЕЖЕМ ТО, ЧТО НЕ ВЛЕЗАЕТ В АКТИВ РЕЛИЗА — И ТОЛЬКО ЗДЕСЬ, ПОСЛЕ РЕГРЕССИИ.
+      #
+      # Место шага не вкусовое. Резчик УДАЛЯЕТ целый .tar, а он нужен всему, что идёт
+      # раньше: распаковка набора читает именно его, и без него таблицы порталов строить
+      # не из чего. Прогон 35534572218 упал ровно так — `tar: md-2026-09-19.tar: Cannot
+      # open`, — потому что шаг стоял сразу после сборки стран.
+      #
+      # Здесь же целый архив больше никому не нужен: набор распакован, порталы построены,
+      # регрессия пройдена. Дальше идут манифест, артефакт и релиз, и всем троим нужны
+      # именно части.
+      #
+      # GitHub держит актив чуть меньше 2 ГиБ, а граф Германии около 5.4 ГБ (экстракт 4.51 ГБ,
+      # отношение графа к PBF ~1.2 на всех собранных странах). Большая страна публикуется
+      # частями или не публикуется вовсе, и узнать об этом на шаге выгрузки — значит потерять
+      # всю сборку, которая к тому моменту уже сделана.
+      #
+      # Целый .tar после резки удаляется самим split-assets.py: выгружать и его, и части значило
+      # бы удвоить релиз ради файла, который всё равно не принимается.
+      #
+      # Порог можно занизить входом part_bytes — так механика проверяется на стране, которую не
+      # нужно собирать час.
+      - name: разрезать пакеты сверх предела актива
+        env:
+          PART_BYTES: ${{ github.event.inputs.part_bytes }}
+        run: |
+          python3 - <<'PY'
+          import importlib.util, json, os, pathlib
+          spec = importlib.util.spec_from_file_location("split_assets", "scripts/split-assets.py")
+          sa = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(sa)
+          limit = int(os.environ.get("PART_BYTES") or 0) or sa.PART_BYTES
+          sa.PART_BYTES = limit
+          work = pathlib.Path(os.environ["WORK"])
+          print("   порог: %d байт" % limit)
+          for desc in sorted(work.glob("*.package.json")):
+              d = json.loads(desc.read_text(encoding="utf-8"))
+              tar = work / d["package"]
+              if not tar.is_file():
+                  continue
+              info = sa.split(tar)
+              if not info["parts"]:
+                  print("   %-3s %s: %d байт, одним активом" % (d["code"], d["package"], info["bytes"]))
+                  continue
+              d["bytes"], d["sha256"], d["parts"] = info["bytes"], info["sha256"], info["parts"]
+              desc.write_text(json.dumps(d, indent=2), encoding="utf-8")
+              print("   %-3s %s: %d байт -> %d частей"
+                    % (d["code"], d["package"], info["bytes"], len(info["parts"])))
+          PY
 
       - name: манифест
         id: manifest
