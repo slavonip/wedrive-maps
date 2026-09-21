@@ -1,0 +1,105 @@
+"""Схема поисковой базы страны — одна на всех, кто её пишет.
+
+Пишут две вещи: `build-index.py` (фабрика, прямо из тайлов) и `index-to-sqlite.py` (конвертер
+старого JSON, ради сличения). Если бы схема лежала в обеих, она бы разошлась — а расходятся такие
+вещи молча, и обнаруживается это на устройстве.
+
+**Почему FTS4, а не FTS5.** Спрошено у приложения на устройстве, не у документации:
+
+    sqlite 3.50.4 · FTS5 НЕТ (no such module) · FTS4 да · R*Tree НЕТ
+
+Отсюда вся форма ниже:
+  * `unicode61` снимает диакритику САМ (`chisinau` находит `Chișinău`), поэтому свёрнутой колонки
+    нет — она была бы лишним столбцом и лишними мегабайтами;
+  * R*Tree отсутствует, но не нужен: «рядом по категории» идёт покрывающим индексом, и это
+    доказано планом запроса, а не предположено;
+  * ранжировать FTS4 не умеет (bm25 только в FTS5), поэтому порядок считает приложение — база
+    отдаёт лишь ограниченный пул кандидатов.
+
+**Псевдонимы существуют ради другой задачи, чем свёртка.** Токенизатор снимает диакритику, но
+кириллицу в латиницу не переводит: «Мюнхен» не найдёт München никаким `remove_diacritics`.
+Измерено на молдавских тайлах: псевдоним есть у **37.8 %** именованных объектов, и полезны ровно
+два поля — `name:ru` (56 559) и `name:en` (18 794). `int_name` и `alt_name` в данных Protomaps
+ОТСУТСТВУЮТ вовсе, `name2` встречается 211 раз на 163 тысячи, `name3` — ноль. Поэтому берутся два
+поля, а не все сорок: остальные раздули бы индекс ради языков, на которых в этой машине никто
+искать не будет.
+"""
+import os
+import sqlite3
+
+# Порядок членов — часть формата: приложение читает kind как число (SearchIndex.Kind).
+PLACE, STREET, POI = 0, 1, 2
+
+# Какие языки идут в псевдонимы. Список закрыт намеренно — см. заголовок.
+ALIAS_FIELDS = ("name:en", "name:ru")
+
+SCHEMA = """
+PRAGMA journal_mode = OFF;
+PRAGMA synchronous  = OFF;
+
+CREATE TABLE place(
+    id     INTEGER PRIMARY KEY,
+    kind   INTEGER NOT NULL,           -- 0 населённый пункт · 1 улица · 2 POI
+    name   TEXT    NOT NULL,
+    alias  TEXT,                       -- name:en и name:ru через пробел; NULL когда их нет
+    lat    REAL    NOT NULL,
+    lon    REAL    NOT NULL,
+    cat    TEXT,                       -- категория кнопки: charging, fuel… NULL если нет
+    detail TEXT,                       -- собственное слово карты, когда кнопки нет
+    pop    INTEGER NOT NULL DEFAULT 0  -- только населённые пункты
+);
+
+-- Порядок столбцов не случаен: «рядом по категории» читается ЦЕЛИКОМ из индекса, не заглядывая
+-- в таблицу. Подтверждено на устройстве: SEARCH place USING COVERING INDEX place_cat_pos.
+CREATE INDEX place_cat_pos ON place(cat, lat, lon);
+
+-- Внешнее содержимое: FTS хранит только индекс, строки живут в place. Иначе текст лежал бы
+-- дважды. Триггеров синхронизации намеренно НЕТ — файл собирается один раз и дальше только
+-- читается, так что синхронизировать нечего.
+CREATE VIRTUAL TABLE place_fts USING fts4(
+    name, alias, tokenize=unicode61, content='place'
+);
+"""
+
+COLUMNS = "kind, name, alias, lat, lon, cat, detail, pop"
+
+
+# Длиннее этого — не имя. Найдено на живых данных: у магазина кондиционеров в `name:ru` лежит
+# целый рекламный абзац («Продажа кондиционеров с установкой от 1.700 леев. Рассрочка 0%…»), и
+# такие строки попадают в индекс целиком, раздувая его шумом, по которому никто не ищет. Предел
+# щедрый — самое длинное настоящее название среди молдавских мест заметно короче.
+MAX_ALIAS_CHARS = 80
+
+
+def aliases_of(attrs, name):
+    """Псевдонимы объекта одной строкой, или None.
+
+    Совпадающее с основным именем отбрасывается: у половины молдавских улиц `name:ru` дословно
+    равен `name`, и хранить его значило бы удвоить индекс ради нуля новых совпадений.
+    """
+    found = []
+    for field in ALIAS_FIELDS:
+        value = attrs.get(field)
+        if not value or value == name or value in found:
+            continue
+        if len(value) > MAX_ALIAS_CHARS:
+            continue
+        found.append(value)
+    return " ".join(found) if found else None
+
+
+def write(rows, path):
+    """Создать базу заново из готовых кортежей в порядке [COLUMNS]."""
+    if os.path.exists(path):
+        os.remove(path)
+    db = sqlite3.connect(path)
+    db.executescript(SCHEMA)
+    db.executemany(
+        "INSERT INTO place(%s) VALUES (?,?,?,?,?,?,?,?)" % COLUMNS, rows)
+    # Индекс строится ОДНИМ проходом после наполнения — ради этого внешнее содержимое и выбрано;
+    # построчная вставка в FTS была бы на порядок дороже.
+    db.execute("INSERT INTO place_fts(place_fts) VALUES('rebuild')")
+    db.commit()
+    db.execute("VACUUM")
+    db.close()
+    return os.path.getsize(path)

@@ -38,6 +38,7 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pmtiles_archive
+import search_db
 
 # ── what a driver actually asks for ─────────────────────────────────────────────────────────
 #
@@ -276,7 +277,8 @@ def main() -> int:
             continue
         population = attrs.get("population")
         places[key] = {"n": name, "k": kind, "y": point[0], "x": point[1],
-                       "p": int(population) if isinstance(population, int) else 0}
+                       "p": int(population) if isinstance(population, int) else 0,
+                       "a": search_db.aliases_of(attrs, name)}
 
     # ── streets and POIs, from the detail archive ───────────────────────────────────────────
     streets, pois = {}, {}
@@ -313,7 +315,8 @@ def main() -> int:
             here = (point[0], point[1])
             known = streets.get(key)
             if known is None or here < (known["y"], known["x"]):
-                streets[key] = {"n": name, "y": point[0], "x": point[1]}
+                streets[key] = {"n": name, "y": point[0], "x": point[1],
+                                "a": search_db.aliases_of(attrs, name)}
         else:
             kinds_seen[kind] += 1
             category = KIND_TO_CATEGORY.get(kind)
@@ -322,7 +325,8 @@ def main() -> int:
             key = (name or kind, round(point[0], 4), round(point[1], 4))
             if key in pois:
                 continue
-            row = {"n": name or "", "y": point[0], "x": point[1]}
+            row = {"n": name or "", "y": point[0], "x": point[1],
+                   "a": search_db.aliases_of(attrs, name or "")}
             # The category is what a button filters on; the kind is kept for anything that has
             # no button, so it can still be named in a result row.
             if category:
@@ -350,11 +354,32 @@ def main() -> int:
     with open(args.out, "w", encoding="utf-8") as handle:
         json.dump(index, handle, ensure_ascii=False, separators=(",", ":"))
 
+    # ── и та же выборка как база ────────────────────────────────────────────────────────────
+    # JSON остаётся, потому что это ещё и формат сличения: пока не доказано, что новый поиск
+    # отвечает как старый, выбрасывать эталон нечем. Приложение читает базу; JSON доживает как
+    # запасной путь и как то, с чем сравнивают.
+    sqlite_path = args.out[:-len(".json")] + ".sqlite" if args.out.endswith(".json") \
+        else args.out + ".sqlite"
+    rows = []
+    for row in index["places"]:
+        rows.append((search_db.PLACE, row["n"], row.get("a"), row["y"], row["x"],
+                     None, row.get("k"), row.get("p", 0)))
+    for row in index["streets"]:
+        rows.append((search_db.STREET, row["n"], row.get("a"), row["y"], row["x"],
+                     None, None, 0))
+    for row in index["pois"]:
+        rows.append((search_db.POI, row.get("n", ""), row.get("a"), row["y"], row["x"],
+                     row.get("c"), row.get("k"), 0))
+    size = search_db.write(rows, sqlite_path)
+    with_alias = sum(1 for r in rows if r[2])
+
     print(f"   places  {len(places):6d}", file=sys.stderr)
     print(f"   streets {len(streets):6d}", file=sys.stderr)
     print(f"   pois    {len(pois):6d}", file=sys.stderr)
     by_category = Counter(p["c"] for p in pois.values() if "c" in p)
     print(f"   by category: {dict(by_category.most_common())}", file=sys.stderr)
+    print(f"   sqlite  {size / 1048576:6.1f} MB, aliases {with_alias} of {len(rows)} rows "
+          f"({100.0 * with_alias / max(len(rows), 1):.1f}%)", file=sys.stderr)
     return 0
 
 

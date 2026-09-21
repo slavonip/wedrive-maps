@@ -174,7 +174,7 @@ jobs:
         with:
           name: measure-index-${{ steps.box.outputs.low }}
           path: |
-            ${{ runner.temp }}/${{ steps.box.outputs.low }}-index.json
+            ${{ runner.temp }}/${{ steps.box.outputs.low }}-index.sqlite
             ${{ runner.temp }}/time.txt
           retention-days: 7
           if-no-files-found: error
