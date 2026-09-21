@@ -1,0 +1,177 @@
+name: regional basemap
+
+# Вторая и третья часть СТРАНЫ: карта, которую водитель видит, и индекс, по которому он ищет.
+#
+# Региональная фабрика строит только граф. Из-за этого сегодня получилось так: машина умеет
+# ПРОЛОЖИТЬ маршрут до Мюнхена по пяти странам, но не умеет ни ПОКАЗАТЬ Германию, ни НАЙТИ в ней
+# место по названию — базовой карты Германии нет вовсе, а поисковый индекс фабрика собирает и
+# никуда не публикует (фильтр выгрузки в build-maps.yml перечисляет .tar и .pmtiles и не
+# перечисляет -index.json; отсюда 404 по всем адресам, на которые ссылается index.json).
+#
+# Здесь страна собирается как ОДНА сущность из трёх компонентов. Порталы внутрь не входят
+# намеренно: таблица принадлежит не стране, а ПАРЕ ПОКОЛЕНИЙ соседей — это измерено, при
+# обновлении Румынии сменились 20 пар идентификаторов из 32.
+
+on:
+  workflow_dispatch:
+    inputs:
+      country:
+        description: "Код страны из regional.json, например DE"
+        required: true
+        default: "DE"
+      publish:
+        description: "Выложить в текущий региональный релиз и дописать манифест"
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
+jobs:
+  basemap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      # Извлечение при z15 для индекса — самая прожорливая часть, и её размер для Германии никем
+      # не измерен. Освобождаем всё, что можно, ДО начала, а не когда место кончится на середине.
+      - name: место
+        run: |
+          rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
+          df -h / | tail -1
+
+      - name: границы страны
+        id: box
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          code = os.environ["COUNTRY"].upper()
+          cfg = json.load(open("regional.json", encoding="utf-8"))
+          c = cfg["countries"].get(code)
+          if not c:
+              raise SystemExit("нет такой страны в regional.json: %s" % code)
+          box = c.get("bbox")
+          if not box:
+              raise SystemExit("у %s нет bbox — добавьте его в regional.json" % code)
+          print("code=%s" % code)
+          print("low=%s" % code.lower())
+          print("bbox=%s" % " ".join(str(x) for x in box))
+          PY
+        env:
+          COUNTRY: ${{ github.event.inputs.country }}
+
+      - name: карта и индекс
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          OUT_DIR="$RUNNER_TEMP/out" WORK="$RUNNER_TEMP" \
+            bash scripts/build-basemap.sh "${{ steps.box.outputs.low }}" ${{ steps.box.outputs.bbox }}
+          ls -la "$RUNNER_TEMP/out"
+          df -h / | tail -1
+
+      # РАЗМЕРЫ — ТО, РАДИ ЧЕГО ПРОГОН И ЗАТЕВАЛСЯ. Для Германии их никто не знал: по Австрии
+      # (PBF 750 МБ -> карта 1009 МБ) карта выходит БОЛЬШЕ сжатого графа, и переносить это
+      # отношение на страну в шесть раз крупнее было бы ровно той экстраполяцией, которая уже
+      # ошиблась на gzip.
+      - name: измерения
+        run: |
+          low="${{ steps.box.outputs.low }}"
+          python3 - "$RUNNER_TEMP/out" "$low" <<'PY'
+          import hashlib, json, os, sys
+          out, low = sys.argv[1], sys.argv[2]
+          for name in ("%s.pmtiles" % low, "%s-index.json" % low):
+              p = os.path.join(out, name)
+              if not os.path.isfile(p):
+                  print("   НЕТ %s" % name); continue
+              h = hashlib.sha256()
+              with open(p, "rb") as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b""):
+                      h.update(chunk)
+              print("   %-28s %12d байт  %8.2f МБ  %s"
+                    % (name, os.path.getsize(p), os.path.getsize(p) / 1048576, h.hexdigest()[:16]))
+          idx = os.path.join(out, "%s-index.json" % low)
+          if os.path.isfile(idx):
+              d = json.load(open(idx, encoding="utf-8"))
+              entries = d.get("entries") or d.get("places") or []
+              kinds = {}
+              for e in entries:
+                  kinds[e.get("kind", "?")] = kinds.get(e.get("kind", "?"), 0) + 1
+              print("   записей в индексе: %d, по видам: %s" % (len(entries), kinds))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: regional-basemap-${{ steps.box.outputs.low }}
+          path: |
+            ${{ runner.temp }}/out/${{ steps.box.outputs.low }}.pmtiles
+            ${{ runner.temp }}/out/${{ steps.box.outputs.low }}-index.json
+            ${{ runner.temp }}/out/${{ steps.box.outputs.low }}-index-meta.json
+          retention-days: 3
+          if-no-files-found: error
+
+      # Публикация в ТОТ ЖЕ релиз, на который указывает текущий манифест: карта страны обязана
+      # лежать рядом со своим графом, иначе «установить DE» превращается в два адреса из разных
+      # поколений — ровно то расхождение дат, которое §13 велит не допускать.
+      - name: выложить и дописать манифест
+        if: ${{ github.event.inputs.publish != 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          low="${{ steps.box.outputs.low }}"
+          code="${{ steps.box.outputs.code }}"
+          TAG=$(python3 -c "
+          import json
+          m = json.load(open('manifest.json', encoding='utf-8'))
+          url = next(iter(m['regions'].values()))['url']
+          print(url.rsplit('/', 2)[-2])
+          ")
+          echo "текущий релиз: $TAG"
+          for f in "$RUNNER_TEMP/out/$low.pmtiles" "$RUNNER_TEMP/out/$low-index.json"; do
+            gh release upload "$TAG" "$f" --repo "${{ github.repository }}" --clobber
+          done
+
+          python3 - "$RUNNER_TEMP/out" "$low" "$code" "$TAG" "${{ github.repository }}" <<'PY'
+          import hashlib, json, os, sys
+          out, low, code, tag, repo = sys.argv[1:6]
+          base = "https://github.com/%s/releases/download/%s" % (repo, tag)
+          m = json.load(open("manifest.json", encoding="utf-8"))
+
+          def artifact(name):
+              p = os.path.join(out, name)
+              h = hashlib.sha256()
+              with open(p, "rb") as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b""):
+                      h.update(chunk)
+              return {"file": name, "url": "%s/%s" % (base, name),
+                      "bytes": os.path.getsize(p), "sha256": h.hexdigest()}
+
+          meta_path = os.path.join(out, "%s-index-meta.json" % low)
+          meta = json.load(open(meta_path, encoding="utf-8")) if os.path.isfile(meta_path) else {}
+          region = m["regions"][code]
+          region["map"] = artifact("%s.pmtiles" % low)
+          region["search"] = artifact("%s-index.json" % low)
+          # Дата данных карты — НЕ дата графа: источники разные (Protomaps против Geofabrik), и
+          # §13 требует показывать обе, потому что расхождение выглядит как поломка приложения.
+          for key, value in (("dataDate", meta.get("dataDate")), ("schema", meta.get("schema"))):
+              if value:
+                  region["map"][key] = value
+          json.dump(m, open("manifest.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+          print(json.dumps(region, ensure_ascii=False, indent=2))
+          PY
+
+          git config user.name "wedrive-factory"
+          git config user.email "factory@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "Карта и индекс $code -> $TAG" || exit 0
+          # Те же три попытки, что и у фабрики: сборка идёт долго, а main всё это время живёт.
+          for attempt in 1 2 3; do
+            git pull --rebase --autostash origin main && git push && exit 0
+            echo "попытка $attempt не прошла"
+            sleep 5
+          done
+          exit 1
