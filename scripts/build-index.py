@@ -30,11 +30,14 @@ import argparse
 import gzip
 import json
 import math
+import os
 import subprocess
 import sys
 from collections import Counter
 
-sys.path.insert(0, __file__.rsplit("/", 1)[0] if "/" in __file__ else ".")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import pmtiles_archive
 
 # ── what a driver actually asks for ─────────────────────────────────────────────────────────
 #
@@ -170,7 +173,8 @@ def first_point(geometry, extent, z, x, y):
     return round(lat, 5), round(lon, 5)
 
 
-def tiles_in(bbox, z):
+def bounds_in(bbox, z):
+    """Границы столбцов и строк прямоугольника на уровне z: (x0, x1, y0, y1), полуоткрытые."""
     west, south, east, north = bbox
     n = 2 ** z
 
@@ -180,31 +184,69 @@ def tiles_in(bbox, z):
     def row(lat):
         return int((1.0 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2.0 * n)
 
-    for x in range(max(col(west), 0), min(col(east) + 1, n)):
-        for y in range(max(row(north), 0), min(row(south) + 1, n)):
+    return (max(col(west), 0), min(col(east) + 1, n),
+            max(row(north), 0), min(row(south) + 1, n))
+
+
+def tiles_in(bbox, z):
+    """Каждая координата прямоугольника. Остаётся ради прежнего способа чтения (см. scan)."""
+    x0, x1, y0, y1 = bounds_in(bbox, z)
+    for x in range(x0, x1):
+        for y in range(y0, y1):
             yield x, y
 
 
-def scan(archive, pmtiles, bbox, zoom, wanted_layers):
-    """Yield (layer, attrs, position) for every feature in the wanted layers."""
-    for x, y in tiles_in(bbox, zoom):
-        raw = subprocess.run([pmtiles, "tile", archive, str(zoom), str(x), str(y)],
-                             capture_output=True).stdout
-        if not raw:
+def features_of(raw, zoom, x, y, wanted_layers):
+    """Признаки нужных слоёв из одного тайла — общее тело обоих способов чтения."""
+    for number, payload in fields(raw):
+        if number != 3:
             continue
-        if raw[:2] == b"\x1f\x8b":
-            raw = gzip.decompress(raw)
-        for number, payload in fields(raw):
-            if number != 3:
+        layer = read_layer(payload)
+        if layer["name"] not in wanted_layers:
+            continue
+        for feature in layer["features"]:
+            attrs, geometry = read_feature(feature, layer["keys"], layer["values"])
+            point = first_point(geometry, layer["extent"], zoom, x, y)
+            if point:
+                yield layer["name"], attrs, point
+
+
+def scan(archive, pmtiles, bbox, zoom, wanted_layers, legacy=False):
+    """Yield (layer, attrs, position) for every feature in the wanted layers.
+
+    **Читает архив НАПРЯМУЮ.** Прежний способ — `pmtiles tile` отдельным процессом на каждый
+    тайл — был терпим на городе и оказался непроходим на стране: Германия это 962 550 запусков
+    процесса, и сборка её индекса была прервана на 137-й минуте, так и не закончив. Замер на
+    одинаковой работе: 64.2 мс против 0.384 мс на тайл, то есть 167x. Почему выигрыш даёт именно
+    устранение fork/exec, а не пропуск пустых тайлов, — в [pmtiles_archive]; коротко: после
+    `extract --bbox` архив плотный внутри коробки, пропускать нечего.
+
+    `legacy=True` возвращает прежний способ, и он оставлен ровно для одного — доказать, что
+    новый отдаёт ТОТ ЖЕ индекс, а не похожий. Выбросив медленный путь, сравнивать быстрый было
+    бы не с чем.
+
+    Прямоугольник проверяется и здесь, хотя архив уже нарезан по нему: `pmtiles extract` вправе
+    захватить кромку за краем коробки, и без отсечки два способа разошлись бы по краю — на
+    величину маленькую, объяснимую и оттого особенно неприятную.
+    """
+    x0, x1, y0, y1 = bounds_in(bbox, zoom)
+
+    if legacy:
+        for x, y in tiles_in(bbox, zoom):
+            raw = subprocess.run([pmtiles, "tile", archive, str(zoom), str(x), str(y)],
+                                 capture_output=True).stdout
+            if not raw:
                 continue
-            layer = read_layer(payload)
-            if layer["name"] not in wanted_layers:
-                continue
-            for feature in layer["features"]:
-                attrs, geometry = read_feature(feature, layer["keys"], layer["values"])
-                point = first_point(geometry, layer["extent"], zoom, x, y)
-                if point:
-                    yield layer["name"], attrs, point
+            if raw[:2] == b"\x1f\x8b":
+                raw = gzip.decompress(raw)
+            for item in features_of(raw, zoom, x, y, wanted_layers):
+                yield item
+        return
+
+    for _, x, y, raw in pmtiles_archive.tiles(archive, zoom=zoom):
+        if x0 <= x < x1 and y0 <= y < y1:
+            for item in features_of(raw, zoom, x, y, wanted_layers):
+                yield item
 
 
 def main() -> int:
@@ -216,13 +258,16 @@ def main() -> int:
     parser.add_argument("--pmtiles", default="pmtiles")
     parser.add_argument("--places-zoom", type=int, default=10)
     parser.add_argument("--detail-zoom", type=int, default=15)
+    parser.add_argument("--legacy", action="store_true",
+                        help="прежнее чтение процессом на тайл — только для сличения")
     args = parser.parse_args()
 
     bbox = tuple(float(v) for v in args.bbox.split(","))
 
     # ── settlements ─────────────────────────────────────────────────────────────────────────
     places = {}
-    for _, attrs, point in scan(args.places, args.pmtiles, bbox, args.places_zoom, {"places"}):
+    for _, attrs, point in scan(args.places, args.pmtiles, bbox, args.places_zoom, {"places"},
+                                legacy=args.legacy):
         name, kind = attrs.get("name"), attrs.get("kind")
         if not name or kind not in PLACE_KINDS:
             continue
@@ -237,7 +282,7 @@ def main() -> int:
     streets, pois = {}, {}
     kinds_seen = Counter()
     for layer, attrs, point in scan(args.detail, args.pmtiles, bbox, args.detail_zoom,
-                                    {"roads", "pois"}):
+                                    {"roads", "pois"}, legacy=args.legacy):
         name, kind = attrs.get("name"), attrs.get("kind")
         # A NAME IS REQUIRED FOR TEXT, NOT FOR A CATEGORY. Most charging points and car parks
         # carry no name in OSM, and requiring one dropped charging from 34 to 3 and parking from
@@ -254,7 +299,21 @@ def main() -> int:
             # wants to see. Rounding to ~1 km keeps both ends of a long avenue separate without
             # listing every block.
             key = (name, round(point[0], 2), round(point[1], 2))
-            streets.setdefault(key, {"n": name, "y": point[0], "x": point[1]})
+            # ПРЕДСТАВИТЕЛЬ ВЫБИРАЕТСЯ ДЕТЕРМИНИРОВАННО, а не «кто первый попался».
+            #
+            # Улица — это много отрезков, и в ячейку попадает любой из них. Прежде хранился
+            # первый встреченный, то есть ответ зависел от ПОРЯДКА ОБХОДА архива. Смена чтения
+            # на прямое (порядок Гильберта вместо построчного) это и вскрыла: 2347 улиц из
+            # 21 069 получили другого представителя — те же имя и ячейка, сдвиг координаты на
+            # 187 м в медиане и до 1124 м, и ни одного отличия в остальных полях.
+            #
+            # Ни один из двух порядков не был правильнее другого, поэтому чинится не обход, а
+            # произвол: минимум по (широта, долгота) даёт один и тот же ответ при любом способе
+            # чтения. Заодно это делает индекс воспроизводимым — тот же архив даёт те же байты.
+            here = (point[0], point[1])
+            known = streets.get(key)
+            if known is None or here < (known["y"], known["x"]):
+                streets[key] = {"n": name, "y": point[0], "x": point[1]}
         else:
             kinds_seen[kind] += 1
             category = KIND_TO_CATEGORY.get(kind)
@@ -278,9 +337,15 @@ def main() -> int:
         "detailZoom": args.detail_zoom,
         "counts": {"places": len(places), "streets": len(streets), "pois": len(pois)},
         "categories": sorted(CATEGORIES),
-        "places": sorted(places.values(), key=lambda p: (-p["p"], p["n"])),
-        "streets": sorted(streets.values(), key=lambda s: s["n"]),
-        "pois": sorted(pois.values(), key=lambda p: p["n"]),
+        # ПОРЯДОК ЗАДАН ПОЛНОСТЬЮ — имени мало. Одноимённых улиц в стране сотни, а у POI имя
+        # сплошь и рядом пустое (заправка без вывески — это строка с категорией и без названия),
+        # так что сортировка по одному имени оставляла тысячи связок на усмотрение устойчивости
+        # сортировки, то есть на порядок обхода архива. Пока читался он одним способом, это было
+        # незаметно; смена чтения на прямое дала те же записи в другом порядке и другой файл.
+        # Координата в ключе делает файл воспроизводимым: тот же архив — те же байты.
+        "places": sorted(places.values(), key=lambda p: (-p["p"], p["n"], p["y"], p["x"])),
+        "streets": sorted(streets.values(), key=lambda s: (s["n"], s["y"], s["x"])),
+        "pois": sorted(pois.values(), key=lambda p: (p["n"], p["y"], p["x"])),
     }
     with open(args.out, "w", encoding="utf-8") as handle:
         json.dump(index, handle, ensure_ascii=False, separators=(",", ":"))

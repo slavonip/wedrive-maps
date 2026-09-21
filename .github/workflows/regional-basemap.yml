@@ -104,15 +104,53 @@ jobs:
               print("   записей в индексе: %d, по видам: %s" % (len(entries), kinds))
           PY
 
+      # ТОЛЬКО МЕЛОЧЬ. Карта Германии — 3.5 ГБ, и выгружать её ещё и артефактом Actions значит
+      # переложить те же байты второй раз ради файла, который и так едет в релиз. Индекс и
+      # паспорта весят мегабайты и нужны, чтобы посмотреть результат, не качая пакет.
       - uses: actions/upload-artifact@v4
         with:
           name: regional-basemap-${{ steps.box.outputs.low }}
           path: |
-            ${{ runner.temp }}/out/${{ steps.box.outputs.low }}.pmtiles
             ${{ runner.temp }}/out/${{ steps.box.outputs.low }}-index.json
             ${{ runner.temp }}/out/${{ steps.box.outputs.low }}-index-meta.json
+            ${{ runner.temp }}/out/${{ steps.box.outputs.low }}-basemap.json
           retention-days: 3
           if-no-files-found: error
+
+      # ── ЧАСТИ ─────────────────────────────────────────────────────────────────────────────
+      # Германия — 3.5 ГБ при пределе актива релиза чуть меньше 2 ГиБ, так что карта страны
+      # такого размера либо публикуется частями, либо не публикуется вовсе. Прежний прогон
+      # выяснил бы это на последнем шаге, после двух с лишним часов работы.
+      #
+      # Механизм НЕ НОВЫЙ: это тот же scripts/split-assets.py, которым режется граф, — части
+      # `<имя>.partNNN`, у каждой свой sha256, и отдельно sha256 целого файла. Целое гейтит
+      # активацию: набор верных частей, складывающийся в неверный файл, — ровно тот отказ,
+      # который пропустила бы одна лишь поштучная проверка.
+      #
+      # ПОСЛЕ выгрузки артефакта, и это не вкусовщина: split удаляет исходный файл. §19 уже
+      # записал, как этот же шаг, поставленный слишком рано, убил `.tar` у следующего шага.
+      - name: разрезать карту сверх предела актива
+        id: split
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import importlib.util, json, os, pathlib
+          spec = importlib.util.spec_from_file_location("split_assets", "scripts/split-assets.py")
+          sa = importlib.util.module_from_spec(spec); spec.loader.exec_module(sa)
+          out = pathlib.Path(os.environ["RUNNER_TEMP"]) / "out"
+          path = out / ("%s.pmtiles" % os.environ["LOW"])
+          info = sa.split(path)
+          (out / "map-parts.json").write_text(json.dumps(info), encoding="utf-8")
+          if info["parts"]:
+              print("   %s: %d байт -> %d частей" % (path.name, info["bytes"], len(info["parts"])),
+                    file=__import__("sys").stderr)
+          else:
+              print("   %s: %d байт, одним активом" % (path.name, info["bytes"]),
+                    file=__import__("sys").stderr)
+          print("parts=%d" % len(info["parts"]))
+          PY
+          ls -la "$RUNNER_TEMP/out"
+        env:
+          LOW: ${{ steps.box.outputs.low }}
 
       # Публикация в ТОТ ЖЕ релиз, на который указывает текущий манифест: карта страны обязана
       # лежать рядом со своим графом, иначе «установить DE» превращается в два адреса из разных
@@ -131,7 +169,10 @@ jobs:
           print(url.rsplit('/', 2)[-2])
           ")
           echo "текущий релиз: $TAG"
-          for f in "$RUNNER_TEMP/out/$low.pmtiles" "$RUNNER_TEMP/out/$low-index.json"; do
+          # Части, если карта не влезла в актив, иначе сам файл. Индекс мал и не режется никогда.
+          for f in "$RUNNER_TEMP/out/$low.pmtiles" "$RUNNER_TEMP/out/$low.pmtiles.part"* \
+                   "$RUNNER_TEMP/out/$low-index.json"; do
+            [ -f "$f" ] || continue
             gh release upload "$TAG" "$f" --repo "${{ github.repository }}" --clobber
           done
 
@@ -150,10 +191,26 @@ jobs:
               return {"file": name, "url": "%s/%s" % (base, name),
                       "bytes": os.path.getsize(p), "sha256": h.hexdigest()}
 
+          def split_artifact(name):
+              """Карта: размер и sha256 берутся из отчёта резчика, а не с диска.
+
+              Целого файла на диске уже нет — split его удаляет, оставив части. Считать sha
+              заново было бы не только невозможно, но и неправильно: гейтить активацию должен
+              хэш ТОГО файла, который собирается из этих частей.
+              """
+              info = json.load(open(os.path.join(out, "map-parts.json"), encoding="utf-8"))
+              entry = {"file": name, "url": "%s/%s" % (base, name),
+                       "bytes": info["bytes"], "sha256": info["sha256"]}
+              if info["parts"]:
+                  # URL у каждой части свой; порядок в списке — порядок склейки, и он значим.
+                  entry["parts"] = [dict(part, url="%s/%s" % (base, part["name"]))
+                                    for part in info["parts"]]
+              return entry
+
           meta_path = os.path.join(out, "%s-index-meta.json" % low)
           meta = json.load(open(meta_path, encoding="utf-8")) if os.path.isfile(meta_path) else {}
           region = m["regions"][code]
-          region["map"] = artifact("%s.pmtiles" % low)
+          region["map"] = split_artifact("%s.pmtiles" % low)
           region["search"] = artifact("%s-index.json" % low)
           # Дата данных карты — НЕ дата графа: источники разные (Protomaps против Geofabrik), и
           # §13 требует показывать обе, потому что расхождение выглядит как поломка приложения.
