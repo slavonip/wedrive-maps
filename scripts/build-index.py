@@ -362,13 +362,13 @@ def main() -> int:
         else args.out + ".sqlite"
     rows = []
     for row in index["places"]:
-        rows.append((search_db.PLACE, row["n"], row.get("a"), row["y"], row["x"],
+        rows.append((search_db.PLACE, row["n"], search_db.encode_aliases(row.get("a")), row["y"], row["x"],
                      None, row.get("k"), row.get("p", 0)))
     for row in index["streets"]:
-        rows.append((search_db.STREET, row["n"], row.get("a"), row["y"], row["x"],
+        rows.append((search_db.STREET, row["n"], search_db.encode_aliases(row.get("a")), row["y"], row["x"],
                      None, None, 0))
     for row in index["pois"]:
-        rows.append((search_db.POI, row.get("n", ""), row.get("a"), row["y"], row["x"],
+        rows.append((search_db.POI, row.get("n", ""), search_db.encode_aliases(row.get("a")), row["y"], row["x"],
                      row.get("c"), row.get("k"), 0))
     size = search_db.write(rows, sqlite_path)
     with_alias = sum(1 for r in rows if r[2])

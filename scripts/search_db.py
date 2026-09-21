@@ -24,6 +24,7 @@
 поля, а не все сорок: остальные раздули бы индекс ради языков, на которых в этой машине никто
 искать не будет.
 """
+import json
 import os
 import sqlite3
 
@@ -41,7 +42,7 @@ CREATE TABLE place(
     id     INTEGER PRIMARY KEY,
     kind   INTEGER NOT NULL,           -- 0 населённый пункт · 1 улица · 2 POI
     name   TEXT    NOT NULL,
-    alias  TEXT,                       -- name:en и name:ru через пробел; NULL когда их нет
+    aliases TEXT,                      -- JSON-массив имён на других языках; NULL когда их нет
     lat    REAL    NOT NULL,
     lon    REAL    NOT NULL,
     cat    TEXT,                       -- категория кнопки: charging, fuel… NULL если нет
@@ -56,13 +57,27 @@ CREATE INDEX place_cat_pos ON place(cat, lat, lon);
 -- Внешнее содержимое: FTS хранит только индекс, строки живут в place. Иначе текст лежал бы
 -- дважды. Триггеров синхронизации намеренно НЕТ — файл собирается один раз и дальше только
 -- читается, так что синхронизировать нечего.
+-- FTS индексирует ту же колонку `aliases` прямо как JSON, и это не хитрость: `unicode61`
+-- считает разделителем всё, что не буква и не цифра, так что от `["Munich","Мюнхен"]` в индекс
+-- попадают ровно два токена. Одно хранилище, ни дублирования текста, ни своего формата.
 CREATE VIRTUAL TABLE place_fts USING fts4(
-    name, alias, tokenize=unicode61, content='place'
+    name, aliases, tokenize=unicode61, content='place'
 );
 """
 
-COLUMNS = "kind, name, alias, lat, lon, cat, detail, pop"
+COLUMNS = "kind, name, aliases, lat, lon, cat, detail, pop"
 
+
+# ПСЕВДОНИМ — САМОСТОЯТЕЛЬНОЕ ИМЯ, А НЕ КУСОК СТРОКИ.
+#
+# Сначала они склеивались разделителем, и это был свой мини-формат внутри базы: приложению
+# пришлось бы его разбирать, а доказывать, что выбранный байт не встречается ни в одном `name:*`
+# мира, — занятие без конца. JSON-массив однозначен, а кодирование и разбор живут по одному месту
+# на каждой стороне.
+#
+# «Munich» и «Мюнхен» обязаны попадать в оценку ДВУМЯ строками: набравший «Munich» указал точное
+# название, просто на своём языке, и должен получить 1000 за точное совпадение, а не 500 за
+# начало склейки.
 
 # Длиннее этого — не имя. Найдено на живых данных: у магазина кондиционеров в `name:ru` лежит
 # целый рекламный абзац («Продажа кондиционеров с установкой от 1.700 леев. Рассрочка 0%…»), и
@@ -71,8 +86,13 @@ COLUMNS = "kind, name, alias, lat, lon, cat, detail, pop"
 MAX_ALIAS_CHARS = 80
 
 
+def encode_aliases(found):
+    """Список имён -> то, что лежит в колонке. Единственное место, где формат известен."""
+    return json.dumps(found, ensure_ascii=False) if found else None
+
+
 def aliases_of(attrs, name):
-    """Псевдонимы объекта одной строкой, или None.
+    """Псевдонимы объекта СПИСКОМ (может быть пустым).
 
     Совпадающее с основным именем отбрасывается: у половины молдавских улиц `name:ru` дословно
     равен `name`, и хранить его значило бы удвоить индекс ради нуля новых совпадений.
@@ -85,7 +105,7 @@ def aliases_of(attrs, name):
         if len(value) > MAX_ALIAS_CHARS:
             continue
         found.append(value)
-    return " ".join(found) if found else None
+    return found
 
 
 def write(rows, path):
