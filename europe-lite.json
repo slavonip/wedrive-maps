@@ -1,0 +1,91 @@
+{
+ "created": "2026-09-25T07:45:05Z",
+ "engine": {
+  "commit": "e2f017b16080f49203de245a211b09efab09cf72",
+  "image": "wedrive-valhalla:lite-prod2 (local image, not published; functionally equivalent to valhalla/Dockerfile)",
+  "patches": {
+   "B2": {
+    "file": "valhalla-3.6.3-ferry-first-edge.patch",
+    "sha256": "29fa847e3382aa65a9c78e17b39234840a1ac2bcd53b16e46576f13f3bda008a"
+   },
+   "C": {
+    "file": "valhalla-3.6.3-border-control-contract.patch",
+    "sha256": "583b3eb0877f274bcba734e109d68813405eb90a41616ea3bdfbc62ed0eb92b1"
+   }
+  },
+  "valhalla": "3.6.3"
+ },
+ "gates": {
+  "baseline": {
+   "description": "t_europe2: the same connector set, promote.py before 00f843a, stock Valhalla 3.6.3 (the final2 acceptance baseline)",
+   "image": "ghcr.io/valhalla/valhalla@sha256:2b19ea46551a9687b245022551183829d817fdee9b58c5e7b2adb6e422749c43"
+  },
+  "file": "gates.json",
+  "routes": {
+   "accepted": 3,
+   "fail": 0,
+   "known": 5,
+   "pass": 38,
+   "verdict": "PASS"
+  },
+  "struct": {
+   "connector_ways": 5834,
+   "explicit_access_kept": 41,
+   "explicit_access_total": 41,
+   "found_in_baseline": 5829,
+   "found_in_new": 5829,
+   "gained": 0,
+   "lost_in_ferry_reclassification": 18,
+   "lost_inferred_service": 168,
+   "lost_other": 0,
+   "lost_outside_reclassification": 0,
+   "verdict": "PASS"
+  },
+  "transit": {
+   "land_only": 105,
+   "lifted_ways": 18,
+   "new_transits": 0,
+   "pairs": 216,
+   "verdict": "PASS"
+  },
+  "verdict": "PASS"
+ },
+ "graph": {
+  "bytes": 1165688788,
+  "compression": "gzip",
+  "file": "europe_lite.tar.gz",
+  "sha256": "f6c129c9b32a4bfef75a98379d4b6f64b4db4a6a0e85045f5a081fefe18f0a76",
+  "tar_bytes": 2710016000,
+  "tiles": 23746,
+  "url": "https://github.com/slavonip/wedrive-maps/releases/download/europe-lite-2026-09-21/europe_lite.tar.gz"
+ },
+ "kind": "europe-lite",
+ "pbf": {
+  "bytes": 1418946230,
+  "file": "europe_lite.osm.pbf",
+  "sha256": "a9ebf5252a39b7df953614ef3993151cd4b3cc91eba2a056203323e2f962a713",
+  "url": "https://github.com/slavonip/wedrive-maps/releases/download/europe-lite-2026-09-21/europe_lite.osm.pbf"
+ },
+ "pipeline": {
+  "factory_commit": "0318d88449d43242dfd5be50b172ccee49da833a",
+  "origin": "slavonip/wedrive tools/europe-lite (private repository)",
+  "revision": "3eac2bcd744f76502c7f8156bad977831a7c35f0"
+ },
+ "run": {
+  "id": null,
+  "note": "final2: built locally on 2026-09-24 and accepted by the owner; not built by the factory",
+  "url": null
+ },
+ "schema": 1,
+ "source": {
+  "bytes": 35020804941,
+  "fetched": "2026-09-22",
+  "md5": "70d9fc1e8e872a4c620bd47dd17d45fd",
+  "replication": "2026-09-21T20:21:51Z",
+  "sequence": 4920,
+  "sha256": "61975e09c65f8b3d3f5b0b19caa1701fce77f6f7af47a7f92084ff7bd9dcb64f",
+  "url": "https://download.geofabrik.de/europe-latest.osm.pbf"
+ },
+ "tag": "europe-lite-2026-09-21",
+ "version": "2026-09-21"
+}
