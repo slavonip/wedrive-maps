@@ -1,192 +1,208 @@
 name: regional factory
 
 # Региональная фабрика: одна страна — один пакет, границы — отдельные таблицы порталов.
+# Приложение читает manifest.json (RegionalManifest.kt); это единственный указатель этой схемы.
 #
-# Идёт РЯДОМ со старым конвейером, а не вместо него. build-maps.yml продолжает выпускать
-# когерентные многострановые пакеты в релиз `maps` и index.json — то, чем машина пользуется
-# сегодня. Ничего не переключается, пока региональная схема не проверена целиком.
+#   precheck -> factory -> publish (verify | publish) -> report (issue при сбое production)
 #
-# ЧТО ДЕЛАЕТ ОДИН ПРОГОН:
-#   1. собирает названные страны с нуля (экстракт Geofabrik -> admin -> тайлы -> .tar -> sha256)
-#   2. берёт остальные страны набора из ТЕКУЩЕГО манифеста, скачивая опубликованные пакеты
-#   3. перегенерирует таблицы порталов всех границ, которых касаются пересобранные страны
-#   4. прогоняет регрессию на СОБРАННОМ НАБОРЕ, а не на исходниках
-#   5. публикует неизменяемый релиз
-#   6. и только после успеха переключает current-манифест
+# precheck   что пересобрать и почему: MD5 экстракта Geofabrik, движок (regional-engine.lock),
+#            база часовых поясов; неизменные страны ПЕРЕНОСЯТСЯ, а не собираются заново. Ничего не
+#            изменилось -> прогон заканчивается без релиза.
+# factory    контейнер = движок ПО DIGEST; сборка изменённых стран, перенос остальных с проверкой
+#            sha, распаковка набора, ВСЕ таблицы порталов, регрессия на собранном наборе
+#            (швы, потеря региона, км), gzip -n + части, манифест с происхождением.
+# publish    draft -> выкладка -> скачать обратно и сверить -> (verify: удалить черновик) |
+#            (publish: опубликовать -> проверить все URL манифеста -> коммит manifest.json).
 #
-# Порядок не случаен. Манифест — это обещание устройству; переключать его до регрессии значит
-# обещать то, что не проверено.
+# Порядок не случаен. Манифест — это обещание устройству; переключать его до регрессии и до
+# проверки выложенного значит обещать то, что не проверено.
 
 on:
   workflow_dispatch:
     inputs:
-      rebuild:
-        description: "Какие страны пересобрать (через запятую, например RO). Пусто = все."
+      mode:
+        description: "dry = собрать и проверить; verify = ещё и выложить черновик, скачать обратно, удалить; publish = production (только полный набор)"
+        type: choice
+        options: [dry, verify, publish]
+        default: dry
+      countries:
+        description: "Какие страны в наборе (через запятую). Пусто = все из regional.json. Неполный набор не публикуется."
         required: false
         default: ""
-      publish:
-        description: "Публиковать релиз и переключать манифест"
-        type: boolean
+      rebuild:
+        description: "auto = по изменениям источников; all = все; или список (RO,HU)"
         required: false
-        default: true
+        default: "auto"
       part_bytes:
-        description: "Порог разрезания пакета, байт. Пусто = предел актива GitHub (1.9 ГиБ). Меньшее значение — чтобы проверить механику на небольшой стране."
+        description: "Порог разрезания пакета, байт. Пусто = 1.9 ГиБ (предел актива GitHub). Меньше — проверить механику на небольшой стране."
         required: false
         default: ""
 
+concurrency:
+  group: regional-factory
+  cancel-in-progress: false
+
 permissions:
-  contents: write
+  contents: read
   packages: read
 
 env:
-  RELEASE_TAG_CURRENT: regional
   WORK: /data/regional
 
 jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      go: ${{ steps.plan.outputs.go }}
+      mode: ${{ steps.mode.outputs.mode }}
+      countries: ${{ steps.plan.outputs.countries }}
+      rebuild: ${{ steps.plan.outputs.rebuild }}
+      carry: ${{ steps.plan.outputs.carry }}
+      complete: ${{ steps.plan.outputs.complete }}
+      image: ${{ steps.plan.outputs.image }}
+      engine_ref: ${{ steps.plan.outputs.engine_ref }}
+      engine_sha: ${{ steps.plan.outputs.engine_sha }}
+      timezones_url: ${{ steps.plan.outputs.timezones_url }}
+      timezones_sha256: ${{ steps.plan.outputs.timezones_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: tests of the regional scripts
+        run: python3 tests/test_regional.py
+      - name: mode
+        id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          mode="$INPUT_MODE"; [ "$EVENT" = schedule ] && mode=publish
+          echo "mode=${mode:-dry}" >> "$GITHUB_OUTPUT"; echo "mode: ${mode:-dry}"
+      - name: what to rebuild, and why
+        id: plan
+        env:
+          COUNTRIES: ${{ inputs.countries }}
+          REBUILD: ${{ inputs.rebuild || 'auto' }}
+          MODE: ${{ steps.mode.outputs.mode }}
+        run: |
+          set -euo pipefail
+          python3 scripts/regional-precheck.py regional.json regional-engine.lock manifest.json \
+            --countries "$COUNTRIES" --rebuild "$REBUILD" --github-output "$GITHUB_OUTPUT"
+          complete=$(grep '^complete=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)
+          if [ "$MODE" = publish ] && [ "$complete" != true ]; then
+            echo "::error::publish needs the whole set of regional.json; a partial set is a control run (dry or verify)"
+            exit 1
+          fi
+
   factory:
+    needs: precheck
+    if: needs.precheck.outputs.go == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 330
     container:
-      # Патченый движок: одна строка multi-region живёт в Mjolnir, и тайлы, собранные стоковым
-      # сборщиком, для этой схемы непригодны.
-      image: ghcr.io/slavonip/wedrive-engine:multi-region-runtime-v2
+      # Движок ПО DIGEST из regional-engine.lock, а не по изменяемому тегу.
+      image: ${{ needs.precheck.outputs.image }}
       options: --user root
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-
+    defaults:
+      run:
+        shell: bash    # bash -e -o pipefail: провал внутри конвейера больше не маскируется
+    env:
+      ENGINE_REF: ${{ needs.precheck.outputs.engine_ref }}
+      ENGINE_SHA: ${{ needs.precheck.outputs.engine_sha }}
+      TZ_URL: ${{ needs.precheck.outputs.timezones_url }}
+      TIMEZONES_SHA256: ${{ needs.precheck.outputs.timezones_sha256 }}
+      REBUILD: ${{ needs.precheck.outputs.rebuild }}
+      CARRY: ${{ needs.precheck.outputs.carry }}
+      COMPLETE: ${{ needs.precheck.outputs.complete }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: место и движок
+      - name: the engine is the one in regional-engine.lock
         run: |
+          set -u
           df -h / | tail -1
-          echo "движок в образе: $(cat /etc/wedrive-engine-ref) $(cut -c1-12 /etc/wedrive-engine-sha)"
+          have_ref=$(cat /etc/wedrive-engine-ref); have_sha=$(cat /etc/wedrive-engine-sha)
+          echo "engine in the image: $have_ref $have_sha"
+          if [ "$have_ref" != "$ENGINE_REF" ] || [ "$have_sha" != "$ENGINE_SHA" ]; then
+            echo "::error::the image is not engine $ENGINE_REF $ENGINE_SHA"; exit 1
+          fi
           gid_test | tail -2
 
-      - name: что пересобираем
-        id: plan
+      - name: resource sampler
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json, os
-          cfg = json.load(open("regional.json"))
-          asked = [c.strip().upper() for c in os.environ.get("REBUILD", "").split(",") if c.strip()]
-          allc = list(cfg["countries"])
-          rebuild = asked or allc
-          bad = [c for c in rebuild if c not in cfg["countries"]]
-          if bad:
-              raise SystemExit("нет таких стран в regional.json: %s" % bad)
-          print("rebuild=%s" % ",".join(rebuild))
-          print("all=%s" % ",".join(allc))
-          PY
-        env:
-          REBUILD: ${{ github.event.inputs.rebuild }}
-
-      - name: собрать страны
-        run: |
-          set -e
           mkdir -p "$WORK"
-          for code in $(echo "${{ steps.plan.outputs.rebuild }}" | tr ',' ' '); do
-            geo=$(python3 -c "import json;print(json.load(open('regional.json'))['countries']['$code']['geofabrik'])")
+          setsid nohup bash scripts/sample-resources.sh "$WORK/samples.csv" "$WORK" >/dev/null 2>&1 < /dev/null &
+          echo $! > "$WORK/sampler.pid"
+
+      - name: timezone database (pinned, sha-checked)
+        run: |
+          set -u
+          curl -fsSL --retry 3 -o "$WORK/timezones.sqlite.part" "$TZ_URL"
+          [ "$(sha256sum "$WORK/timezones.sqlite.part" | cut -d' ' -f1)" = "$TIMEZONES_SHA256" ] \
+            || { echo "::error::timezones.sqlite does not match regional-engine.lock"; exit 1; }
+          mv "$WORK/timezones.sqlite.part" "$WORK/timezones.sqlite"
+
+      - name: build the changed countries
+        run: |
+          set -u
+          export TIMEZONES_DB="$WORK/timezones.sqlite"
+          for code in ${REBUILD//,/ }; do
+            geo=$(python3 -c "import json,sys;print(json.load(open('regional.json'))['countries'][sys.argv[1]]['geofabrik'])" "$code")
             echo "::group::$code ($geo)"
+            t=$(date +%s)
             bash scripts/regional-build.sh "$code" "$geo" "$WORK"
+            echo "$code built in $(( $(date +%s)-t )) s" | tee -a "$WORK/timings.txt"
             echo "::endgroup::"
             df -h / | tail -1
           done
 
       # Страны, которые НЕ пересобирали, берутся из уже опубликованного — иначе «обновить одну
-      # страну» превращается в «собрать все», и вся схема теряет смысл.
-      - name: добрать остальные страны из текущего манифеста
+      # страну» превращается в «собрать все». Каждый байт сверяется с манифестом.
+      - name: carry the unchanged countries
         run: |
-          set -e
-          cur=manifest.json
-          if [ ! -f "$cur" ]; then
-            echo "текущего манифеста ещё нет — первый прогон собирает всё сам"
-            exit 0
-          fi
-          for code in $(echo "${{ steps.plan.outputs.all }}" | tr ',' ' '); do
-            case ",${{ steps.plan.outputs.rebuild }}," in *",$code,"*) continue;; esac
-            python3 - "$cur" "$code" "$WORK" <<'PY'
-          import json, os, subprocess, sys
-          man, code, work = json.load(open(sys.argv[1], encoding="utf-8")), sys.argv[2], sys.argv[3]
-          r = man.get("regions", {}).get(code)
-          if not r:
-              print("   %s нет в манифесте — пропуск" % code); raise SystemExit(0)
-          dst = os.path.join(work, r["package"])
-          if not os.path.isfile(dst):
-              # ПАКЕТ МОЖЕТ БЫТЬ РАЗРЕЗАН, и тогда по r["url"] актива нет вовсе: резчик удаляет
-              # целый .tar, а в релиз уходят только части. Скачать один URL значило бы получить
-              # 404 через час после начала сборки — ровно там, где потеря дороже всего.
-              base = r["url"].rsplit("/", 1)[0]
-              parts = r.get("parts") or []
-              if parts:
-                  print("   качаю %s частями: %d" % (r["package"], len(parts)))
-                  with open(dst, "wb") as out:
-                      for p in parts:
-                          tmp = os.path.join(work, p["name"])
-                          subprocess.run(["curl", "-fsSL", "-o", tmp, "%s/%s" % (base, p["name"])],
-                                         check=True)
-                          with open(tmp, "rb") as f:
-                              while True:
-                                  chunk = f.read(1 << 20)
-                                  if not chunk:
-                                      break
-                                  out.write(chunk)
-                          os.remove(tmp)
-              else:
-                  print("   качаю %s" % r["url"])
-                  subprocess.run(["curl", "-fsSL", "-o", dst, r["url"]], check=True)
-          json.dump({"code": code, "geofabrik": "", "graph_version": r["graph_version"],
-                     "tiles": r.get("tiles", 0), "package": r["package"],
-                     "bytes": r["bytes"], "sha256": r["sha256"],
-                     "engine": r.get("engine", "unknown"), "engine_sha": ""},
-                    open(os.path.join(work, "%s.package.json" % code.lower()), "w"))
-          print("   %s взят из манифеста: %s" % (code, r["package"]))
-          PY
+          set -u
+          for code in ${CARRY//,/ }; do
+            python3 scripts/regional-carry.py manifest.json "$code" "$WORK"
           done
 
-      - name: распаковать набор
+      - name: unpack the set
         run: |
-          set -e
+          set -u
           for desc in "$WORK"/*.package.json; do
             code=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['code'])" "$desc")
             pkg=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['package'])" "$desc")
             dir="$WORK/installed/$code"
             mkdir -p "$dir/tiles"
             echo "   $code <- $pkg"
-            # Пакет — это tile_extract; читателю нужен либо он, либо каталог. Порталам нужен
-            # каталог, поэтому распаковываем.
+            # tar распознаёт .tar.gz перенесённых пакетов сам
             tar -xf "$WORK/$pkg" -C "$dir/tiles"
-            find "$dir/tiles" -name '*.gph' | wc -l | sed 's/^/      тайлов: /'
+            n=$(find "$dir/tiles" -name '*.gph' | wc -l)
+            echo "      tiles: $n"; [ "$n" -gt 0 ] || { echo "::error::$code has no tiles"; exit 1; }
           done
 
-      # ВСЕ таблицы, а не только затронутые пересборкой.
-      #
-      # Фильтр по пересобранным странам здесь был дефектом, а не оптимизацией: таблицы остальных
-      # границ в рабочем каталоге не появляются ниоткуда, и набор уезжал в публикацию без них.
-      # Таблица стоит секунды против часов сборки, а её отсутствие стоит границы.
-      #
-      # Пересчитать таблицу уже существующей пары не вредно и даже правильнее: тайлы непересобранных
-      # стран взяты из опубликованных пакетов, то есть те же байты, и таблица выходит та же.
-      - name: таблицы порталов
-        run: |
-          python3 scripts/regional-portals.py regional.json "$WORK/installed" "$WORK"
+      # ВСЕ таблицы, а не только затронутые пересборкой: таблица стоит секунды, её отсутствие —
+      # границы. Для непересобранных пар это те же байты тайлов, и таблица выходит та же.
+      - name: portal tables
+        run: python3 scripts/regional-portals.py regional.json "$WORK/installed" "$WORK"
 
-      - name: конфигурация маршрутизатора на собранном наборе
+      - name: router configuration on the assembled set
         run: |
           python3 - <<'PY'
-          import json, os
+          import json, os, subprocess
           work = os.environ["WORK"]
           cfg = json.load(open("regional.json"))
           installed = sorted(os.listdir(os.path.join(work, "installed")))
-          os.system("valhalla_build_config --mjolnir-tile-dir %s/installed/%s/tiles > %s/router.json"
-                    % (work, installed[0], work))
+          with open("%s/router.json" % work, "w") as out:
+              subprocess.run(["valhalla_build_config", "--mjolnir-tile-dir",
+                              "%s/installed/%s/tiles" % (work, installed[0])], stdout=out, check=True)
           c = json.load(open("%s/router.json" % work))
           m = c["mjolnir"]
           m.pop("tile_extract", None)
           m["wedrive_regions"] = [{"id": cfg["countries"][code]["region_id"],
-                                   "dir": "%s/installed/%s/tiles" % (work, code)}
-                                  for code in installed]
+                                   "dir": "%s/installed/%s/tiles" % (work, code)} for code in installed]
           tables = [os.path.join(work, f) for f in sorted(os.listdir(work)) if f.endswith(".portals")]
           allp = os.path.join(work, "all.portals")
           with open(allp, "w") as out:
@@ -194,170 +210,124 @@ jobs:
                   out.write(open(t, encoding="utf-8").read())
           m["wedrive_portals"] = allp
           json.dump(c, open("%s/router.json" % work, "w"), indent=1)
-          print("   регионов: %s" % ", ".join(installed))
-          print("   таблиц: %d" % len(tables))
+          print("   regions: %s, tables: %d" % (", ".join(installed), len(tables)))
           PY
 
-      - name: регрессия на собранном наборе
+      - name: regression on the assembled set
         run: |
-          installed=$(ls "$WORK/installed")
-          python3 scripts/regional-regress.py regional.json "$WORK/router.json" $installed
+          # shellcheck disable=SC2046
+          python3 scripts/regional-regress.py regional.json "$WORK/router.json" $(ls "$WORK/installed") \
+            | tee "$WORK/regress.txt"
 
-      # РЕЖЕМ ТО, ЧТО НЕ ВЛЕЗАЕТ В АКТИВ РЕЛИЗА — И ТОЛЬКО ЗДЕСЬ, ПОСЛЕ РЕГРЕССИИ.
-      #
-      # Место шага не вкусовое. Резчик УДАЛЯЕТ целый .tar, а он нужен всему, что идёт
-      # раньше: распаковка набора читает именно его, и без него таблицы порталов строить
-      # не из чего. Прогон 35534572218 упал ровно так — `tar: md-2026-09-19.tar: Cannot
-      # open`, — потому что шаг стоял сразу после сборки стран.
-      #
-      # Здесь же целый архив больше никому не нужен: набор распакован, порталы построены,
-      # регрессия пройдена. Дальше идут манифест, артефакт и релиз, и всем троим нужны
-      # именно части.
-      #
-      # GitHub держит актив чуть меньше 2 ГиБ, а граф Германии около 5.4 ГБ (экстракт 4.51 ГБ,
-      # отношение графа к PBF ~1.2 на всех собранных странах). Большая страна публикуется
-      # частями или не публикуется вовсе, и узнать об этом на шаге выгрузки — значит потерять
-      # всю сборку, которая к тому моменту уже сделана.
-      #
-      # Целый .tar после резки удаляется самим split-assets.py: выгружать и его, и части значило
-      # бы удвоить релиз ради файла, который всё равно не принимается.
-      #
-      # Порог можно занизить входом part_bytes — так механика проверяется на стране, которую не
-      # нужно собирать час.
-      - name: разрезать пакеты сверх предела актива
+      # gzip -n и части — ПОСЛЕ регрессии: набор распакован из целых .tar, они больше не нужны.
+      - name: package (gzip -n, parts over the asset limit)
         env:
-          PART_BYTES: ${{ github.event.inputs.part_bytes }}
-        run: |
-          python3 - <<'PY'
-          import importlib.util, json, os, pathlib
-          spec = importlib.util.spec_from_file_location("split_assets", "scripts/split-assets.py")
-          sa = importlib.util.module_from_spec(spec)
-          spec.loader.exec_module(sa)
-          limit = int(os.environ.get("PART_BYTES") or 0) or sa.PART_BYTES
-          sa.PART_BYTES = limit
-          work = pathlib.Path(os.environ["WORK"])
-          print("   порог: %d байт" % limit)
-          for desc in sorted(work.glob("*.package.json")):
-              d = json.loads(desc.read_text(encoding="utf-8"))
-              tar = work / d["package"]
-              if not tar.is_file():
-                  continue
-              info = sa.split(tar)
-              if not info["parts"]:
-                  print("   %-3s %s: %d байт, одним активом" % (d["code"], d["package"], info["bytes"]))
-                  continue
-              d["bytes"], d["sha256"], d["parts"] = info["bytes"], info["sha256"], info["parts"]
-              desc.write_text(json.dumps(d, indent=2), encoding="utf-8")
-              print("   %-3s %s: %d байт -> %d частей"
-                    % (d["code"], d["package"], info["bytes"], len(info["parts"])))
-          PY
+          PART_BYTES: ${{ inputs.part_bytes }}
+        run: python3 scripts/regional-package.py "$WORK" "${PART_BYTES:-}"
 
-      - name: манифест
+      - name: manifest
         id: manifest
         run: |
-          set -e
-          DATE=$(date -u +%Y-%m-%d)
-          TAG="regional-$DATE-${{ github.run_number }}"
+          set -u
+          TAG="regional-$(date -u +%Y-%m-%d)-${{ github.run_number }}"
           BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
-          python3 scripts/regional-manifest.py build regional.json "$WORK" "$BASE" > "$WORK/manifest.json"
-          echo "--- сверка манифеста с файлами:"
-          python3 scripts/regional-manifest.py check "$WORK/manifest.json" "$WORK"
+          python3 scripts/regional-manifest.py build regional.json "$WORK" "$BASE" \
+            --previous manifest.json --tag "$TAG" --engine-lock regional-engine.lock \
+            --pipeline-rev "${{ github.sha }}" --run-id "${{ github.run_id }}" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            > "$WORK/manifest.json"
+          echo "--- manifest against the files:"
+          if [ "$COMPLETE" = true ]; then
+            python3 scripts/regional-manifest.py check "$WORK/manifest.json" "$WORK" --provenance --complete regional.json
+          else
+            python3 scripts/regional-manifest.py check "$WORK/manifest.json" "$WORK" --provenance
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          mkdir -p "$WORK/dist"
+          cp "$WORK/manifest.json" "$WORK/dist/"
+          python3 scripts/regional-manifest.py assets "$WORK/manifest.json" | while read -r f; do
+            mv "$WORK/$f" "$WORK/dist/"
+          done
+          find "$WORK/dist" -maxdepth 1 -type f -printf '   %s  %f\n'
           cat "$WORK/manifest.json"
 
-      - name: план обновления, для журнала
+      - name: resources
+        if: always()
         run: |
-          for code in $(echo "${{ steps.plan.outputs.all }}" | tr ',' ' '); do
-            echo "::group::если обновится $code"
-            python3 scripts/regional-manifest.py plan "$WORK/manifest.json" "$code" || true
-            echo "::endgroup::"
-          done
+          kill "$(cat "$WORK/sampler.pid" 2>/dev/null)" 2>/dev/null || true
+          python3 scripts/peak-from-samples.py "$WORK/samples.csv" --label factory | tee "$WORK/resources.txt" || true
+          cat "$WORK/timings.txt" 2>/dev/null || true
+          df -h / | tail -1
 
-      # Собранное отдаётся наружу артефактом, потому что публикует ДРУГОЕ задание. В контейнере
-      # движка нет `gh`, и это не мелочь: заметив её только на шаге релиза, мы бы потеряли час
-      # сборки. Этот репозиторий уже записывал ровно это наблюдение про свой прежний конвейер.
-      - name: отдать собранное
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: regional-${{ github.run_number }}
-          path: |
-            /data/regional/*.tar
-            /data/regional/*.tar.part*
-            /data/regional/*.portals
-            /data/regional/manifest.json
-            !/data/regional/all.portals
-          retention-days: 3
+          name: regional-release-${{ github.run_number }}
+          path: /data/regional/dist/
+          retention-days: 7
+          compression-level: 0
           if-no-files-found: error
 
-  # ── ПУБЛИКАЦИЯ: на runner'е, а не в контейнере ──────────────────────────────────────────────
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regional-logs-${{ github.run_number }}
+          retention-days: 30
+          path: |
+            /data/regional/regress.txt
+            /data/regional/resources.txt
+            /data/regional/samples.csv
+            /data/regional/timings.txt
+            /data/regional/manifest.json
+            /data/regional/*.package.json
+            /data/regional/work_*/tiles.log
+
+  # ── ПУБЛИКАЦИЯ: на runner'е, а не в контейнере (в образе движка нет gh) ──────────────────────────
   publish:
-    needs: factory
-    if: ${{ github.event.inputs.publish != 'false' }}
+    needs: [precheck, factory]
+    if: needs.precheck.outputs.mode == 'verify' || needs.precheck.outputs.mode == 'publish'
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          ref: ${{ github.event.repository.default_branch }}
       - uses: actions/download-artifact@v4
         with:
-          name: regional-${{ github.run_number }}
+          name: regional-release-${{ github.run_number }}
           path: dist
-
-      - name: что publish собирается выложить
-        run: ls -la dist | sed 's/^/   /'
-
-      # Тег берётся ИЗ МАНИФЕСТА, а не вычисляется заново: манифест уже содержит ссылки на этот
-      # тег внутри себя, и разъехавшись, они указали бы в пустоту.
-      - name: тег из манифеста
-        id: tag
-        run: |
-          TAG=$(python3 -c "import json,sys;m=json.load(open('dist/manifest.json'));import re;u=next(iter(m['regions'].values()))['url'];print(u.split('/download/')[1].split('/')[0])")
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "тег: $TAG"
-
-      - name: неизменяемый релиз
+      - name: draft -> upload -> verify -> (delete | publish -> urls -> manifest.json)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          TAG="${{ steps.tag.outputs.tag }}"
-          # Неизменяемый: свой тег на прогон, ничего не перезаписывается. Откат — это
-          # переключение current-манифеста на прошлый тег, а не пересборка.
-          gh release create "$TAG" --repo "${{ github.repository }}" \
-            --title "Региональные пакеты $TAG" \
-            --notes "Региональные пакеты и таблицы порталов. Манифест внутри релиза." \
-          || echo "релиз уже существует"
-          for f in dist/*; do
-            [ -f "$f" ] || continue
-            gh release upload "$TAG" "$f" --repo "${{ github.repository }}" --clobber
-          done
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ needs.precheck.outputs.mode }}
+        run: bash scripts/regional-publish.sh dist "$GITHUB_REPOSITORY" "$GITHUB_WORKSPACE" "$MODE"
 
-      # Манифест переключается ПОСЛЕДНИМ. Он обещает устройству, что набор проверен; сделать это
-      # раньше регрессии и раньше выкладки значит пообещать то, чего ещё нет.
-      - name: переключить current
+  report:
+    needs: [precheck, factory, publish]
+    if: failure() && (github.event_name == 'schedule' || needs.precheck.outputs.mode == 'publish')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: open an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RESULTS: ${{ toJSON(needs) }}
         run: |
-          set -e
-          cp dist/manifest.json manifest.json
-          git config user.name "wedrive-factory"
-          git config user.email "factory@users.noreply.github.com"
-          git add manifest.json
-          git commit -m "Региональный манифест -> ${{ steps.tag.outputs.tag }}" || exit 0
-          # ПОДБИРАЕМ ЧУЖИЕ КОММИТЫ ПЕРЕД ПУШЕМ, и это не перестраховка.
-          #
-          # Сборка идёт десятки минут, а main всё это время живёт: правка скрипта, добавленная
-          # страна, что угодно. Прогон 2026-09-20 упал ровно так — собрал четыре страны, прошёл
-          # регрессию, выложил релиз и отказался переключить манифест, потому что пуш отклонён.
-          # Артефакты опубликованы, а указатель на них нет, и машина видит СТАРЫЙ набор, ничего
-          # не сообщая: отказ выглядит как «обновления нет». Из всех мест, где можно потерять
-          # час работы, это худшее — последняя строка после всей работы.
-          #
-          # rebase, а не merge: правится один файл, и история манифеста должна остаться прямой.
-          for attempt in 1 2 3; do
-            if git pull --rebase --autostash origin main && git push; then
-              echo "current манифест указывает на ${{ steps.tag.outputs.tag }}"
-              exit 0
-            fi
-            echo "попытка $attempt не прошла, пробую ещё"
-            sleep 5
-          done
-          echo "манифест не переключён: main меняется быстрее, чем мы успеваем" >&2
-          exit 1
+          set -euo pipefail
+          body=$(mktemp)
+          {
+            echo "The regional factory run failed and **nothing new was published**."
+            echo "manifest.json still names the previous release; every car keeps it."
+            echo
+            echo "Run: $RUN_URL"
+            echo
+            echo '```'
+            echo "$RESULTS" | python3 -c 'import json,sys;[print("%-9s %s"%(k,v["result"])) for k,v in json.load(sys.stdin).items()]'
+            echo '```'
+          } > "$body"
+          gh issue create --repo "$REPO" --title "Regional factory failed ($(date -u +%F))" --body-file "$body"

@@ -24,16 +24,33 @@ SRC="$OUT/src"
 mkdir -p "$WORK/tiles" "$SRC" "$OUT"
 
 PBF="$SRC/$(basename "$GEO")-latest.osm.pbf"
+URL="https://download.geofabrik.de/${GEO}-latest.osm.pbf"
+# The extract is used only after its MD5 matches the one Geofabrik publishes beside it, and only
+# then renamed into place: a half-written or rolled-over download never becomes the input. One
+# retry covers Geofabrik publishing a new extract while this one was downloading.
 if [ ! -f "$PBF" ]; then
-  echo "==> качаю $GEO"
-  curl -fsSL -o "$PBF.part" "https://download.geofabrik.de/${GEO}-latest.osm.pbf"
-  mv "$PBF.part" "$PBF"
+  for attempt in 1 2; do
+    MD5_WANT="$(curl -fsSL "$URL.md5" | awk '{print $1}')"
+    [ "${#MD5_WANT}" = 32 ] || { echo "no MD5 published at $URL.md5" >&2; exit 1; }
+    echo "==> качаю $GEO (md5 $MD5_WANT)"
+    curl -fsSL -o "$PBF.part" "$URL"
+    if [ "$(md5sum "$PBF.part" | cut -d' ' -f1)" = "$MD5_WANT" ]; then
+      mv "$PBF.part" "$PBF"; echo "$MD5_WANT" > "$PBF.md5"; break
+    fi
+    rm -f "$PBF.part"; echo "md5 не сошлась (попытка $attempt)" >&2
+    [ "$attempt" = 2 ] && exit 1
+  done
 fi
+MD5="$(cat "$PBF.md5" 2>/dev/null || md5sum "$PBF" | cut -d' ' -f1)"
+PBF_SHA="$(sha256sum "$PBF" | cut -d' ' -f1)"
+PBF_BYTES="$(stat -c %s "$PBF")"
 echo "==> экстракт: $(du -h "$PBF" | cut -f1)"
 
 # Версия графа — это дата данных OSM, а не дата сборки. Две сборки из одного экстракта
 # взаимозаменяемы, из разных — нет, и именно по этой дате таблица порталов привязана к паре.
-DATA_DATE="$(osmium fileinfo -g header.option.osmosis_replication_timestamp "$PBF" | cut -c1-10)"
+REPLICATION="$(osmium fileinfo -g header.option.osmosis_replication_timestamp "$PBF")"
+SEQUENCE="$(osmium fileinfo -g header.option.osmosis_replication_sequence_number "$PBF")"
+DATA_DATE="$(echo "$REPLICATION" | cut -c1-10)"
 [ -n "$DATA_DATE" ] || { echo "экстракт без отметки времени — версию графа назвать нечем" >&2; exit 1; }
 echo "==> дата данных: $DATA_DATE"
 
@@ -59,11 +76,15 @@ echo "==> admin"
 valhalla_build_admins -c "$CONF" "$PBF" > "$WORK/admins.log" 2>&1
 test -s "$WORK/admins.sqlite" || { echo "admin-база пуста"; tail -20 "$WORK/admins.log"; exit 1; }
 
+# Часовые пояса — ЗАКРЕПЛЁННЫЙ вход (maps-vendor, sha в regional-engine.lock), а не сборка на
+# месте. Раньше здесь был valhalla_build_timezones с проглоченной ошибкой: сбой молча давал
+# страну без поясов, а успех — набор данных той версии, которую скрипт выберет в тот день.
 echo "==> часовые пояса"
-valhalla_build_timezones > "$WORK/timezones.sqlite" 2>"$WORK/tz.log" || {
-  echo "часовые пояса не собрались — время прибытия будет считаться по часам головного устройства" >&2
-  rm -f "$WORK/timezones.sqlite"
-}
+: "${TIMEZONES_DB:?путь к закреплённой базе часовых поясов (TIMEZONES_DB)}"
+: "${TIMEZONES_SHA256:?её sha256 (TIMEZONES_SHA256)}"
+[ "$(sha256sum "$TIMEZONES_DB" | cut -d' ' -f1)" = "$TIMEZONES_SHA256" ] \
+  || { echo "база часовых поясов не сходится с regional-engine.lock" >&2; exit 1; }
+cp "$TIMEZONES_DB" "$WORK/timezones.sqlite"
 
 echo "==> тайлы"
 valhalla_build_tiles -c "$CONF" "$PBF" > "$WORK/tiles.log" 2>&1
@@ -98,6 +119,9 @@ SHA="$(sha256sum "$TAR" | cut -d' ' -f1)"
 BYTES="$(stat -c %s "$TAR")"
 echo "==> $TAR  $(du -h "$TAR" | cut -f1)  $SHA"
 
+# Описание пакета с происхождением: откуда экстракт (URL, MD5 Geofabrik, sha256, отметка
+# репликации), каким движком и какой базой поясов собран. Манифест переносит это как есть, а
+# precheck следующего месяца по нему решает, нужна ли пересборка.
 cat > "$OUT/${low}.package.json" <<JSON
 {
   "code": "$CODE",
@@ -107,8 +131,19 @@ cat > "$OUT/${low}.package.json" <<JSON
   "package": "$(basename "$TAR")",
   "bytes": $BYTES,
   "sha256": "$SHA",
+  "tar_bytes": $BYTES,
+  "tar_sha256": "$SHA",
   "engine": "$(cat /etc/wedrive-engine-ref 2>/dev/null || echo unknown)",
-  "engine_sha": "$(cat /etc/wedrive-engine-sha 2>/dev/null || echo unknown)"
+  "engine_sha": "$(cat /etc/wedrive-engine-sha 2>/dev/null || echo unknown)",
+  "source": {
+    "url": "$URL",
+    "md5": "$MD5",
+    "sha256": "$PBF_SHA",
+    "bytes": $PBF_BYTES,
+    "replication": "$REPLICATION",
+    "sequence": "$SEQUENCE"
+  },
+  "timezones": {"sha256": "$TIMEZONES_SHA256"}
 }
 JSON
 echo "==> описание: $OUT/${low}.package.json"

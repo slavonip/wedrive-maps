@@ -1,0 +1,19 @@
+# The regional engine the country factory runs, pinned by DIGEST (never by the mutable tag).
+# Read by scripts/regional-precheck.py; the factory container is exactly this image, and its first
+# step proves that the Valhalla sources inside are engine_sha.
+#
+# engine_ref  tag of slavonip/wedrive-valhalla the image was built from (docker/engine.Dockerfile)
+# engine_sha  the commit that tag resolves to; written into the image as /etc/wedrive-engine-sha
+# image       the digest. a758968c is the image every package of regional-2026-09-20-8 was built
+#             with (engine-image run 35460641774). The tag was later moved to 3cf270ef by a
+#             spurious rebuild (run 36110546474); measured 2026-09-26: all 15 layers identical,
+#             only the image config differs. A new engine is a reviewed commit to this file, and a
+#             changed engine_sha makes the precheck rebuild every country.
+engine_ref = multi-region-runtime-v2
+engine_sha = 509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e
+image      = ghcr.io/slavonip/wedrive-engine@sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e
+
+# Timezone database for every country graph: the promoted dataset of the maps-vendor release,
+# the same file Europe Lite uses. Checked by sha before any build; a mismatch fails the run.
+timezones_url    = https://github.com/slavonip/wedrive-maps/releases/download/maps-vendor/timezones.sqlite
+timezones_sha256 = 5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4

@@ -68,7 +68,14 @@ def main():
         print("   %s-%s (регионы %d/%d): %d записей -> %s" % (a, b, ra, rb, len(rows), path))
         made.append(path)
 
+    eligible = [b for b in cfg["borders"]
+                if os.path.isdir(tiles_dir(root, b["between"][0])) and os.path.isdir(tiles_dir(root, b["between"][1]))]
     if not made:
+        if not eligible:
+            # Набор без единой пары соседей (контрольный прогон одной страны): строить нечего,
+            # и это не отказ. Отказ — когда пара есть, а таблицы нет; это ловит страж ниже.
+            print("   в наборе нет ни одной границы с обеими странами — таблиц не нужно")
+            return 0
         print("   ни одной таблицы не построено")
         return 1
 

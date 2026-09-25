@@ -62,6 +62,38 @@ Each release is tagged `europe-lite-YYYY-MM-DD` and always carries the same asse
 only after a release has been uploaded as a draft, downloaded back, verified and published. Details
 and the order of switching the factory on: [`tools/europe-lite/README.md`](tools/europe-lite/README.md), "Factory".
 
+## Country packages (the regional factory)
+
+FULL routing graphs, one per country, joined at the borders by portal tables. This is what the
+app installs per country; [`manifest.json`](manifest.json) at the root is its pointer
+(`kind: "regional"`). `.github/workflows/regional-factory.yml`:
+
+```
+precheck   which countries changed: Geofabrik MD5 vs the manifest, the engine (regional-engine.lock),
+           the timezone database. Unchanged countries are CARRIED, not rebuilt. Nothing changed ->
+           no release.
+factory    container = the engine BY DIGEST; changed countries built (extract MD5-checked, pinned
+           timezones); carried ones fetched and sha-checked; ALL portal tables; the regression on
+           the assembled set (seams, no lost region, km); gzip -n; parts over 1.9 GiB; manifest.
+publish    draft -> upload -> download back and check -> publish -> every manifest URL answers
+           -> commit manifest.json. mode=verify does the same and deletes the draft instead.
+report     an issue when a production run fails; manifest.json is then unchanged.
+```
+
+- **Packages** are `<cc>-<data-date>.tar.gz` (gzip -n, deterministic), cut into `.partNNN` only
+  above 1.9 GiB. A release holds only what that run built plus every portal table; a carried
+  country keeps pointing at the immutable asset of the release it came from. Old releases are
+  never deleted.
+- **region_id is permanent** (MD 1, RO 2, HU 3, AT 4, DE 5): it is written into the portal tables.
+- **The manifest** keeps the app's fields unchanged and adds provenance per country — `source`
+  (Geofabrik URL, MD5, sha256, replication), `engine_sha`, `engine_digest`, `timezones`,
+  `release`, `portals` — plus `engine`, `timezones` and `pipeline` at the top. `map` and `search`
+  are optional and survive a graph rebuild.
+- **Modes:** `dry` (build and check), `verify` (also upload a draft, download it back, delete it),
+  `publish` (production; only for the whole set of `regional.json`). Control runs on part of the
+  set use `countries=MD` or `countries=MD,RO`.
+- Tests: `python3 tests/test_regional.py` (run by the precheck of every run).
+
 ## Layout
 
 ```

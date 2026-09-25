@@ -9,15 +9,34 @@
 границы с тем соседом, который тоже обновился. Идентификаторы пересобранного графа меняются
 целиком и входят в каждую его таблицу.
 
+СОВМЕСТИМОСТЬ С ПРИЛОЖЕНИЕМ (RegionalManifest.kt) — контракт, который здесь не меняется:
+kind "regional"; engine — объект; у региона region_id, graph_version, package, url, bytes, sha256
+(+ title, tiles, parts); у таблицы versions, file, url, bytes, sha256 (+ rows). Всё остальное —
+происхождение, map, search, release — необязательные поля, которые приложение игнорирует.
+
+ПЕРЕНЕСЁННАЯ СТРАНА (carried) не выкладывается заново: её url и parts остаются ссылками на
+неизменяемый актив того релиза, в котором она опубликована. map и search переносятся из
+предыдущего манифеста при любой пересборке графа — обновление графа их не теряет.
+
   usage:
-    regional-manifest.py build <regional.json> <каталог-сборки> <url-базы> [> manifest.json]
+    regional-manifest.py build <regional.json> <каталог> <url-базы> [--previous m.json] [--tag T]
+                               [--engine-lock regional-engine.lock] [--pipeline-rev SHA]
+                               [--run-id N] [--run-url URL]           > manifest.json
+    regional-manifest.py check <manifest.json> <каталог> [--complete regional.json] [--provenance]
+    regional-manifest.py assets <manifest.json>      файлы, которые выкладываются в релиз этого прогона
+    regional-manifest.py urls <manifest.json>        все URL и размеры, на которые указывает манифест
+    regional-manifest.py verify-assets <manifest.json> <каталог>   активы этого прогона против манифеста
+    regional-manifest.py complete <manifest.json> <regional.json>  все страны и границы на месте
     regional-manifest.py plan  <manifest.json> <код-страны>
-    regional-manifest.py check <manifest.json> <каталог-сборки>
 """
+import argparse
+import datetime
 import hashlib
 import json
 import os
 import sys
+
+OPTIONAL_CARRY = ("map", "search")
 
 
 def sha256(path):
@@ -28,8 +47,26 @@ def sha256(path):
     return h.hexdigest()
 
 
-def build(cfg_path, work, base_url):
+def keyvals(path):
+    out = {}
+    for line in open(path, encoding="utf-8"):
+        s = line.split("#", 1)[0].strip()
+        if "=" in s:
+            k, v = (x.strip() for x in s.split("=", 1))
+            out[k] = v
+    return out
+
+
+def tag_of(url):
+    return url.split("/download/", 1)[1].split("/", 1)[0] if "/download/" in url else ""
+
+
+def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline_rev="",
+          run_id=None, run_url=""):
     cfg = json.load(open(cfg_path, encoding="utf-8"))
+    base_url = base_url.rstrip("/")
+    tag = tag or tag_of(base_url + "/x")
+    prev_regions = (previous or {}).get("regions", {})
     regions, portals = {}, {}
 
     for code, c in cfg["countries"].items():
@@ -37,12 +74,14 @@ def build(cfg_path, work, base_url):
         if not os.path.isfile(desc):
             continue
         d = json.load(open(desc, encoding="utf-8"))
-        regions[code] = {
+        carried = bool(d.get("carried"))
+        url = d["url"] if carried else "%s/%s" % (base_url, d["package"])
+        r = {
             "region_id": c["region_id"],
             "title": c["title"],
             "graph_version": d["graph_version"],
             "package": d["package"],
-            "url": "%s/%s" % (base_url.rstrip("/"), d["package"]),
+            "url": url,
             "bytes": d["bytes"],
             "sha256": d["sha256"],
             "tiles": d["tiles"],
@@ -51,7 +90,25 @@ def build(cfg_path, work, base_url):
         # Части — только когда они есть. У обычного пакета поля нет вовсе, и это не «ещё не
         # заполнено», а «одним файлом»: устройство различает эти случаи по наличию поля.
         if d.get("parts"):
-            regions[code]["parts"] = d["parts"]
+            r["parts"] = d["parts"]
+        # Происхождение (необязательные поля для приложения, обязательные для фабрики).
+        r["release"] = tag_of(url)
+        for k in ("engine_sha", "source", "timezones", "tar_bytes", "tar_sha256"):
+            if d.get(k) not in (None, "", {}):
+                r[k] = d[k]
+        if carried:
+            prev_digest = prev_regions.get(code, {}).get("engine_digest") or d.get("engine_digest")
+            if prev_digest:
+                r["engine_digest"] = prev_digest
+        elif lock:
+            r["engine_digest"] = lock["image"].split("@", 1)[1]
+        # map/search: из описания переносимой страны или из предыдущего манифеста — никогда не
+        # теряются из-за того, что граф пересобран.
+        for k in OPTIONAL_CARRY:
+            v = d.get(k) or prev_regions.get(code, {}).get(k)
+            if v:
+                r[k] = v
+        regions[code] = r
 
     for border in cfg["borders"]:
         a, b = border["between"]
@@ -68,15 +125,89 @@ def build(cfg_path, work, base_url):
             "versions": ["%s-%s" % (a, regions[a]["graph_version"]),
                          "%s-%s" % (b, regions[b]["graph_version"])],
             "file": os.path.basename(f),
-            "url": "%s/%s" % (base_url.rstrip("/"), os.path.basename(f)),
+            "url": "%s/%s" % (base_url, os.path.basename(f)),
             "bytes": os.path.getsize(f),
             "sha256": sha256(f),
             "rows": rows,
         }
+    for code, r in regions.items():
+        r["portals"] = sorted(n for n in portals if code in n.split("-"))
 
-    engine = next(iter(regions.values()))["engine"] if regions else "unknown"
-    return {"schema": 1, "kind": "regional", "engine": {"version": engine},
-            "regions": regions, "portals": portals}
+    m = {"schema": 1, "kind": "regional", "tag": tag,
+         "created": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    if lock:
+        m["engine"] = {"version": lock["engine_ref"], "sha": lock["engine_sha"],
+                       "digest": lock["image"].split("@", 1)[1], "image": lock["image"]}
+        m["timezones"] = {"url": lock["timezones_url"], "sha256": lock["timezones_sha256"]}
+    else:
+        m["engine"] = {"version": next(iter(regions.values()))["engine"] if regions else "unknown"}
+    m["pipeline"] = {"revision": pipeline_rev, "run_id": run_id, "run_url": run_url}
+    m["regions"], m["portals"] = regions, portals
+    return m
+
+
+def here(m, r):
+    return r.get("release", tag_of(r["url"])) == m.get("tag")
+
+
+def assets(m):
+    """Files uploaded into THIS run's release: packages (or their parts) built here, all tables."""
+    out = []
+    for r in m["regions"].values():
+        if here(m, r):
+            out += [p["name"] for p in r["parts"]] if r.get("parts") else [r["package"]]
+    out += [t["file"] for t in m["portals"].values()]
+    return out
+
+
+def urls(m):
+    """Every (url, bytes) the manifest points to, carried countries included."""
+    out = []
+    for r in m["regions"].values():
+        base = r["url"].rsplit("/", 1)[0]
+        out += [("%s/%s" % (base, p["name"]), p["bytes"]) for p in r["parts"]] if r.get("parts") \
+            else [(r["url"], r["bytes"])]
+    out += [(t["url"], t["bytes"]) for t in m["portals"].values()]
+    return out
+
+
+def verify_assets(m, directory):
+    """Every file of THIS run's release, in `directory`, against the manifest. -> problems."""
+    want = {}
+    for r in m["regions"].values():
+        if here(m, r):
+            if r.get("parts"):
+                want.update({p["name"]: (p["bytes"], p["sha256"]) for p in r["parts"]})
+            else:
+                want[r["package"]] = (r["bytes"], r["sha256"])
+    want.update({t["file"]: (t["bytes"], t["sha256"]) for t in m["portals"].values()})
+    problems = []
+    for name, (size, digest) in sorted(want.items()):
+        p = os.path.join(directory, name)
+        if not os.path.isfile(p):
+            problems.append("missing %s" % name)
+        elif os.path.getsize(p) != size or sha256(p) != digest:
+            problems.append("%s does not match the manifest" % name)
+        else:
+            print("   ok %s" % name)
+    return problems
+
+
+def complete(m, cfg_path):
+    """A production manifest describes EVERY country of regional.json and every border. -> problems."""
+    cfg = json.load(open(cfg_path, encoding="utf-8"))
+    problems = []
+    for code, c in cfg["countries"].items():
+        r = m["regions"].get(code)
+        if not r:
+            problems.append("incomplete: no %s" % code)
+        elif r["region_id"] != c["region_id"]:
+            problems.append("%s: region_id %s, regional.json says %s" % (code, r["region_id"], c["region_id"]))
+    for border in cfg["borders"]:
+        n = "%s-%s" % tuple(border["between"])
+        if n not in m["portals"]:
+            problems.append("incomplete: no table %s" % n)
+    return problems
 
 
 def plan(manifest_path, code):
@@ -102,79 +233,126 @@ def plan(manifest_path, code):
     return 0
 
 
-def check(manifest_path, work):
+def check(m, work, complete_cfg=None, provenance=False):
     """Манифест обязан описывать то, что действительно лежит рядом, и с теми же суммами.
 
     Иначе публикуется описание одного набора вместе с файлами другого — и устройство узнает
-    об этом, скачав полгигабайта.
+    об этом, скачав полгигабайта. -> число расхождений.
     """
-    m = json.load(open(manifest_path, encoding="utf-8"))
     bad = 0
     for code, r in m["regions"].items():
-        # РАЗРЕЗАННЫЙ ПАКЕТ: целого файла рядом уже нет, его удалил резчик. Сверяются части и
-        # сумма их размеров.
-        #
-        # Сумму ЦЕЛОГО здесь не пересчитать, не склеив обратно несколько гигабайт, — а считать её
-        # заново незачем: она снята резчиком с того самого файла, который он только что разрезал.
-        # Устройство всё равно проверит её у собранного файла, и вот там она и решает.
-        if r.get("parts"):
-            total = 0
-            broken = 0
+        for k in ("region_id", "graph_version", "package", "url", "bytes", "sha256"):
+            if k not in r:
+                print("   %-8s нет поля %s (контракт приложения)" % (code, k)); bad += 1
+        if not (0 < r.get("region_id", 0) <= 255):
+            print("   %-8s region_id %s вне 1..255" % (code, r.get("region_id"))); bad += 1
+        if r.get("parts") and here(m, r):
+            # РАЗРЕЗАННЫЙ ПАКЕТ ЭТОГО ПРОГОНА: целого файла рядом уже нет, его удалил резчик.
+            # Сверяются части и сумма их размеров; сумму целого проверит устройство у склеенного.
+            total = broken = 0
             for part in r["parts"]:
                 p = os.path.join(work, part["name"])
                 if not os.path.isfile(p):
                     print("   НЕТ ЧАСТИ %s (%s)" % (part["name"], code)); bad += 1; continue
-                ok = sha256(p) == part["sha256"] and os.path.getsize(p) == part["bytes"]
-                if not ok:
-                    print("   %-8s %-28s ЧАСТЬ НЕ СОШЛАСЬ" % (code, part["name"]))
-                    bad += 1; broken += 1
+                if sha256(p) != part["sha256"] or os.path.getsize(p) != part["bytes"]:
+                    print("   %-8s %-28s ЧАСТЬ НЕ СОШЛАСЬ" % (code, part["name"])); bad += 1; broken += 1
                 total += os.path.getsize(p)
             if total != r["bytes"]:
-                print("   %-8s сумма размеров частей %d против %d в манифесте"
-                      % (code, total, r["bytes"])); bad += 1
+                print("   %-8s сумма размеров частей %d против %d в манифесте" % (code, total, r["bytes"])); bad += 1
             elif not broken:
                 print("   %-8s %-28s ok  частей %d" % (code, r["package"], len(r["parts"])))
-            continue
-        p = os.path.join(work, r["package"])
-        if not os.path.isfile(p):
-            print("   НЕТ ФАЙЛА %s (%s)" % (r["package"], code)); bad += 1; continue
-        got = sha256(p)
-        ok = got == r["sha256"] and os.path.getsize(p) == r["bytes"]
-        print("   %-8s %-28s %s" % (code, r["package"], "ok" if ok else "СУММА НЕ СОШЛАСЬ"))
-        bad += 0 if ok else 1
+        else:
+            # целый файл: собранный здесь или скачанный перенос (склеенный из частей)
+            p = os.path.join(work, r["package"])
+            if not os.path.isfile(p):
+                print("   НЕТ ФАЙЛА %s (%s)" % (r["package"], code)); bad += 1
+            else:
+                ok = sha256(p) == r["sha256"] and os.path.getsize(p) == r["bytes"]
+                print("   %-8s %-28s %s%s" % (code, r["package"], "ok" if ok else "СУММА НЕ СОШЛАСЬ",
+                                             "" if here(m, r) else "  (перенос из %s)" % r.get("release")))
+                bad += 0 if ok else 1
+        if provenance:
+            src = r.get("source") or {}
+            for k in ("md5", "sha256", "replication"):
+                if not src.get(k):
+                    print("   %-8s нет source.%s" % (code, k)); bad += 1
+            for k in ("engine_sha", "engine_digest"):
+                if not r.get(k):
+                    print("   %-8s нет %s" % (code, k)); bad += 1
+            if not (r.get("timezones") or {}).get("sha256"):
+                print("   %-8s нет timezones.sha256" % code); bad += 1
     for name, t in m["portals"].items():
         p = os.path.join(work, t["file"])
         if not os.path.isfile(p):
             print("   НЕТ ФАЙЛА %s (%s)" % (t["file"], name)); bad += 1; continue
-        ok = sha256(p) == t["sha256"]
-        print("   %-8s %-28s %s  строк %d" % (name, t["file"],
-                                              "ok" if ok else "СУММА НЕ СОШЛАСЬ", t["rows"]))
+        ok = sha256(p) == t["sha256"] and os.path.getsize(p) == t["bytes"]
+        print("   %-8s %-28s %s  строк %d" % (name, t["file"], "ok" if ok else "СУММА НЕ СОШЛАСЬ", t["rows"]))
         bad += 0 if ok else 1
-
-    # Каждая граница между УСТАНОВЛЕННЫМИ странами обязана иметь таблицу. Пакеты без неё
-    # соберутся и опубликуются, а машина через границу не поедет.
-    for name, t in m["portals"].items():
+        if m.get("tag") and not t["url"].endswith("/download/%s/%s" % (m["tag"], t["file"])):
+            print("   %-8s таблица указывает не на релиз этого прогона" % name); bad += 1
         a, b = name.split("-")
         want = ["%s-%s" % (a, m["regions"][a]["graph_version"]),
                 "%s-%s" % (b, m["regions"][b]["graph_version"])]
         if t["versions"] != want:
-            print("   %-8s версии таблицы не совпадают с версиями пакетов: %s против %s"
-                  % (name, t["versions"], want))
+            print("   %-8s версии таблицы не совпадают с версиями пакетов: %s против %s" % (name, t["versions"], want))
             bad += 1
+    names = [t["file"] for t in m["portals"].values()]
+    if len(names) != len(set(names)):
+        print("   имена таблиц повторяются: все ложатся в один каталог устройства"); bad += 1
+    if complete_cfg:
+        # ПОЛНОТА — условие публикации: production-манифест описывает КАЖДУЮ страну regional.json
+        # и каждую их границу. Контрольный прогон на части набора не может стать указателем.
+        for p in complete(m, complete_cfg):
+            print("   " + p); bad += 1
     print("\nрасхождений: %d" % bad)
-    return 1 if bad else 0
+    return bad
+
+
+def main():
+    if len(sys.argv) < 3:
+        print(__doc__); return 2
+    cmd = sys.argv[1]
+    if cmd == "build":
+        ap = argparse.ArgumentParser()
+        ap.add_argument("cfg"); ap.add_argument("work"); ap.add_argument("base")
+        ap.add_argument("--previous"); ap.add_argument("--tag"); ap.add_argument("--engine-lock")
+        ap.add_argument("--pipeline-rev", default=""); ap.add_argument("--run-id", type=int)
+        ap.add_argument("--run-url", default="")
+        a = ap.parse_args(sys.argv[2:])
+        prev = json.load(open(a.previous, encoding="utf-8")) if a.previous and os.path.exists(a.previous) else None
+        lock = keyvals(a.engine_lock) if a.engine_lock else None
+        print(json.dumps(build(a.cfg, a.work, a.base, prev, a.tag, lock, a.pipeline_rev, a.run_id, a.run_url),
+                         ensure_ascii=False, indent=2))
+        return 0
+    if cmd == "check":
+        ap = argparse.ArgumentParser()
+        ap.add_argument("manifest"); ap.add_argument("work")
+        ap.add_argument("--complete"); ap.add_argument("--provenance", action="store_true")
+        a = ap.parse_args(sys.argv[2:])
+        return 1 if check(json.load(open(a.manifest, encoding="utf-8")), a.work, a.complete, a.provenance) else 0
+    if cmd == "assets":
+        print("\n".join(assets(json.load(open(sys.argv[2], encoding="utf-8")))))
+        return 0
+    if cmd == "verify-assets":
+        problems = verify_assets(json.load(open(sys.argv[2], encoding="utf-8")), sys.argv[3])
+        for p in problems:
+            print("   PROBLEM: " + p)
+        return 1 if problems else 0
+    if cmd == "complete":
+        problems = complete(json.load(open(sys.argv[2], encoding="utf-8")), sys.argv[3])
+        for p in problems:
+            print("   PROBLEM: " + p)
+        print("complete" if not problems else "INCOMPLETE")
+        return 1 if problems else 0
+    if cmd == "urls":
+        for u, n in urls(json.load(open(sys.argv[2], encoding="utf-8"))):
+            print("%s %d" % (u, n))
+        return 0
+    if cmd == "plan":
+        return plan(sys.argv[2], sys.argv[3])
+    print(__doc__)
+    return 2
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print(__doc__); sys.exit(2)
-    cmd = sys.argv[1]
-    if cmd == "build":
-        print(json.dumps(build(sys.argv[2], sys.argv[3], sys.argv[4]),
-                         ensure_ascii=False, indent=2))
-    elif cmd == "plan":
-        sys.exit(plan(sys.argv[2], sys.argv[3]))
-    elif cmd == "check":
-        sys.exit(check(sys.argv[2], sys.argv[3]))
-    else:
-        print(__doc__); sys.exit(2)
+    sys.exit(main())

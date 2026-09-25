@@ -78,3 +78,20 @@ jobs:
           docker run --rm "$IMG" gid_test | tail -4
           echo "--- инструменты:"
           docker run --rm "$IMG" sh -c 'ls /usr/local/bin | grep -E "valhalla_build_tiles|valhalla_build_admins|valhalla_build_extract|valhalla_service|portal_border"'
+
+      # The factory never runs this tag: it runs the DIGEST pinned in regional-engine.lock. A new
+      # engine reaches the factory only as a reviewed commit of these lines to that file.
+      - name: digest for regional-engine.lock
+        run: |
+          IMG=ghcr.io/${{ github.repository_owner }}/wedrive-engine:${{ steps.ref.outputs.ref }}
+          ref=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMG")
+          sha=$(docker run --rm "$IMG" cat /etc/wedrive-engine-sha)
+          {
+            echo "### regional engine"
+            echo '```'
+            echo "engine_ref = ${{ steps.ref.outputs.ref }}"
+            echo "engine_sha = $sha"
+            echo "image      = $ref"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "image = $ref  engine_sha = $sha"
