@@ -1,0 +1,11 @@
+# Images the factory runs, pinned by digest. The factory refuses to run while lite_image is unset.
+#
+# lite_image   Valhalla 3.6.3 + B2 + C, built by .github/workflows/lite-engine-image.yml from
+#              valhalla/Dockerfile and checked by valhalla/check-image.sh. That workflow prints the
+#              digest; it is written here by a reviewed commit, never automatically.
+# lite_key     sha256 of Dockerfile + both patches, first 12 hex digits. The image tag carries it,
+#              so a changed recipe gets a new tag and an unchanged one is never rebuilt.
+# stock_image  stock Valhalla 3.6.3 for the B1' control graph (the same digest t_europe2 used).
+lite_key    = 4529efb75ac3
+lite_image  = unset
+stock_image = ghcr.io/valhalla/valhalla@sha256:2b19ea46551a9687b245022551183829d817fdee9b58c5e7b2adb6e422749c43

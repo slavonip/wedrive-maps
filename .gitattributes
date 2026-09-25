@@ -1,0 +1,12 @@
+# tools/europe-lite: bytes that are hashed (engine recipe key, patches, lock, recorded baseline) or
+# run by bash in Linux must not be touched by a Windows checkout.
+tools/europe-lite/**/*.patch -text
+tools/europe-lite/baseline/*.json -text
+tools/europe-lite/factory/fixtures/* -text
+tools/europe-lite/**/*.sh text eol=lf
+tools/europe-lite/**/*.py text eol=lf
+tools/europe-lite/valhalla/Dockerfile text eol=lf
+tools/europe-lite/inputs.lock text eol=lf
+tools/europe-lite/engine.lock text eol=lf
+tools/europe-lite/PIPELINE_REV text eol=lf
+europe-lite.json -text

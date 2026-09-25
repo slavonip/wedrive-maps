@@ -1,0 +1,73 @@
+# The Europe Lite engine: Valhalla 3.6.3 (e2f017b) + B2 + C, built from tools/europe-lite/valhalla
+# and pushed to GHCR. Run by hand when the recipe changes, never monthly.
+#
+# The tag carries the recipe key (tools/europe-lite/factory/lite-key.sh: Dockerfile + both
+# patches), so an unchanged recipe finds its image already there and nothing is rebuilt. The
+# factory never uses the tag: it runs the DIGEST written in tools/europe-lite/engine.lock, which is
+# set by a reviewed commit after this workflow prints it.
+name: lite-engine-image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-22.04
+    # A from-source Valhalla build on 4 vCPU; 6 h is the hosted ceiling, not a target.
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: recipe key must match engine.lock
+        id: key
+        run: |
+          set -euo pipefail
+          k=$(bash tools/europe-lite/factory/lite-key.sh)
+          lock=$(awk -F' *= *' '$1=="lite_key"{print $2}' tools/europe-lite/engine.lock)
+          if [ "$k" != "$lock" ]; then
+            echo "::error::recipe key $k, engine.lock says $lock — commit the new key together with the recipe change"
+            exit 1
+          fi
+          owner=$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+          echo "tag=ghcr.io/$owner/wedrive-valhalla-lite:3.6.3-e2f017b-$k" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build unless this recipe is already in GHCR
+        env:
+          TAG: ${{ steps.key.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if docker manifest inspect "$TAG" >/dev/null 2>&1; then
+            echo "$TAG exists: not rebuilt"
+            docker pull -q "$TAG"
+            bash tools/europe-lite/valhalla/check-image.sh "$TAG"
+          else
+            bash tools/europe-lite/valhalla/build-image.sh "$TAG"
+            docker push -q "$TAG"
+          fi
+
+      - name: digest for engine.lock
+        env:
+          TAG: ${{ steps.key.outputs.tag }}
+        run: |
+          set -euo pipefail
+          ref=$(docker inspect --format '{{index .RepoDigests 0}}' "$TAG")
+          echo "lite_image  = $ref"
+          {
+            echo "### Europe Lite engine"
+            echo "tag: \`$TAG\`"
+            echo
+            echo "Put this line into \`tools/europe-lite/engine.lock\` (reviewed commit):"
+            echo '```'
+            echo "lite_image  = $ref"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

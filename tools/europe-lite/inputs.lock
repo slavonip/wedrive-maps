@@ -1,0 +1,72 @@
+# Europe Lite — the inputs and tool versions final2 (accepted 2026-09-24) was built from.
+# build.sh reads this file: in its default (reproduce) mode the source and every file listed under
+# [intermediate] and [output] must match it. A rebuild on a newer extract (--new-data) is expected
+# to differ and is not compared. What "reproducible" means here: README.
+
+[source]
+extract            = Geofabrik europe-latest.osm.pbf, downloaded 2026-09-22
+replication        = 2026-09-21T20:21:51Z, sequence 4920 (https://download.geofabrik.de/europe-updates)
+size               = 35020804941
+sha256             = 61975e09c65f8b3d3f5b0b19caa1701fce77f6f7af47a7f92084ff7bd9dcb64f
+availability       = a LOCAL COPY only: europe-latest has moved on and this exact file cannot be
+                     downloaded again; it is kept at ~/eu/europe.osm.pbf on the build machine
+
+[valhalla]
+repository         = https://github.com/valhalla/valhalla.git
+tag                = 3.6.3
+commit             = e2f017b16080f49203de245a211b09efab09cf72
+patches            = valhalla/valhalla-3.6.3-ferry-first-edge.patch (B2)
+                     valhalla/valhalla-3.6.3-border-control-contract.patch (C)
+base_image         = ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
+image_recipe       = valhalla/Dockerfile (canonical: clone, patches, full Release build)
+final2_image       = wedrive-valhalla:lite-prod2, NOT built by this recipe (incremental build and
+                     docker commit, see the Dockerfile header); functionally equivalent
+note               = apt packages are not pinned. Measured 2026-09-24: the canonical image and
+                     lite-prod2 have the same apt versions, gcc and valhalla_service bytes, and
+                     different valhalla_build_tiles md5. Image bytes are not a release criterion.
+
+[timezones]
+dataset            = timezone-boundary-builder 2026d
+url                = https://github.com/slavonip/wedrive-maps/releases/download/maps-vendor/timezones.sqlite
+sha256             = 5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4
+
+[tools]
+osmium-tool        = 1.14.0
+python3            = 3.10.12
+note               = osmium filters and merges are deterministic for a given input: re-running them
+                     on 2026-09-24 gave byte-identical ferries.osm.pbf, connectors.osm.pbf and
+                     europe_lite_final.osm.pbf, and the connector search a byte-identical
+                     connector_ways.txt
+
+[intermediate — sha256 of what final2 was built from; required identical in reproduce mode]
+europe_lite_base.osm.pbf        1418348567  22281fec2787c29e711ad79403911244d08a2500be880361eea13c289765b34d
+europe_admin.osm.pbf        478817126  1182c1ca5c7e716bd6645dda88f9718b4acfb5997c2502359ffb7ca0a900b265
+small_roads.osm.pbf        3610384565  4948cf06b12c280f879fdfeb38e505b5abd03d30e41a46939630196dc26a7492
+ferries.osm.pbf               2170469  50517468af1103ffd71cff7236cb3b0249d34157063336b2acd7ccb42ee17987
+connector_ways.txt              64296  b640b48e52b8eaa5bfa757a125ab527b35f3175aafba4f9b05a49be733f6496d
+connectors.osm.pbf             717836  819003f43730b93c885bd32aa56de0bedc1dd8c05a3e60204816a36d0e34cce6
+
+[output — final2; required identical in reproduce mode]
+europe_lite_final.osm.pbf  1418946230  a9ebf5252a39b7df953614ef3993151cd4b3cc91eba2a056203323e2f962a713
+
+[recorded — final2 as published; NOT reproduction criteria]
+# These hashes identify the final2 files; a rebuild cannot and need not match them.
+# final2's tar carried file mtimes and readdir order, and its gzip the name and mtime of the tar;
+# build.sh now normalises both (tar --sort=name --mtime=@0 --owner=0 --group=0, gzip -n). The
+# tiles themselves are not proven byte-reproducible: no two graphs have been built from the same
+# PBF with the same binary, and Valhalla tile headers carry a build date.
+final2.tar                 2710016000  42ecbb4c380cccc9ed1c8331fc4b2dce63c14b8c15ec157675dbeba634c86c87
+final2.tar.gz              1165688788  f6c129c9b32a4bfef75a98379d4b6f64b4db4a6a0e85045f5a081fefe18f0a76
+final2.graph               23746 tiles, 2627 MB
+
+[baseline — what the final2 gates were run against]
+graph              = t_europe2: the same 5834 connector ways, promote.py BEFORE 00f843a (no service
+                     rename), stock ghcr.io/valhalla/valhalla:3.6.3 (no B2, no C)
+graph_tar          = g_europe2.tar  2709985280  1ff6e93860f3a89f44b4a53def7c727d7d0cf66413dab05c6f2ddc2379f8514b
+graph_source       = europe_lite2.osm.pbf  77c5187699e5b3c5b2788b5cb433aef7aef16d14863fb97ce1cee6a2d26b0452
+stock_image        = ghcr.io/valhalla/valhalla@sha256:2b19ea46551a9687b245022551183829d817fdee9b58c5e7b2adb6e422749c43
+graph_location     = LOCAL ONLY (~/eu/g_europe2.tar). Planned: release asset of slavonip/wedrive-maps,
+                     tag europe-lite-baseline, name g_europe2.tar. NOT PUBLISHED.
+manifest           = baseline/final2-baseline.json  970062  feae150a68618c82624a6112dae8be153f5956a918a694c4de1c728f4afe826a
+manifest_note      = the answers t_europe2 gave to every question the three gates ask about final2;
+                     gate output with it is identical line for line to gate output with the graph

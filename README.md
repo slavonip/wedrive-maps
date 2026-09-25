@@ -46,6 +46,22 @@ Moldova*, a trip neither package has any trouble with alone. Merging is worse th
 So a car that crosses a border needs a package built from both PBFs at once, which is what
 `scripts/build-graph.sh` does and what `regions.yml` describes.
 
+## Europe Lite
+
+One routing graph of Europe's arterial network (motorway … tertiary, car ferries, turn
+restrictions, and the shortest road chains to every ferry berth), always installed in the car under
+the country packages. Its pipeline lives in [`tools/europe-lite/`](tools/europe-lite/) — a copy of
+the app repository's pipeline, revision in `tools/europe-lite/PIPELINE_REV` — and
+`.github/workflows/europe-lite-factory.yml` rebuilds it from the current Geofabrik extract, runs the
+structural, transit and route gates against a stock-Valhalla control graph of the same data, and publishes only on
+PASS.
+
+Each release is tagged `europe-lite-YYYY-MM-DD` and always carries the same asset names:
+`europe_lite.tar.gz`, `europe_lite.osm.pbf`, `gates.json`, `europe-lite.json`, `SHA256SUMS`.
+[`europe-lite.json`](europe-lite.json) at the root is the current pointer the app reads; it moves
+only after a release has been uploaded as a draft, downloaded back, verified and published. Details
+and the order of switching the factory on: [`tools/europe-lite/README.md`](tools/europe-lite/README.md), "Factory".
+
 ## Layout
 
 ```

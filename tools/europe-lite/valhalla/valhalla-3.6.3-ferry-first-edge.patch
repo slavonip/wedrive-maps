@@ -1,0 +1,176 @@
+--- a/src/mjolnir/ferry_connections.cc
++++ b/src/mjolnir/ferry_connections.cc
+@@ -43,7 +43,8 @@
+ };
+ 
+ // Form the shortest path from the start node until a node that
+-// touches the specified road classification.
++// touches the specified road classification. If auto_path_found is given it is set
++// when any of the expansions found such a path that is accessible by auto.
+ std::pair<uint32_t, bool> ShortestPath(const uint32_t start_node_idx,
+                                        const uint32_t node_idx,
+                                        sequence<OSMWay>& ways,
+@@ -51,7 +52,8 @@
+                                        sequence<Edge>& edges,
+                                        sequence<Node>& nodes,
+                                        const bool inbound,
+-                                       const bool first_edge_destonly) {
++                                       const bool first_edge_destonly,
++                                       bool* auto_path_found = nullptr) {
+   // Method to get the shape for an edge - since LL is stored as a pair of
+   // floats we need to change into PointLL to get length of an edge
+   const auto EdgeShape = [&way_nodes](size_t idx, const size_t count) {
+@@ -217,6 +219,9 @@
+ 
+     // update the overall mode access with the previous path
+     overall_access_after |= node_labels[last_label_idx].access;
++    if (auto_path_found && (overall_access_after & baldr::kAutoAccess)) {
++      *auto_path_found = true;
++    }
+ 
+     // Trace shortest path backwards and upgrade edge classifications
+     // did we find all modes in the path?
+@@ -371,14 +376,15 @@
+         if (edge_fwd_access == edge_rev_access) {
+           // drivable in both directions - get an inbound path and an
+           // outbound path.
++          bool auto_inbound = false, auto_outbound = false;
+           auto ret1 = ShortestPath(node_itr.position(), end_node_idx, ways, way_nodes, edges, nodes,
+-                                   true, remove_destonly);
++                                   true, remove_destonly, &auto_inbound);
+           total_count += ret1.first;
+           if (ret1.second) {
+             inbound_path_found = true;
+           }
+           auto ret2 = ShortestPath(node_itr.position(), end_node_idx, ways, way_nodes, edges, nodes,
+-                                   false, remove_destonly);
++                                   false, remove_destonly, &auto_outbound);
+           total_count += ret2.first;
+           if (ret2.second) {
+             outbound_path_found = true;
+@@ -386,12 +392,21 @@
+ 
+           // Reclassify the first/start edge if a connection to higher class roads
+           // is found. Do this AFTER finding shortest path so we do not immediately
+-          // determine we hit the specified classification
++          // determine we hit the specified classification.
++          // Terminals often have separate one-way boarding and exit lanes behind an edge that
++          // is itself tagged two-way, so an auto connection in one direction is enough to move
++          // the edge up the hierarchy - otherwise it stays one level below the connection that
++          // was already reclassified and long routes cannot descend onto it. Removing the
++          // destination-only flag still requires connections in both directions.
+           sequence<Edge>::iterator element = edges[edge.second];
+           auto update_edge = *element;
+-          if (ret1.second && ret2.second && update_edge.attributes.importance > kFerryUpClass) {
++          const bool both_directions = ret1.second && ret2.second;
++          if ((both_directions || auto_inbound || auto_outbound) &&
++              update_edge.attributes.importance > kFerryUpClass) {
+             update_edge.attributes.importance_hierarchy = kFerryUpClass;
+-            update_edge.attributes.reclass_ferry = remove_destonly;
++            if (both_directions) {
++              update_edge.attributes.reclass_ferry = remove_destonly;
++            }
+             element = update_edge;
+             total_count++;
+           }
+--- a/test/gurka/test_ferry_connections.cc
++++ b/test/gurka/test_ferry_connections.cc
+@@ -832,3 +832,98 @@
+ INSTANTIATE_TEST_SUITE_P(FerryConnectionTest,
+                          FerryTest,
+                          ::testing::Values("motorcar", "hgv", "moped", "motorcycle", "taxi", "bus"));
++
++// The first shore edge of a ferry connection. Terminals often have separate one-way boarding and
++// exit lanes behind an edge that is itself tagged two-way: the edge touching the ferry can then be
++// driven towards the ferry only (or away from it only), and requiring an auto connection in BOTH
++// directions left it one hierarchy level below the rest of the connection that was already
++// reclassified. Long routes then could not descend onto it and never used that ferry.
++//
++//   T--A------------F--X--Y--P--Q
++//
++// AF is the ferry, FX is the first shore edge, XY is the lane behind it and YPQ the primary road
++// the connection has to reach.
++namespace {
++struct FirstEdgeResult {
++  uint8_t level;
++  bool destonly;
++};
++
++FirstEdgeResult build_first_edge(const std::string& name,
++                                 const std::map<std::string, std::string>& first_edge,
++                                 const std::string& lane_way,
++                                 const std::map<std::string, std::string>& lane) {
++  const std::string ascii_map = R"(
++    T--A------------F--X--Y--P--Q
++  )";
++  const gurka::ways ways = {
++      {"TA", {{"highway", "trunk"}}},
++      {"AF",
++       {{"motor_vehicle", "yes"},
++        {"motorcar", "yes"},
++        {"moped", "yes"},
++        {"hgv", "yes"},
++        {"bus", "yes"},
++        {"hov", "yes"},
++        {"taxi", "yes"},
++        {"motorcycle", "yes"},
++        {"route", "ferry"}}},
++      {"FX", first_edge},
++      {lane_way, lane},
++      {"YPQ", {{"highway", "primary"}}},
++  };
++  const auto layout = gurka::detail::map_to_coordinates(ascii_map, 500);
++  auto map = gurka::buildtiles(layout, ways, {}, {}, "test/data/gurka_ferry_first_edge_" + name);
++  baldr::GraphReader reader(map.config.get_child("mjolnir"));
++  auto edge = gurka::findEdge(reader, layout, "FX", "X");
++  return {static_cast<uint8_t>(std::get<0>(edge).level()), std::get<1>(edge)->destonly()};
++}
++} // namespace
++
++TEST(Standalone, FerryFirstEdgeTwoWayTerminalKeepsStockBehaviour) {
++  // connected in both directions for every mode: promoted and destination-only lifted, as before
++  auto r = build_first_edge("two_way", {{"highway", "service"}, {"access", "customers"}}, "XY",
++                            {{"highway", "service"}});
++  EXPECT_EQ(r.level, LEVEL_O);
++  EXPECT_FALSE(r.destonly);
++}
++
++TEST(Standalone, FerryFirstEdgeBoardingLanePromoted) {
++  // cars can only drive towards the ferry through the lane behind the first edge
++  auto r = build_first_edge("boarding", {{"highway", "service"}}, "YX",
++                            {{"highway", "service"}, {"oneway", "yes"}});
++  EXPECT_EQ(r.level, LEVEL_O);
++  EXPECT_FALSE(r.destonly);
++}
++
++TEST(Standalone, FerryFirstEdgeExitLanePromoted) {
++  // cars can only drive away from the ferry through the lane behind the first edge
++  auto r = build_first_edge("exit", {{"highway", "service"}}, "XY",
++                            {{"highway", "service"}, {"oneway", "yes"}});
++  EXPECT_EQ(r.level, LEVEL_O);
++  EXPECT_FALSE(r.destonly);
++}
++
++TEST(Standalone, FerryFirstEdgeOneDirectionKeepsDestOnly) {
++  // one direction is enough to move the edge up, but not to lift a destination-only restriction
++  auto r = build_first_edge("boarding_customers", {{"highway", "service"}, {"access", "customers"}},
++                            "YX", {{"highway", "service"}, {"oneway", "yes"}});
++  EXPECT_EQ(r.level, LEVEL_O);
++  EXPECT_TRUE(r.destonly) << "a one-directional connection must not lift destination-only";
++}
++
++TEST(Standalone, FerryFirstEdgeNoAutoPathNotPromoted) {
++  // no vehicle can reach the primary road in either direction
++  auto r = build_first_edge("no_auto", {{"highway", "service"}}, "XY",
++                            {{"highway", "service"}, {"motor_vehicle", "no"}});
++  EXPECT_NE(r.level, LEVEL_O);
++}
++
++TEST(Standalone, FerryFirstEdgeMissingTruckDoesNotBlockAuto) {
++  // cars reach the primary road both ways, trucks cannot: the missing truck path made the whole
++  // connection fail, so the first edge was left behind although cars use it
++  auto r = build_first_edge("no_truck", {{"highway", "service"}}, "XY",
++                            {{"highway", "service"}, {"hgv", "no"}});
++  EXPECT_EQ(r.level, LEVEL_O);
++  EXPECT_FALSE(r.destonly);
++}

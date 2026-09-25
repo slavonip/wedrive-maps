@@ -1,0 +1,20 @@
+w1028746753  centre 50.9777,1.8727  pairs 12, new transit 0
+w1086705389  centre 50.9783,1.8729  pairs 12, new transit 0
+w1109235192  centre 60.1609,24.9593  pairs 12, new transit 0
+w1109235193  centre 60.1607,24.9596  pairs 12, new transit 0
+w1109235194  centre 60.1606,24.9595  pairs 12, new transit 0
+w1109235195  centre 60.1609,24.9591  pairs 12, new transit 0
+w1109235196  centre 60.1620,24.9577  pairs 12, new transit 0
+w1109235197  centre 60.1612,24.9589  pairs 12, new transit 0
+w1109235198  centre 60.1612,24.9586  pairs 12, new transit 0
+w1109235199  centre 60.1620,24.9575  pairs 12, new transit 0
+w128398077   centre 60.1605,24.9598  pairs 12, new transit 0
+w129709979   centre 49.3597,22.4263  pairs 12, new transit 0
+w1347366707  centre 47.4779,-3.1240  pairs 12, new transit 0
+w192552791   centre 41.3100,19.4493  pairs 12, new transit 0
+w232358121   centre 41.3099,19.4492  pairs 12, new transit 0
+w314694004   centre 60.1605,24.9599  pairs 12, new transit 0
+w448155415   centre 38.7346,1.4175  pairs 12, new transit 0
+w448155416   centre 38.7348,1.4158  pairs 12, new transit 0
+pairs 216, land-only 105, new transits through lifted destonly: 0
+TRANSIT GATE: PASS

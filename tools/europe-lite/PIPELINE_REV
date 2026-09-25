@@ -1,0 +1,11 @@
+# Where this pipeline comes from. Read by factory/lite_manifest.py into every manifest.
+origin     = slavonip/wedrive tools/europe-lite (private repository)
+revision   = 3eac2bcd744f76502c7f8156bad977831a7c35f0
+copied     = 2026-09-24, by git archive of that revision
+# Changes made here since the copy. None of them touches B2, C, promote.py, the connector search,
+# costing or any routing logic; each is listed so the copy can be compared with its origin.
+change     = the base-network intermediate europe_lite.osm.pbf is now europe_lite_base.osm.pbf, so
+             that the published final PBF can be called europe_lite.osm.pbf (content unchanged)
+change     = valhalla/check-image.sh split out of build-image.sh, so the factory can check an image
+             it pulled by digest with the same checks
+change     = factory/ and engine.lock added (GitHub factory, see README "Factory")

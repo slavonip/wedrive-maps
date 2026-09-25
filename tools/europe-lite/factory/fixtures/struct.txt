@@ -1,0 +1,25 @@
+connector ways 5834, found in baseline 5829, in new 5829
+destonly True->False: inferred service 168; explicit access in ferry reclassification 18; explicit access OUTSIDE it 0; other 0; False->True 0
+explicit access outside ferry reclassification kept destonly: 41 of 41
+   w1028746753  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1086705389  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1109235192  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1109235193  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1109235194  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1109235195  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1109235196  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1109235197  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1109235198  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1109235199  access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w128398077   access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w129709979   access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w1347366707  access=delivery    level [1] -> [0], class ['tertiary'], reclassified: yes
+   w192552791   access=destination level [1] -> [0], class ['tertiary'], reclassified: yes
+   w232358121   access=destination level [1] -> [0], class ['tertiary'], reclassified: yes
+   w314694004   access=customers   level [1] -> [0], class ['tertiary'], reclassified: yes
+   w448155415   access=permit      level [1] -> [0], class ['tertiary'], reclassified: yes
+   w448155416   access=permit      level [1] -> [0], class ['tertiary'], reclassified: yes
+   control w167792665   {'dest': [False], 'lvl': [0], 'use': ['road'], 'cls': ['tertiary']}
+   control w98821382    {'dest': [False], 'lvl': [0], 'use': ['road'], 'cls': ['tertiary']}
+   control w98821391    {'dest': [False], 'lvl': [0], 'use': ['road'], 'cls': ['tertiary']}
+STRUCT GATE: PASS

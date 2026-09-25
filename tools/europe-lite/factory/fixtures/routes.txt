@@ -1,0 +1,140 @@
+London -> Paris              NEW:    462.7 km   360 min Dover (UK),Calais (F),Dover - Calais; Calais 5 Supérieur
+                             PROD:   834.4 km   631 min Saint Malo (F),St. Peter Port (GBG)
+                             PASS
+Paris -> London              NEW:    458.4 km   328 min Dover (UK),Calais (F),Douvres - Calais
+                             PROD:   835.7 km   634 min Saint Malo (F),St. Peter Port (GBG); Poole (UK) – Guernsey
+                             PASS
+London -> Rome               NEW:   1882.1 km  1058 min Dover (UK),Calais (F),Dover - Calais; Calais 5 Supérieur
+                             PROD:  2237.2 km  1329 min Saint Malo (F),St. Peter Port (GBG)
+                             PASS
+Rome -> London               NEW:   1880.6 km  1028 min Dover (UK),Calais (F),Douvres - Calais
+                             PROD:  2237.6 km  1329 min Saint Malo (F),St. Peter Port (GBG); Poole (UK) – Guernsey
+                             PASS
+Dover -> Calais              NEW:     55.5 km   134 min Dover (UK),Calais (F),Dover - Calais; Calais 5 Supérieur
+                             PROD:   103.8 km   180 min Dover (UK) - Dunkerque (F); Rosslare (IRL) - Dunkerque (F)
+                             PASS
+Calais -> Dover              NEW:     55.3 km   104 min Dover (UK),Calais (F),Douvres - Calais
+                             PROD:    55.3 km   104 min Dover (UK),Calais (F),Douvres - Calais
+                             PASS
+Dover -> Paris               NEW:    341.0 km   280 min Dover (UK),Calais (F),Dover - Calais; Calais 5 Supérieur
+                             PROD:   386.5 km   325 min Dover (UK) - Dunkerque (F); Rosslare (IRL) - Dunkerque (F)
+                             PASS
+Paris -> Dover               NEW:    337.5 km   247 min Dover (UK),Calais (F),Douvres - Calais
+                             PROD:   358.6 km   300 min Dover (UK) - Dunkerque (F)
+                             PASS
+Dover -> Dunkerque           NEW:     93.0 km   154 min Dover (UK),Calais (F),Dover - Calais; Calais 5 Supérieur
+                             PROD:    91.1 km   176 min Dover (UK) - Dunkerque (F); Rosslare (IRL) - Dunkerque (F)
+                             PASS
+Dunkerque -> Dover           NEW:     96.9 km   126 min Dover (UK),Calais (F),Douvres - Calais
+                             PROD:    96.9 km   126 min Dover (UK),Calais (F),Douvres - Calais
+                             PASS
+London -> Dover pier         NEW:    126.0 km   106 min no ferry
+                             PROD:   270.3 km   362 min Dover (UK) - Dunkerque (F); Rosslare (IRL) - Dunkerque (F)
+                             PASS
+Dover pier -> London         NEW:    125.2 km    86 min no ferry
+                             PROD:   125.2 km    86 min no ferry
+                             PASS
+Dublin -> Holyhead           NEW:    120.3 km   179 min Dublin - Holyhead (Irish Ferries) (fast)
+                             PROD:   120.3 km   179 min Dublin - Holyhead (Irish Ferries) (fast)
+                             PASS
+Holyhead -> Dublin           NEW:    117.8 km   183 min Dublin - Holyhead (Irish Ferries) (fast); RO-RO ramp numbe
+                             PROD:   117.8 km   183 min Dublin - Holyhead (Irish Ferries) (fast); RO-RO ramp numbe
+                             PASS
+Dublin -> London             NEW:    558.8 km   439 min Dublin - Holyhead (Irish Ferries) (fast)
+                             PROD:   677.1 km   591 min Pembroke Dock to Rosslare
+                             PASS
+London -> Dublin             NEW:    555.1 km   442 min Dublin - Holyhead (Irish Ferries) (fast); RO-RO ramp numbe
+                             PROD:   632.6 km   566 min Isle of Man - Dublin; RO-RO Ramp Number 5
+                             PASS
+Belfast -> Cairnryan         NEW:    100.4 km   154 min E 18; Exit Road
+                             PROD:   100.4 km   154 min E 18; Exit Road
+                             PASS
+Cairnryan -> Belfast         NEW:    101.3 km   154 min E 18
+                             PROD:   686.4 km   585 min Isle of Man - Liverpool; Queen Elizabeth II Quay; Larne - 
+                             PASS
+Newhaven -> Dieppe           NEW:    123.4 km   262 min Newhaven (UK) - Dieppe (F)
+                             PROD:   123.4 km   262 min Newhaven (UK) - Dieppe (F)
+                             PASS
+Dieppe -> Newhaven           NEW:    124.7 km   264 min Newhaven (UK) - Dieppe (F)
+                             PROD:   124.7 km   264 min Newhaven (UK) - Dieppe (F)
+                             PASS
+Portsmouth -> Ouistreham     NEW:    186.1 km   375 min Portsmouth (UK) - Ouistreham (F); Place du Général de Gaul
+                             PROD:   186.1 km   375 min Portsmouth (UK) - Ouistreham (F); Place du Général de Gaul
+                             PASS
+Ouistreham -> Portsmouth     NEW:    632.7 km   401 min Dover (UK),Calais (F),Douvres - Calais
+                             PROD:   291.0 km   426 min Portsmouth (UK) - Le Havre (F)
+                             ACCEPTED: wrong ferry, detour x3.5, via Calais: longer in time, cheaper by Valhalla cost
+Portsmouth -> Cherbourg      NEW:    321.5 km   458 min Portsmouth (UK) - Ouistreham (F); Place du Général de Gaul
+                             PROD:   561.7 km   485 min Saint Malo (F),St. Peter Port (GBG)
+                             ACCEPTED: wrong ferry, Cherbourg berth of w10936354 not connected to roads (w320571346 never a connector)
+Cherbourg -> Portsmouth      NEW:    743.8 km   466 min Dover (UK),Calais (F),Douvres - Calais
+                             PROD:   402.2 km   492 min Portsmouth (UK) - Le Havre (F)
+                             ACCEPTED: wrong ferry, detour x5.4, via Calais: longer in time, cheaper by Valhalla cost
+Plymouth -> Roscoff          NEW:    194.2 km   346 min Plymouth (UK) – Roscoff (F); Embarquement Ferries
+                             PROD:   647.4 km   547 min Saint Malo (F),St. Peter Port (GBG)
+                             PASS
+Roscoff -> Plymouth          NEW:    194.4 km   346 min Plymouth (UK) – Roscoff (F)
+                             PROD:   194.4 km   346 min Plymouth (UK) – Roscoff (F)
+                             PASS
+Rostock -> Trelleborg        NEW:    268.0 km   272 min Rostock (D) – Gedser (S),E 55; Gedser Landevej,E 55
+                             PROD:   268.0 km   272 min Rostock (D) – Gedser (S),E 55; Gedser Landevej,E 55
+                             KNOWN: wrong ferry
+Trelleborg -> Rostock        NEW:    267.1 km   262 min Rostock (D) – Gedser (S),E 55; E 55
+                             PROD:   267.1 km   262 min Rostock (D) – Gedser (S),E 55; E 55
+                             KNOWN: wrong ferry
+Rostock -> Gedser            NEW:     65.7 km   145 min Rostock (D) – Gedser (S),E 55; Gedser Landevej,E 55
+                             PROD:    65.7 km   145 min Rostock (D) – Gedser (S),E 55; Gedser Landevej,E 55
+                             PASS
+Gedser -> Rostock            NEW:     63.6 km   144 min Rostock (D) – Gedser (S),E 55; E 55
+                             PROD:    63.6 km   144 min Rostock (D) – Gedser (S),E 55; E 55
+                             PASS
+Hirtshals -> Larvik          NEW:   1089.4 km   634 min Horten - Moss,19, 140; 19
+                             PROD:  1089.4 km   634 min Horten - Moss,19, 140; 19
+                             KNOWN: wrong ferry, detour x6.7
+Larvik -> Hirtshals          NEW:    168.6 km   242 min Hirtshals - Larvik
+                             PROD:   168.6 km   242 min Hirtshals - Larvik
+                             PASS
+Hirtshals -> Kristiansand    NEW:   1372.0 km   808 min no ferry
+                             PROD:  1372.0 km   808 min no ferry
+                             KNOWN: wrong ferry, detour x10.4
+Kristiansand -> Hirtshals    NEW:    141.4 km   149 min Kristiansand - Hirtshals,E 39
+                             PROD:   141.4 km   149 min Kristiansand - Hirtshals,E 39
+                             PASS
+Den Helder -> Texel          NEW:     14.2 km    30 min Veerdienst Den Helder - Texel; Pontweg
+                             PROD:    14.2 km    30 min Veerdienst Den Helder - Texel; Pontweg
+                             PASS
+Texel -> Den Helder          NEW:     14.0 km    29 min Veerdienst Den Helder - Texel; Havenplein
+                             PROD:    14.0 km    29 min Veerdienst Den Helder - Texel; Havenplein
+                             PASS
+Piombino -> Portoferraio     NEW:     45.5 km    73 min Piombino - Cavo
+                             PROD:    45.5 km    73 min Piombino - Cavo
+                             PASS
+Portoferraio -> Piombino     NEW:    307.0 km   504 min Livorno - Bastia
+                             PROD:   307.0 km   504 min Livorno - Bastia
+                             KNOWN: wrong ferry
+Messina -> Reggio Calabria   NEW:     28.8 km    46 min Tremestieri - Reggio di Calabria
+                             PROD:    28.8 km    46 min Tremestieri - Reggio di Calabria
+                             PASS
+Reggio Calabria -> Messina   NEW:     26.1 km    43 min Tremestieri - Reggio di Calabria
+                             PROD:    26.1 km    43 min Tremestieri - Reggio di Calabria
+                             PASS
+Helsingor -> Helsingborg     NEW:     11.3 km    29 min Helsingør (DK) - Helsingborg (SE)
+                             PROD:    11.3 km    29 min Helsingør (DK) - Helsingborg (SE)
+                             PASS
+Helsingborg -> Helsingor     NEW:     12.5 km    37 min Helsingør (DK) - Helsingborg (SE),E 47,E 55
+                             PROD:    12.5 km    37 min Helsingør (DK) - Helsingborg (SE),E 47,E 55
+                             PASS
+Paris -> Lyon                NEW:    464.8 km   239 min no ferry
+                             PROD:   464.8 km   239 min no ferry
+                             PASS
+Lyon -> Paris                NEW:    464.0 km   234 min no ferry
+                             PROD:   464.0 km   234 min no ferry
+                             PASS
+Chisinau -> Iasi             NEW:    148.6 km   124 min no ferry
+                             PROD:   148.6 km   124 min no ferry
+                             PASS
+Iasi -> Chisinau             NEW:    149.5 km   125 min no ferry
+                             PROD:   149.5 km   125 min no ferry
+                             PASS
+TOTAL PASS 38, KNOWN 5, ACCEPTED 3, FAIL 0
+ROUTES GATE: PASS

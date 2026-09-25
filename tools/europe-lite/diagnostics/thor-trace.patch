@@ -1,0 +1,458 @@
+--- a/src/thor/bidirectional_astar.cc
++++ b/src/thor/bidirectional_astar.cc
+@@ -11,6 +11,10 @@
+ #include <boost/property_tree/ptree.hpp>
+ 
+ #include <algorithm>
++#include <cstdlib>
++#include <iostream>
++#include <sstream>
++#include <unordered_set>
+ 
+ using namespace valhalla::midgard;
+ using namespace valhalla::baldr;
+@@ -50,6 +54,44 @@
+ namespace valhalla {
+ namespace thor {
+ 
++// ===================== TW: трассировка (scratch, не production) =====================
++static std::unordered_set<uint64_t> g_watch;
++static bool g_watch_loaded = false;
++static double g_box[4] = {0, 0, -1, -1};
++static inline bool tw_inbox(const PointLL& p) {
++  return p.lat() >= g_box[0] && p.lng() >= g_box[1] && p.lat() <= g_box[2] && p.lng() <= g_box[3];
++}
++static void tw_load() {
++  if (g_watch_loaded) return;
++  g_watch_loaded = true;
++  if (const char* b = std::getenv("VH_WATCH_BOX"))
++    sscanf(b, "%lf,%lf,%lf,%lf", &g_box[0], &g_box[1], &g_box[2], &g_box[3]);
++  const char* v = std::getenv("VH_WATCH");
++  if (!v) return;
++  std::stringstream ss(v);
++  std::string item;
++  while (std::getline(ss, item, ',')) {
++    unsigned l = 0, t = 0, i = 0;
++    if (sscanf(item.c_str(), "%u/%u/%u", &l, &t, &i) == 3) g_watch.insert(GraphId(t, l, i).value);
++  }
++}
++static inline bool tw(const GraphId& g) {
++  return !g_watch.empty() && g.is_valid() && g_watch.count(g.value);
++}
++static std::string tg(const GraphId& g) {
++  if (!g.is_valid()) return "-";
++  return std::to_string(g.level()) + "/" + std::to_string(g.tileid()) + "/" + std::to_string(g.id());
++}
++#define TW(cond, msg)                                                                            \
++  do {                                                                                           \
++    if (cond) {                                                                                  \
++      std::ostringstream _o;                                                                     \
++      _o << "TW| " << msg;                                                                       \
++      std::cerr << _o.str() << std::endl;                                                        \
++    }                                                                                            \
++  } while (0)
++// ====================================================================================
++
+ // Default constructor
+ BidirectionalAStar::BidirectionalAStar(const boost::property_tree::ptree& config)
+     : PathAlgorithm(config.get<uint32_t>("max_reserved_labels_count_bidir_astar",
+@@ -110,6 +152,10 @@
+ // Initialize the A* heuristic and adjacency lists for both the forward
+ // and reverse search.
+ void BidirectionalAStar::Init(const PointLL& origll, const PointLL& destll) {
++  tw_load();
++  TW(!g_watch.empty(), "INIT search orig=" << origll.lat() << "," << origll.lng() << " dest="
++                                            << destll.lat() << "," << destll.lng()
++                                            << " watch=" << g_watch.size());
+   // Initialize the A* heuristics
+   float factor = costing_->AStarCostFactor();
+   astarheuristic_forward_.Init(destll, factor);
+@@ -176,8 +222,14 @@
+                                             uint32_t& shortcuts,
+                                             const graph_tile_ptr& tile,
+                                             const baldr::TimeInfo& time_info) {
++  constexpr bool TWF = expansion_direction == ExpansionType::forward;
++  const bool W = tw(meta.edge_id) || tw(pred.edgeid()) ||
++                 tw_inbox(nodeinfo->latlng(tile->header()->base_ll()));
++  const char* TD = TWF ? "FWD" : "REV";
++#define TWX(msg) TW(W, TD << " cand=" << tg(meta.edge_id) << " pred=" << tg(pred.edgeid()) << " " << msg)
+   // Skip if this is a regular edge superseded by a shortcut.
+   if (shortcuts & meta.edge->superseded()) {
++    TWX("REJECT superseded_by_shortcut");
+     return false;
+   }
+ 
+@@ -201,8 +253,10 @@
+   // that level. If using a shortcut, set the shortcuts mask.
+   if (meta.edge->is_shortcut()) {
+     // Skip shortcuts if hierarchy limits are disabled
+-    if (ignore_hierarchy_limits_ || !get_opp_edge_data())
++    if (ignore_hierarchy_limits_ || !get_opp_edge_data()) {
++      TWX("REJECT shortcut (ignore_hierarchy_limits or no opp)");
+       return false;
++    }
+ 
+     const auto& opp_edgestatus = FORWARD ? edgestatus_reverse_ : edgestatus_forward_;
+     const auto opp_edge_set = opp_edgestatus.Get(opp_edge_id).set();
+@@ -215,6 +269,7 @@
+     } else {
+       // Mark this edge as "skipped".
+       *meta.edge_status = {EdgeSet::kSkipped, 0};
++      TWX("REJECT shortcut skipped (not yet stopped expanding on next level)");
+       return false;
+     }
+   }
+@@ -223,6 +278,7 @@
+   // to this directed edge), if no access is allowed (based on costing method),
+   // or if a complex restriction prevents transition onto this edge.
+   if (meta.edge_status->set() == EdgeSet::kPermanent) {
++    TWX("SKIP already_permanent (settled)");
+     return true; // This is an edge we _could_ have expanded, so return true
+   }
+ 
+@@ -233,10 +289,12 @@
+     // direction. This avoids the (somewhat expensive) retrieval of the opposing directed
+     // edge when no access is allowed in the reverse direction.
+     if (!(meta.edge->reverseaccess() & access_mode_)) {
++      TWX("REJECT reverse access bit (reverseaccess=" << meta.edge->reverseaccess() << ")");
+       return false;
+     }
+ 
+     if (t2 == nullptr && !get_opp_edge_data()) {
++      TWX("REJECT no opposing edge tile");
+       return false;
+     }
+ 
+@@ -258,18 +316,37 @@
+     // We can set is_dest incorrectly in the second case, but it is the rare case.
+     // The result path will be correct, because there are cosing.Allowed calls inside recost_forward
+     // function in second time.
+-    if (!costing_->Allowed(meta.edge, false, pred, tile, meta.edge_id, localtime,
+-                           time_info.timezone_index, restriction_idx, destonly_restriction_mask) ||
+-        costing_->Restricted(meta.edge, pred, edgelabels_forward_, tile, meta.edge_id, true,
+-                             &edgestatus_forward_, localtime, time_info.timezone_index)) {
++    const bool tw_allowed =
++        costing_->Allowed(meta.edge, false, pred, tile, meta.edge_id, localtime,
++                          time_info.timezone_index, restriction_idx, destonly_restriction_mask);
++    const bool tw_restricted =
++        tw_allowed && costing_->Restricted(meta.edge, pred, edgelabels_forward_, tile, meta.edge_id,
++                                           true, &edgestatus_forward_, localtime,
++                                           time_info.timezone_index);
++    TWX("Allowed=" << tw_allowed << " Restricted=" << tw_restricted << " [fwdacc="
++                   << meta.edge->forwardaccess() << " destonly=" << meta.edge->destonly()
++                   << " not_thru=" << meta.edge->not_thru() << " use=" << (int)meta.edge->use()
++                   << " pred_destonly=" << pred.destonly() << " uturn="
++                   << (pred.opp_local_idx() == meta.edge->localedgeidx()) << "]");
++    if (!tw_allowed || tw_restricted) {
++      TWX("REJECT " << (!tw_allowed ? "costing Allowed()=false" : "Restricted()=true"));
+       return false;
+     }
+   } else {
+-    if (!costing_->AllowedReverse(meta.edge, pred, opp_edge, t2, opp_edge_id, localtime,
+-                                  time_info.timezone_index, restriction_idx,
+-                                  destonly_restriction_mask) ||
+-        costing_->Restricted(meta.edge, pred, edgelabels_reverse_, tile, meta.edge_id, false,
+-                             &edgestatus_reverse_, localtime, time_info.timezone_index)) {
++    const bool tw_allowed =
++        costing_->AllowedReverse(meta.edge, pred, opp_edge, t2, opp_edge_id, localtime,
++                                 time_info.timezone_index, restriction_idx,
++                                 destonly_restriction_mask);
++    const bool tw_restricted =
++        tw_allowed && costing_->Restricted(meta.edge, pred, edgelabels_reverse_, tile, meta.edge_id,
++                                           false, &edgestatus_reverse_, localtime,
++                                           time_info.timezone_index);
++    TWX("AllowedReverse=" << tw_allowed << " Restricted=" << tw_restricted << " [opp="
++                          << tg(opp_edge_id) << " opp_fwdacc=" << opp_edge->forwardaccess()
++                          << " opp_destonly=" << opp_edge->destonly() << " not_thru="
++                          << opp_edge->not_thru() << " pred_destonly=" << pred.destonly() << "]");
++    if (!tw_allowed || tw_restricted) {
++      TWX("REJECT " << (!tw_allowed ? "costing AllowedReverse()=false" : "Restricted()=true"));
+       return false;
+     }
+   }
+@@ -290,6 +367,8 @@
+                                                 static_cast<bool>(flow_sources & kDefaultFlowMask),
+                                                 pred.internal_turn());
+   newcost += transition_cost;
++  TWX("pred_cost=" << pred.cost().cost << " edge+trans -> newcost=" << newcost.cost << " (secs "
++                   << newcost.secs << ") transition_cost=" << transition_cost.cost);
+ 
+   // Check if edge is temporarily labeled and this path has less cost. If
+   // less cost the predecessor is updated and the sort cost is decremented
+@@ -297,6 +376,11 @@
+   if (meta.edge_status->set() == EdgeSet::kTemporary) {
+     BDEdgeLabel& lab = FORWARD ? edgelabels_forward_[meta.edge_status->index()]
+                                : edgelabels_reverse_[meta.edge_status->index()];
++    TWX("TEMPORARY existing label cost=" << lab.cost().cost << " label_pred="
++                                          << (lab.predecessor() == kInvalidLabel
++                                                  ? std::string("origin")
++                                                  : tg((FORWARD ? edgelabels_forward_ : edgelabels_reverse_)[lab.predecessor()].edgeid()))
++                                          << (newcost.cost < lab.cost().cost ? " -> DECREASED to new" : " -> KEPT old (new not cheaper)"));
+     if (newcost.cost < lab.cost().cost) {
+       float newsortcost = lab.sortcost() - (lab.cost().cost - newcost.cost);
+       if (FORWARD) {
+@@ -311,8 +395,10 @@
+   }
+ 
+   // Get end node tile (skip if tile is not found) and opposing edge Id
+-  if (t2 == nullptr && !get_opp_edge_data())
++  if (t2 == nullptr && !get_opp_edge_data()) {
++    TWX("REJECT no end node tile");
+     return false;
++  }
+ 
+   const auto& end_node_ll = t2->get_node_ll(meta.edge->endnode());
+ 
+@@ -371,6 +457,10 @@
+   }
+ 
+   *meta.edge_status = {EdgeSet::kTemporary, idx};
++  TWX("LABEL created idx=" << idx << " cost=" << newcost.cost << " sortcost=" << sortcost
++                           << " dist=" << dist << " not_thru_pruning=" << not_thru_pruning
++                           << " endnode=" << tg(meta.edge->endnode()));
++#undef TWX
+ 
+   // setting this edge as reached
+   if (expansion_callback_) {
+@@ -418,6 +508,11 @@
+ 
+   auto& edgestatus = FORWARD ? edgestatus_forward_ : edgestatus_reverse_;
+ 
++  const bool WN = tw(pred.edgeid()) || tw_inbox(nodeinfo->latlng(tile->header()->base_ll()));
++  TW(WN, (FORWARD ? "FWD" : "REV") << " EXPAND from pred=" << tg(pred.edgeid()) << " node=" << tg(node)
++                                   << " edges=" << nodeinfo->edge_count() << " transitions="
++                                   << nodeinfo->transition_count() << " node_allowed="
++                                   << costing_->Allowed(nodeinfo) << " pred_cost=" << pred.cost().cost);
+   // If we encounter a node with an access restriction like a barrier we allow a uturn
+   if (!costing_->Allowed(nodeinfo)) {
+     const DirectedEdge* opp_edge = nullptr;
+@@ -467,8 +562,13 @@
+       if ((!trans->up() && !ignore_hierarchy_limits_ &&
+            StopExpanding(hierarchy_limits[trans->endnode().level()], pred.distance())) ||
+           !(trans_tile = graphreader.GetGraphTile(trans->endnode()))) {
++        TW(WN, (FORWARD ? "FWD" : "REV") << "   transition " << (trans->up() ? "UP" : "DOWN") << " to "
++                                         << tg(trans->endnode()) << " SKIPPED (StopExpanding/tile) pred.distance="
++                                         << pred.distance());
+         continue;
+       }
++      TW(WN, (FORWARD ? "FWD" : "REV") << "   transition " << (trans->up() ? "UP" : "DOWN") << " to "
++                                       << tg(trans->endnode()) << " taken");
+ 
+       // setup for expansion at this level
+       hierarchy_limits[node.level()].set_up_transition_count(
+@@ -489,6 +589,7 @@
+ 
+   // Now, after having looked at all the edges, including edges on other levels,
+   // we can say if this is a deadend or not, and if so, evaluate the uturn-edge (if it exists)
++  TW(WN, (FORWARD ? "FWD" : "REV") << "   end of expand: disable_uturn=" << disable_uturn);
+   if (!disable_uturn && uturn_meta) {
+     // If we found no suitable edge to add, it means we're at a deadend
+     // so lets go back and re-evaluate a potential u-turn
+@@ -610,8 +711,17 @@
+         // Forward path to this edge can't be improved, so we can settle it right now.
+         edgestatus_forward_.Update(fwd_pred.edgeid(), EdgeSet::kPermanent);
+ 
++        const bool TWFB = tw(fwd_pred.edgeid()) || [&]() {
++          if (g_box[2] < g_box[0]) return false;
++          auto tt = graphreader.GetGraphTile(fwd_pred.endnode());
++          return tt && tw_inbox(tt->get_node_ll(fwd_pred.endnode()));
++        }();
++        TW(TWFB, "FWD SETTLE " << tg(fwd_pred.edgeid()) << " cost=" << fwd_pred.cost().cost
++                                                  << " sortcost=" << fwd_pred.sortcost() << " threshold=" << cost_threshold_);
+         // Terminate if the cost threshold has been exceeded.
+         if (fwd_pred.sortcost() + cost_diff_ > cost_threshold_) {
++          TW(!g_watch.empty(), "TERMINATE fwd sortcost " << fwd_pred.sortcost() << " > threshold " << cost_threshold_
++                                                         << " labels f/r=" << edgelabels_forward_.size() << "/" << edgelabels_reverse_.size());
+           return FormPath(graphreader, options, origin, destination, forward_time_info);
+         }
+ 
+@@ -659,8 +769,16 @@
+         // Reverse path to this edge can't be improved, so we can settle it right now.
+         edgestatus_reverse_.Update(rev_pred.edgeid(), EdgeSet::kPermanent);
+ 
++        TW(tw(rev_pred.edgeid()) || [&]() {
++          if (g_box[2] < g_box[0]) return false;
++          auto tt = graphreader.GetGraphTile(rev_pred.endnode());
++          return tt && tw_inbox(tt->get_node_ll(rev_pred.endnode()));
++        }(), "REV SETTLE " << tg(rev_pred.edgeid()) << " cost=" << rev_pred.cost().cost
++                                                  << " sortcost=" << rev_pred.sortcost() << " threshold=" << cost_threshold_);
+         // Terminate if the cost threshold has been exceeded.
+         if (rev_pred.sortcost() > cost_threshold_) {
++          TW(!g_watch.empty(), "TERMINATE rev sortcost " << rev_pred.sortcost() << " > threshold " << cost_threshold_
++                                                         << " labels f/r=" << edgelabels_forward_.size() << "/" << edgelabels_reverse_.size());
+           return FormPath(graphreader, options, origin, destination, forward_time_info);
+         }
+ 
+@@ -758,6 +876,14 @@
+           (!ignore_hierarchy_limits_ &&
+            StopExpanding(hierarchy_limits_forward_[fwd_pred.endnode().level()],
+                          fwd_pred.distance()))) {
++        TW(tw(fwd_pred.edgeid()) || [&]() {
++          if (g_box[2] < g_box[0]) return false;
++          auto tt = graphreader.GetGraphTile(fwd_pred.endnode());
++          return tt && tw_inbox(tt->get_node_ll(fwd_pred.endnode()));
++        }(), "FWD PRUNE " << tg(fwd_pred.edgeid()) << " not_thru=" << fwd_pred.not_thru()
++                                              << " not_thru_pruning=" << fwd_pred.not_thru_pruning()
++                                              << " StopExpanding(level " << fwd_pred.endnode().level() << ", dist "
++                                              << fwd_pred.distance() << ")");
+         continue;
+       }
+ 
+@@ -774,6 +900,8 @@
+               astarheuristic_reverse_.Get(tile->get_node_ll(fwd_pred.endnode()));
+           // Prune this edge if estimated lower bound cost exceeds the cost threshold.
+           if (route_lower_bound > cost_threshold_) {
++            TW(!g_watch.empty(), "REACH-PRUNE edge=" << tg(fwd_pred.edgeid()) << "|" << tg(rev_pred.edgeid()) << " lower_bound=" << route_lower_bound
++                                                                << " > threshold=" << cost_threshold_);
+             continue;
+           }
+         } else {
+@@ -806,6 +934,14 @@
+           (!ignore_hierarchy_limits_ &&
+            StopExpanding(hierarchy_limits_reverse_[rev_pred.endnode().level()],
+                          rev_pred.distance()))) {
++        TW(tw(rev_pred.edgeid()) || [&]() {
++          if (g_box[2] < g_box[0]) return false;
++          auto tt = graphreader.GetGraphTile(rev_pred.endnode());
++          return tt && tw_inbox(tt->get_node_ll(rev_pred.endnode()));
++        }(), "REV PRUNE " << tg(rev_pred.edgeid()) << " not_thru=" << rev_pred.not_thru()
++                                              << " not_thru_pruning=" << rev_pred.not_thru_pruning()
++                                              << " StopExpanding(level " << rev_pred.endnode().level() << ", dist "
++                                              << rev_pred.distance() << ")");
+         continue;
+       }
+ 
+@@ -830,6 +966,8 @@
+               astarheuristic_forward_.Get(tile->get_node_ll(rev_pred.endnode()));
+           // Prune this edge if estimated lower bound cost exceeds the cost threshold.
+           if (route_lower_bound > cost_threshold_) {
++            TW(!g_watch.empty(), "REACH-PRUNE edge=" << tg(fwd_pred.edgeid()) << "|" << tg(rev_pred.edgeid()) << " lower_bound=" << route_lower_bound
++                                                                << " > threshold=" << cost_threshold_);
+             continue;
+           }
+         } else {
+@@ -901,6 +1039,8 @@
+     }
+   }
+ 
++  TW(!g_watch.empty(), "CONNECTION(fwd) fwd_edge=" << tg(pred.edgeid()) << " rev_edge=" << tg(oppedge)
++                                                    << " cost=" << c << " new_threshold=" << cost_threshold_);
+   // Keep the best ones at the front all others to the back
+   best_connections_.emplace_back(CandidateConnection{pred.edgeid(), oppedge, c});
+ 
+@@ -974,6 +1114,8 @@
+     }
+   }
+ 
++  TW(!g_watch.empty(), "CONNECTION(rev) fwd_edge=" << tg(fwd_edge_id) << " rev_edge=" << tg(rev_pred.edgeid())
++                                                    << " cost=" << c << " new_threshold=" << cost_threshold_);
+   // Keep the best ones at the front all others to the back
+   best_connections_.emplace_back(CandidateConnection{fwd_edge_id, rev_pred.edgeid(), c});
+ 
+@@ -1269,6 +1411,19 @@
+ 
+     // set of edges recovered from shortcuts (excluding shortcut's start edges)
+     std::unordered_set<GraphId> recovered_inner_edges;
++    const bool FP = std::getenv("VH_FP") != nullptr && paths.empty();
++    struct FpGroup { const char* dir; GraphId label_edge; bool shortcut; size_t n; float search_delta; float tcost; };
++    std::vector<FpGroup> fp_fwd, fp_rev;
++    if (FP) {
++      const auto& f1 = edgelabels_forward_[idx1];
++      const auto& r2 = edgelabels_reverse_[idx2];
++      const float fpred = f1.predecessor() == kInvalidLabel ? 0.f : edgelabels_forward_[f1.predecessor()].cost().cost;
++      const float rpred = r2.predecessor() == kInvalidLabel ? 0.f : edgelabels_reverse_[r2.predecessor()].cost().cost;
++      std::cerr << "FP| conn fwd_edge=" << tg(best_connection->edgeid) << " rev_edge=" << tg(best_connection->opp_edgeid)
++                << " c=" << best_connection->cost << " | fwd[idx1].pred.cost=" << fpred << " fwd[idx1].cost=" << f1.cost().cost
++                << " fwd[idx1].transition=" << f1.transition_cost().cost << " rev[idx2].cost=" << r2.cost().cost
++                << " rev[idx2].pred.cost=" << rpred << " rev[idx2].transition=" << r2.transition_cost().cost << std::endl;
++    }
+ 
+     // A place to keep the path
+     std::vector<GraphId> path_edges;
+@@ -1285,12 +1440,19 @@
+         throw tile_gone_error_t("BidirectionalAStar::FormPath failed", edgelabel.edgeid());
+       }
+ 
++      const size_t fp_before = path_edges.size();
+       if (edge->is_shortcut()) {
+         auto superseded = graphreader.RecoverShortcut(edgelabel.edgeid());
+         recovered_inner_edges.insert(superseded.begin() + 1, superseded.end());
+         std::move(superseded.rbegin(), superseded.rend(), std::back_inserter(path_edges));
+       } else
+         path_edges.push_back(edgelabel.edgeid());
++      if (FP) {
++        const float pc = edgelabel.predecessor() == kInvalidLabel ? 0.f
++                                                                  : edgelabels_forward_[edgelabel.predecessor()].cost().cost;
++        fp_fwd.push_back({"fwd", edgelabel.edgeid(), edge->is_shortcut(), path_edges.size() - fp_before,
++                          edgelabel.cost().cost - pc, edgelabel.transition_cost().cost});
++      }
+ 
+       // Check if this is a ferry
+       if (edgelabel.use() == Use::kFerry) {
+@@ -1314,12 +1476,20 @@
+         throw tile_gone_error_t("BidirectionalAStar::FormPath failed", edgelabel.edgeid());
+       }
+ 
++      const size_t fp_before = path_edges.size();
++      const GraphId fp_opp = opp_edge_id;
+       if (opp_edge->is_shortcut()) {
+         auto superseded = graphreader.RecoverShortcut(opp_edge_id);
+         recovered_inner_edges.insert(superseded.begin() + 1, superseded.end());
+         std::move(superseded.begin(), superseded.end(), std::back_inserter(path_edges));
+       } else
+         path_edges.emplace_back(std::move(opp_edge_id));
++      if (FP) {
++        const float pc = edgelabel.predecessor() == kInvalidLabel ? 0.f
++                                                                  : edgelabels_reverse_[edgelabel.predecessor()].cost().cost;
++        fp_rev.push_back({"rev", fp_opp, opp_edge->is_shortcut(), path_edges.size() - fp_before,
++                          edgelabel.cost().cost - pc, edgelabel.transition_cost().cost});
++      }
+ 
+       // Check if this is a ferry
+       if (edgelabel.use() == Use::kFerry) {
+@@ -1374,6 +1544,45 @@
+       continue;
+     }
+ 
++    if (FP) {
++      // группы идут в порядке пути: fwd уже развёрнут, rev добавлен после
++      std::reverse(fp_fwd.begin(), fp_fwd.end());
++      std::vector<FpGroup> groups = fp_fwd;
++      groups.insert(groups.end(), fp_rev.begin(), fp_rev.end());
++      size_t s = 0;
++      float sum_search = 0, sum_recost = 0;
++      for (const auto& g : groups) {
++        const size_t e = std::min(path.size(), s + g.n);
++        const float before = s == 0 ? 0.f : path[s - 1].elapsed_cost.cost;
++        const float after = e == 0 ? 0.f : path[e - 1].elapsed_cost.cost;
++        float rtrans = 0;
++        for (size_t k = s; k < e; ++k) rtrans += path[k].transition_cost.cost;
++        sum_search += g.search_delta;
++        sum_recost += after - before;
++        if (std::fabs((after - before) - g.search_delta) > 100.f) {
++          for (size_t k = s; k < e; ++k) {
++            graph_tile_ptr tt;
++            const DirectedEdge* de = graphreader.directededge(path[k].edgeid, tt);
++            auto en = graphreader.GetDirectedEdgeNodes(path[k].edgeid, tt);
++            graph_tile_ptr nt = graphreader.GetGraphTile(en.first);
++            const NodeInfo* ni = nt ? nt->node(en.first) : nullptr;
++            std::cerr << "FP|e   " << tg(path[k].edgeid) << " way=" << (tt ? tt->edgeinfo(de).wayid() : 0)
++                      << " trans=" << path[k].transition_cost.cost << " cum=" << path[k].elapsed_cost.cost
++                      << " destonly=" << de->destonly() << " toll=" << de->toll() << " ctry_crossing=" << de->ctry_crossing()
++                      << " use=" << (int)de->use() << " rc=" << (int)de->classification()
++                      << " start_node_type=" << (ni ? (int)ni->type() : -1) << " start_node_access=" << (ni ? ni->access() : 0)
++                      << " recovered_inner=" << path[k].start_node_is_recovered << std::endl;
++          }
++        }
++        std::cerr << "FP|g " << g.dir << " " << tg(g.label_edge) << " shortcut=" << g.shortcut << " n=" << g.n
++                  << " search_delta=" << g.search_delta << " search_trans=" << g.tcost
++                  << " recost_delta=" << (after - before) << " recost_trans=" << rtrans
++                  << " diff=" << (after - before) - g.search_delta << std::endl;
++        s = e;
++      }
++      std::cerr << "FP| sum_search=" << sum_search << " sum_recost=" << sum_recost << " path_edges=" << path.size()
++                << " final_cost=" << (path.empty() ? 0.f : path.back().elapsed_cost.cost) << std::endl;
++    }
+     // For the first path just add it for subsequent paths only add if it passes viability tests
+     if (paths.empty() || (validate_alternate_by_sharing(shared_edgeids, paths, path, max_sharing) &&
+                           validate_alternate_by_stretch(paths.front(), path) &&

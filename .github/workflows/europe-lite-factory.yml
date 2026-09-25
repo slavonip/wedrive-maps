@@ -1,0 +1,341 @@
+# Europe Lite factory: a new routing graph of Europe's arterial network from the current Geofabrik
+# extract, by the pipeline in tools/europe-lite (copied from the private app repository at the
+# revision in tools/europe-lite/PIPELINE_REV), checked by the existing gates, then published.
+#
+#   precheck -> build -> baseline -> gates -> package -> publish (only with publish=true)
+#                  \________ report (opens an issue when anything fails) ________/
+#
+# Nothing is published unless all three gates PASS. Publication is draft -> upload -> download and
+# verify -> publish -> check public URLs -> commit europe-lite.json (the Android pointer); a failure
+# anywhere leaves the pointer where it was (tools/europe-lite/factory/publish.sh).
+#
+# Runners: GitHub-hosted ubuntu-22.04 (osmium-tool 1.14.0 and python 3.10, the versions final2 was
+# built with). The first runs are measurements (publish=false); if a job does not fit the hosted
+# limits, the factory moves to the existing Hetzner self-hosted runner rather than to a changed
+# pipeline.
+name: europe-lite-factory
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "publish the release and move the pointer (false = build, gate and package only)"
+        type: boolean
+        default: false
+      force:
+        description: "build even if Geofabrik has nothing newer than the current pointer"
+        type: boolean
+        default: false
+  # Enabled only after a green manual publish=false run AND a green manual production run.
+  # schedule:
+  #   - cron: '17 3 3 * *'
+
+concurrency:
+  group: europe-lite-factory
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read      # pull the lite engine from GHCR by digest
+
+env:
+  SOURCE_URL: https://download.geofabrik.de/europe-latest.osm.pbf
+  LITE: tools/europe-lite
+
+jobs:
+  precheck:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    outputs:
+      go: ${{ steps.decide.outputs.go }}
+      lite_image: ${{ steps.lock.outputs.lite_image }}
+      stock_image: ${{ steps.lock.outputs.stock_image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: engine.lock
+        id: lock
+        run: |
+          set -euo pipefail
+          get() { awk -F' *= *' -v k="$1" '$1==k{print $2}' "$LITE/engine.lock"; }
+          lite_ref=$(get lite_image); stock_ref=$(get stock_image)
+          [[ "$lite_ref" == *@sha256:* ]] || { echo "::error::engine.lock lite_image is '$lite_ref': run lite-engine-image and commit its digest"; exit 1; }
+          [[ "$stock_ref" == *@sha256:* ]] || { echo "::error::engine.lock stock_image is not a digest"; exit 1; }
+          [ "$(bash "$LITE/factory/lite-key.sh")" = "$(get lite_key)" ] || { echo "::error::engine.lock lite_key does not match the recipe"; exit 1; }
+          echo "lite_image=$lite_ref" >> "$GITHUB_OUTPUT"; echo "stock_image=$stock_ref" >> "$GITHUB_OUTPUT"
+      - name: anything new at Geofabrik?
+        id: decide
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          md5=$(curl -fsSL "$SOURCE_URL.md5" | awk '{print $1}')
+          cur=""
+          [ -f europe-lite.json ] && cur=$(python3 -c 'import json;print(json.load(open("europe-lite.json"))["source"].get("md5",""))')
+          echo "Geofabrik md5 $md5, current pointer md5 ${cur:-none}"
+          if [ "$FORCE" = true ] || [ "$md5" != "$cur" ]; then echo "go=true" >> "$GITHUB_OUTPUT"
+          else echo "go=false" >> "$GITHUB_OUTPUT"; echo "::notice::the current release was built from this extract; nothing to do"; fi
+
+  build:
+    needs: precheck
+    if: needs.precheck.outputs.go == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
+    outputs:
+      tiles: ${{ steps.graph.outputs.tiles }}
+      tar_bytes: ${{ steps.graph.outputs.tar_bytes }}
+    env:
+      LITE_IMAGE: ${{ needs.precheck.outputs.lite_image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: tools and disk
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+          osmium --version | head -1; python3 --version; nproc; free -g; df -h / /mnt
+          echo "WORK=$RUNNER_TEMP/lite" >> "$GITHUB_ENV"
+      - name: start the resource sampler
+        run: |
+          mkdir -p "$WORK"
+          nohup bash scripts/sample-resources.sh "$RUNNER_TEMP/samples-build.csv" "$WORK" >/dev/null 2>&1 &
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: engine image, by digest, checked
+        run: |
+          docker pull -q "$LITE_IMAGE"
+          bash "$LITE/valhalla/check-image.sh" "$LITE_IMAGE"
+      - name: source (Geofabrik, MD5-checked)
+        run: |
+          set -euo pipefail
+          bash "$LITE/fetch-source.sh" "$WORK" "$SOURCE_URL"
+          bash "$LITE/factory/source-json.sh" "$WORK" "$WORK/source.json"
+      - name: build.sh --new-data
+        run: bash "$LITE/build.sh" --new-data "$WORK" "$LITE_IMAGE"
+      - name: graph facts
+        id: graph
+        run: |
+          echo "tiles=$(find "$WORK/t" -name '*.gph' | wc -l)" >> "$GITHUB_OUTPUT"
+          echo "tar_bytes=$(stat -c %s "$WORK/europe_lite.tar")" >> "$GITHUB_OUTPUT"
+      - name: resources
+        if: always()
+        run: |
+          pkill -f sample-resources.sh || true
+          python3 scripts/peak-from-samples.py "$RUNNER_TEMP/samples-build.csv" --label build | tee "$RUNNER_TEMP/resources-build.txt" || true
+          df -h / /mnt; cp "$WORK/build.log" "$RUNNER_TEMP/" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lite-build
+          retention-days: 7
+          compression-level: 0
+          path: |
+            ${{ env.WORK }}/europe_lite_final.osm.pbf
+            ${{ env.WORK }}/europe_lite.tar.gz
+            ${{ env.WORK }}/connectors.osm.pbf
+            ${{ env.WORK }}/europe_admin.osm.pbf
+            ${{ env.WORK }}/timezones.sqlite
+            ${{ env.WORK }}/config.json
+            ${{ env.WORK }}/source.json
+            ${{ env.WORK }}/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lite-build-logs
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/build.log
+            ${{ runner.temp }}/samples-build.csv
+            ${{ runner.temp }}/resources-build.txt
+            ${{ env.WORK }}/tiles.log
+            ${{ env.WORK }}/europe.osm.pbf.source
+
+  baseline:
+    needs: [precheck, build]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
+    env:
+      STOCK_IMAGE: ${{ needs.precheck.outputs.stock_image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lite-build
+          path: ${{ runner.temp }}/in
+      - name: "B1' control graph (promote rename undone on the baseline side, stock Valhalla 3.6.3)"
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+          B="$RUNNER_TEMP/base"; mkdir -p "$B"
+          mv "$RUNNER_TEMP/in/europe_lite_final.osm.pbf" "$RUNNER_TEMP/in/europe_admin.osm.pbf" "$RUNNER_TEMP/in/timezones.sqlite" "$RUNNER_TEMP/in/connectors.osm.pbf" "$B/"
+          nohup bash scripts/sample-resources.sh "$RUNNER_TEMP/samples-baseline.csv" "$B" >/dev/null 2>&1 &
+          docker pull -q "$STOCK_IMAGE"
+          bash "$LITE/factory/baseline-graph.sh" "$B" "$STOCK_IMAGE"
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner --format=gnu -C "$B/t" -cf "$RUNNER_TEMP/base.tar" .
+          cp "$B/config.json" "$RUNNER_TEMP/base-config.json"
+          cp "$B/baseline-input.txt" "$RUNNER_TEMP/baseline-input.txt"
+      - name: resources
+        if: always()
+        run: |
+          pkill -f sample-resources.sh || true
+          python3 scripts/peak-from-samples.py "$RUNNER_TEMP/samples-baseline.csv" --label baseline | tee "$RUNNER_TEMP/resources-baseline.txt" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lite-baseline
+          retention-days: 7
+          compression-level: 0
+          path: |
+            ${{ runner.temp }}/base.tar
+            ${{ runner.temp }}/base-config.json
+            ${{ runner.temp }}/baseline-input.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lite-baseline-logs
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/samples-baseline.csv
+            ${{ runner.temp }}/resources-baseline.txt
+            ${{ runner.temp }}/base/tiles.log
+
+  gates:
+    needs: [precheck, build, baseline]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 300
+    env:
+      LITE_IMAGE: ${{ needs.precheck.outputs.lite_image }}
+      STOCK_IMAGE: ${{ needs.precheck.outputs.stock_image }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: lite-build
+          path: ${{ runner.temp }}/in
+      - uses: actions/download-artifact@v4
+        with:
+          name: lite-baseline
+          path: ${{ runner.temp }}/in
+      - name: unpack both graphs
+        run: |
+          set -euo pipefail
+          N="$RUNNER_TEMP/new"; B="$RUNNER_TEMP/base"; I="$RUNNER_TEMP/in"
+          mkdir -p "$N/t" "$B/t"
+          tar -xzf "$I/europe_lite.tar.gz" -C "$N/t"; cp "$I/config.json" "$N/config.json"
+          tar -xf "$I/base.tar" -C "$B/t"; cp "$I/base-config.json" "$B/config.json"; cp "$I/baseline-input.txt" "$B/"
+          rm -f "$I/base.tar"
+          echo "new $(find "$N/t" -name '*.gph' | wc -l) tiles, baseline $(find "$B/t" -name '*.gph' | wc -l) tiles"
+          docker pull -q "$LITE_IMAGE"
+          bash "$LITE/valhalla/check-image.sh" "$LITE_IMAGE"
+      - name: struct, transit, routes
+        run: |
+          bash "$LITE/factory/run-gates.sh" "$RUNNER_TEMP/new" "$RUNNER_TEMP/base" \
+            "$RUNNER_TEMP/in/connectors.osm.pbf" "$RUNNER_TEMP/gates" "$LITE_IMAGE" "$STOCK_IMAGE"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lite-gates
+          retention-days: 90
+          path: ${{ runner.temp }}/gates/
+
+  package:
+    needs: [precheck, build, gates]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      LITE_IMAGE: ${{ needs.precheck.outputs.lite_image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lite-build
+          path: ${{ runner.temp }}/in
+      - uses: actions/download-artifact@v4
+        with:
+          name: lite-gates
+          path: ${{ runner.temp }}/gates
+      - name: the five assets under their contract names, and the manifest
+        run: |
+          set -euo pipefail
+          D="$RUNNER_TEMP/release"; I="$RUNNER_TEMP/in"; mkdir -p "$D"
+          mv "$I/europe_lite.tar.gz" "$D/europe_lite.tar.gz"
+          mv "$I/europe_lite_final.osm.pbf" "$D/europe_lite.osm.pbf"
+          cp "$RUNNER_TEMP/gates/gates.json" "$D/gates.json"
+          python3 "$LITE/factory/lite_manifest.py" make --repo "$GITHUB_REPOSITORY" --dir "$D" \
+            --source "$I/source.json" --gates "$D/gates.json" --lite-image "$LITE_IMAGE" \
+            --tiles "${{ needs.build.outputs.tiles }}" --tar-bytes "${{ needs.build.outputs.tar_bytes }}" \
+            --run-id "$GITHUB_RUN_ID" --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --factory-commit "$GITHUB_SHA" --out "$D/europe-lite.json"
+          ( cd "$D" && sha256sum europe_lite.tar.gz europe_lite.osm.pbf gates.json europe-lite.json > SHA256SUMS && ls -l )
+          cat "$D/europe-lite.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lite-release
+          retention-days: 30
+          compression-level: 0
+          path: ${{ runner.temp }}/release/
+
+  publish:
+    needs: [precheck, package]
+    if: inputs.publish == true
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: lite-release
+          path: ${{ runner.temp }}/release
+      - name: draft -> upload -> verify -> publish -> pointer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash "$LITE/factory/publish.sh" "$RUNNER_TEMP/release" "$GITHUB_REPOSITORY" "$GITHUB_WORKSPACE"
+
+  report:
+    needs: [precheck, build, baseline, gates, package, publish]
+    if: failure()
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: lite-gates
+          path: gates
+      - name: open an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          body=$(mktemp)
+          {
+            echo "The Europe Lite factory run failed and **nothing new was published**."
+            echo "The pointer \`europe-lite.json\` still names the previous release; the car keeps it."
+            echo
+            echo "Run: $RUN_URL"
+            echo
+            echo '```'
+            echo "$RESULTS" | python3 -c 'import json,sys;[print("%-9s %s"%(k,v["result"])) for k,v in json.load(sys.stdin).items()]'
+            echo '```'
+            if [ -f gates/gates.json ]; then
+              echo "### gates"
+              echo '```'
+              python3 -c 'import json;g=json.load(open("gates/gates.json"));[print(k,g[k]["verdict"],g[k]["counts"],"; ".join(g[k]["problems"])) for k in ("struct","transit","routes")]'
+              echo '```'
+            fi
+          } > "$body"
+          gh issue create --repo "$REPO" --title "Europe Lite factory failed ($(date -u +%F))" --body-file "$body"
