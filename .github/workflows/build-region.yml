@@ -21,10 +21,12 @@ on:
         description: "Timezone dataset: 'vendored' (the promoted one), or a candidate tag like 2026d"
         required: false
         default: "vendored"
-  schedule:
-    # A week after the package build, so the two never contend for the same runner minutes while
-    # both exist. Moves to the 1st when the packages are retired.
-    - cron: "17 2 8 * *"
+  # Schedule DISABLED 2026-09-26 (country factory, stage 0): nothing reads index-tiles.json;
+  # manual runs and workflow_call (europe-build.yml) are unchanged.
+  # schedule:
+  #   # A week after the package build, so the two never contend for the same runner minutes while
+  #   # both exist. Moves to the 1st when the packages are retired.
+  #   - cron: "17 2 8 * *"
 
   # ── CALLABLE, SO EUROPE DOES NOT GET A SECOND PIPELINE ────────────────────────────────────
   # `europe-build.yml` creates an ephemeral Hetzner machine and then calls THIS workflow to do

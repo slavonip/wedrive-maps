@@ -17,7 +17,10 @@ on:
         description: "Тег или ветка slavonip/wedrive-valhalla"
         required: false
         default: "multi-region-runtime-v2"
+  # Branch pushes only. With paths alone, creating ANY tag (e.g. a europe-lite-* release) also
+  # matched and rebuilt the regional engine under its mutable tag (run 36110546474, 2026-09-25).
   push:
+    branches: [main]
     paths:
       - "docker/engine.Dockerfile"
       - ".github/workflows/engine-image.yml"
