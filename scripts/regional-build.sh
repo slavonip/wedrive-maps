@@ -26,10 +26,16 @@ mkdir -p "$WORK/tiles" "$SRC" "$OUT"
 PBF="$SRC/$(basename "$GEO")-latest.osm.pbf"
 URL="https://download.geofabrik.de/${GEO}-latest.osm.pbf"
 # The extract is used only after its MD5 matches the one Geofabrik publishes beside it, and only
-# then renamed into place: a half-written or rolled-over download never becomes the input. One
-# retry covers Geofabrik publishing a new extract while this one was downloading.
+# then renamed into place: a half-written or rolled-over download never becomes the input.
+#
+# WHILE GEOFABRIK PUBLISHES A NEW EXTRACT ITS FILES CONTRADICT EACH OTHER. Measured 2026-09-25
+# 23:07 UTC (run 36199550296): hungary-latest already redirected to hungary-260925 while
+# hungary-latest.osm.pbf.md5 still named yesterday's file, twice in a row. Retrying at once cannot
+# outrun that, so a mismatch waits MD5_WAIT seconds and tries again, MD5_ATTEMPTS times (default
+# one hour), and only then fails the run — never builds from a file that does not match.
+MD5_ATTEMPTS="${MD5_ATTEMPTS:-7}"; MD5_WAIT="${MD5_WAIT:-600}"
 if [ ! -f "$PBF" ]; then
-  for attempt in 1 2; do
+  for attempt in $(seq 1 "$MD5_ATTEMPTS"); do
     MD5_WANT="$(curl -fsSL "$URL.md5" | awk '{print $1}')"
     [ "${#MD5_WANT}" = 32 ] || { echo "no MD5 published at $URL.md5" >&2; exit 1; }
     echo "==> качаю $GEO (md5 $MD5_WANT)"
@@ -37,8 +43,11 @@ if [ ! -f "$PBF" ]; then
     if [ "$(md5sum "$PBF.part" | cut -d' ' -f1)" = "$MD5_WANT" ]; then
       mv "$PBF.part" "$PBF"; echo "$MD5_WANT" > "$PBF.md5"; break
     fi
-    rm -f "$PBF.part"; echo "md5 не сошлась (попытка $attempt)" >&2
-    [ "$attempt" = 2 ] && exit 1
+    rm -f "$PBF.part"; echo "md5 не сошлась (попытка $attempt из $MD5_ATTEMPTS)" >&2
+    if [ "$attempt" = "$MD5_ATTEMPTS" ]; then
+      echo "Geofabrik так и не дал согласованный экстракт $GEO — не собираю" >&2; exit 1
+    fi
+    sleep "$MD5_WAIT"
   done
 fi
 MD5="$(cat "$PBF.md5" 2>/dev/null || md5sum "$PBF" | cut -d' ' -f1)"
