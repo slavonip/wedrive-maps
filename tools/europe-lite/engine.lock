@@ -7,5 +7,5 @@
 #              so a changed recipe gets a new tag and an unchanged one is never rebuilt.
 # stock_image  stock Valhalla 3.6.3 for the B1' control graph (the same digest t_europe2 used).
 lite_key    = 4529efb75ac3
-lite_image  = unset
+lite_image  = ghcr.io/slavonip/wedrive-valhalla-lite@sha256:7d7d107b4c26db1975a8fe935b7fece66688bb2cb23fe44257cf7efdcfd1d0fd
 stock_image = ghcr.io/valhalla/valhalla@sha256:2b19ea46551a9687b245022551183829d817fdee9b58c5e7b2adb6e422749c43
