@@ -26,9 +26,11 @@ on:
         description: "build even if Geofabrik has nothing newer than the current pointer"
         type: boolean
         default: false
-  # Enabled only after a green manual publish=false run AND a green manual production run.
-  # schedule:
-  #   - cron: '17 3 3 * *'
+  # Enabled 2026-09-25 after a green manual publish=false run (36111034562) and a green manual
+  # production run (36124922573). A scheduled run publishes; precheck skips it when Geofabrik has
+  # nothing newer than the current pointer.
+  schedule:
+    - cron: '17 3 3 * *'
 
 concurrency:
   group: europe-lite-factory
@@ -282,7 +284,8 @@ jobs:
 
   publish:
     needs: [precheck, package]
-    if: inputs.publish == true
+    # A scheduled run has no inputs: it publishes. A manual run publishes only with publish=true.
+    if: github.event_name == 'schedule' || inputs.publish == true
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     permissions:
