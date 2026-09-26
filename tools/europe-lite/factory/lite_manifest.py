@@ -107,6 +107,10 @@ def make(a):
         "run": {"id": a.run_id, "url": a.run_url} if a.run_id else {"id": None, "url": None,
                                                                        "note": a.run_note},
     }
+    # The lowest app versionCode that reads this release (app-compat.json, shared with the regional
+    # factory). Optional in validate(): older releases have none and stay valid for a rollback.
+    m["min_app"] = int(json.load(open(os.path.join(os.path.dirname(os.path.dirname(LITE)), "app-compat.json"),
+                                      encoding="utf-8"))["min_app"])
     # Navigation features of the Lite roads (optional: releases before 2026-09-27 have none, and
     # they must stay valid for a rollback).
     if os.path.exists(os.path.join(a.dir, FEATURES)):

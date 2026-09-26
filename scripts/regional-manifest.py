@@ -170,8 +170,16 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
     else:
         m["engine"] = {"version": next(iter(regions.values()))["engine"] if regions else "unknown"}
     m["pipeline"] = {"revision": pipeline_rev, "run_id": run_id, "run_url": run_url}
+    m["min_app"] = min_app()
     m["regions"], m["portals"] = regions, portals
     return m
+
+
+def min_app():
+    """The lowest app versionCode that can read what this factory publishes (app-compat.json, one
+    file for both factories). The app refuses a manifest above its own versionCode."""
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return int(json.load(open(os.path.join(here, "app-compat.json"), encoding="utf-8"))["min_app"])
 
 
 def here(m, r):

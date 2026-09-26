@@ -6,6 +6,7 @@
 import json, os, shutil, subprocess, sys, tempfile, unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 sys.path.insert(0, HERE)
 import gates_json, lite_manifest  # noqa: E402
 
@@ -271,6 +272,7 @@ class Manifest(unittest.TestCase):
         self.assertEqual(m["pipeline"]["revision"], "3eac2bcd744f76502c7f8156bad977831a7c35f0")
         self.assertEqual(m["gates"]["transit"]["new_transits"], 0)
         self.assertEqual(m["run"]["id"], 42)
+        self.assertEqual(m["min_app"], json.load(open(os.path.join(REPO_ROOT, "app-compat.json")))["min_app"])
         self.assertEqual(lite_manifest.validate(m, self.d), [])
 
     def test_gates_fail_refuses_a_manifest(self):

@@ -245,6 +245,7 @@ class Manifest(unittest.TestCase):
         self.assertEqual(m["engine"]["digest"], "sha256:" + "d" * 64)
         self.assertEqual(m["pipeline"], {"revision": "abc123", "run_id": 42, "run_url": "https://run"})
         self.assertEqual(manifest.assets(m), ["md-2026-09-26.tar.gz", "md-ro.portals"])
+        self.assertEqual(m["min_app"], manifest.min_app())
         self.assertEqual(manifest.check(m, self.d, provenance=True), 0)
         self.assertEqual(manifest.verify_assets(m, self.d), [])
         urls = dict(manifest.urls(m))

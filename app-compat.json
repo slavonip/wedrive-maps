@@ -1,0 +1,4 @@
+{
+  "min_app": 22,
+  "note": "Lowest WeDrive versionCode that can use what the factories publish now (manifest schema, features, map/search blocks). Raise it only with a format change an older app would misread; the app refuses a manifest above its own versionCode instead of half-reading it."
+}
