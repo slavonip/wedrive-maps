@@ -4,14 +4,16 @@
 #
 # engine_ref  tag of slavonip/wedrive-valhalla the image was built from (docker/engine.Dockerfile)
 # engine_sha  the commit that tag resolves to; written into the image as /etc/wedrive-engine-sha
-# image       the digest. a758968c is the image every package of regional-2026-09-20-8 was built
-#             with (engine-image run 35460641774). The tag was later moved to 3cf270ef by a
-#             spurious rebuild (run 36110546474); measured 2026-09-26: all 15 layers identical,
-#             only the image config differs. A new engine is a reviewed commit to this file, and a
-#             changed engine_sha makes the precheck rebuild every country.
+# image       the digest. 20589a75 = engine-image run 36267711959 (2026-09-26): the same engine
+#             (engine_sha unchanged, so no country is rebuilt for it) plus frontier_dump. Checked
+#             from GHCR by digest: engine sha, gid_test all green, and the frontier of MD 2026-09-24
+#             built inside it is byte-identical to the one the D1 tests use (8aa7f5ad...).
+#             Before it: a758968c (run 35460641774), which built regional-2026-09-20-8 and
+#             regional-2026-09-26-13 and has no frontier_dump. A new engine is a reviewed commit to
+#             this file, and a changed engine_sha makes the precheck rebuild every country.
 engine_ref = multi-region-runtime-v2
 engine_sha = 509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e
-image      = ghcr.io/slavonip/wedrive-engine@sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e
+image      = ghcr.io/slavonip/wedrive-engine@sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41
 
 # Timezone database for every country graph: the promoted dataset of the maps-vendor release,
 # the same file Europe Lite uses. Checked by sha before any build; a mismatch fails the run.
