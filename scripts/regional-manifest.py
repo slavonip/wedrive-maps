@@ -62,7 +62,7 @@ def tag_of(url):
 
 
 def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline_rev="",
-          run_id=None, run_url=""):
+          run_id=None, run_url="", basemaps=None):
     cfg = json.load(open(cfg_path, encoding="utf-8"))
     base_url = base_url.rstrip("/")
     tag = tag or tag_of(base_url + "/x")
@@ -124,6 +124,15 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
             v = d.get(k) or prev_regions.get(code, {}).get(k)
             if v:
                 r[k] = v
+        # a map and search built in THIS run (the basemap job) replace the carried ones
+        desc = os.path.join(basemaps, "%s.basemap-desc.json" % code.lower()) if basemaps else None
+        if desc and os.path.isfile(desc):
+            bd = json.load(open(desc, encoding="utf-8"))
+            for k in OPTIONAL_CARRY:
+                if bd.get(k):
+                    v = dict(bd[k])
+                    v["url"] = "%s/%s" % (base_url, v["file"])
+                    r[k] = v
         regions[code] = r
 
     for border in cfg["borders"]:
@@ -179,6 +188,18 @@ def features_here(m, r):
     return bool(f) and tag_of(f["url"]) == m.get("tag")
 
 
+def side_here(m, r, key):
+    f = r.get(key)
+    return bool(f) and bool(f.get("url")) and "file" in f and tag_of(f["url"]) == m.get("tag")
+
+
+def side_files(entry):
+    """(name, bytes, sha256) of what is uploaded for a map/search entry: its parts, or the file."""
+    if entry.get("parts"):
+        return [(p["name"], p["bytes"], p["sha256"]) for p in entry["parts"]]
+    return [(entry["file"], entry["bytes"], entry["sha256"])]
+
+
 def assets(m):
     """Files uploaded into THIS run's release: packages (or their parts) built here, the frontiers
     made here (rebuilt or backfilled countries), all legacy tables."""
@@ -190,6 +211,9 @@ def assets(m):
             out.append(r["frontier"]["file"])
         if features_here(m, r):
             out.append(r["features"]["file"])
+        for k in OPTIONAL_CARRY:
+            if side_here(m, r, k):
+                out += [n for n, _, _ in side_files(r[k])]
     out += [t["file"] for t in m["portals"].values()]
     return out
 
@@ -205,6 +229,11 @@ def urls(m):
             out.append((r["frontier"]["url"], r["frontier"]["bytes"]))
         if r.get("features"):
             out.append((r["features"]["url"], r["features"]["bytes"]))
+        for k in OPTIONAL_CARRY:
+            e = r.get(k)
+            if e and e.get("url") and "bytes" in e and "file" in e:
+                b = e["url"].rsplit("/", 1)[0]
+                out += [("%s/%s" % (b, n), size) for n, size, _ in side_files(e)] if e.get("parts") else [(e["url"], e["bytes"])]
     out += [(t["url"], t["bytes"]) for t in m["portals"].values()]
     return out
 
@@ -222,6 +251,9 @@ def verify_assets(m, directory):
             want[r["frontier"]["file"]] = (r["frontier"]["bytes"], r["frontier"]["sha256"])
         if features_here(m, r):
             want[r["features"]["file"]] = (r["features"]["bytes"], r["features"]["sha256"])
+        for k in OPTIONAL_CARRY:
+            if side_here(m, r, k):
+                want.update({n: (size, h) for n, size, h in side_files(r[k])})
     want.update({t["file"]: (t["bytes"], t["sha256"]) for t in m["portals"].values()})
     problems = []
     for name, (size, digest) in sorted(want.items()):
@@ -390,10 +422,11 @@ def main():
         ap.add_argument("--previous"); ap.add_argument("--tag"); ap.add_argument("--engine-lock")
         ap.add_argument("--pipeline-rev", default=""); ap.add_argument("--run-id", type=int)
         ap.add_argument("--run-url", default="")
+        ap.add_argument("--basemaps", help="directory of <code>.basemap-desc.json made in this run")
         a = ap.parse_args(sys.argv[2:])
         prev = json.load(open(a.previous, encoding="utf-8")) if a.previous and os.path.exists(a.previous) else None
         lock = keyvals(a.engine_lock) if a.engine_lock else None
-        print(json.dumps(build(a.cfg, a.work, a.base, prev, a.tag, lock, a.pipeline_rev, a.run_id, a.run_url),
+        print(json.dumps(build(a.cfg, a.work, a.base, prev, a.tag, lock, a.pipeline_rev, a.run_id, a.run_url, a.basemaps),
                          ensure_ascii=False, indent=2))
         return 0
     if cmd == "check":

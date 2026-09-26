@@ -65,6 +65,7 @@ jobs:
       mode: ${{ steps.mode.outputs.mode }}
       countries: ${{ steps.plan.outputs.countries }}
       rebuild: ${{ steps.plan.outputs.rebuild }}
+      rebuild_json: ${{ steps.matrix.outputs.rebuild_json }}
       carry: ${{ steps.plan.outputs.carry }}
       complete: ${{ steps.plan.outputs.complete }}
       image: ${{ steps.plan.outputs.image }}
@@ -103,9 +104,69 @@ jobs:
             echo "::error::publish needs the whole set of regional.json; a partial set is a control run (dry or verify)"
             exit 1
           fi
+      - name: the rebuilt countries as a matrix for the basemap job
+        id: matrix
+        run: |
+          rb=$(grep '^rebuild=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)
+          echo "rebuild_json=$(python3 -c 'import json,sys;print(json.dumps([c for c in sys.argv[1].split(",") if c]))' "$rb")" >> "$GITHUB_OUTPUT"
+
+  # ── BASEMAP + SEARCH of every rebuilt country, in parallel: what the driver sees (Protomaps
+  # pmtiles) and what he searches (SQLite FTS4 index, Search v2). Built with the country, so a
+  # country version is graph + frontier + features + map + search of one monthly run; a carried
+  # country keeps the map and search of the release it came from. The factory job gets only the
+  # small descriptors (sizes and hashes for the manifest); the files go to the publish job.
+  basemap:
+    needs: precheck
+    if: needs.precheck.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: true
+      matrix:
+        code: ${{ fromJSON(needs.precheck.outputs.rebuild_json) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: disk
+        run: |
+          sudo rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
+          df -h / | tail -1
+      - name: map and search index
+        env:
+          CODE: ${{ matrix.code }}
+        run: |
+          set -euo pipefail
+          low=$(echo "$CODE" | tr '[:upper:]' '[:lower:]')
+          box=$(python3 -c 'import json,sys;print(" ".join(str(x) for x in json.load(open("regional.json"))["countries"][sys.argv[1]]["bbox"]))' "$CODE")
+          mkdir -p "$RUNNER_TEMP/out"
+          # shellcheck disable=SC2086
+          OUT_DIR="$RUNNER_TEMP/out" WORK="$RUNNER_TEMP" bash scripts/build-basemap.sh "$low" $box
+          # build-index.py already wrote Search v2 (search_db.py: aliases as a JSON array, the
+          # accepted encoding). NOT index-to-sqlite.py: that is the rejected space-joined prototype.
+          mv "$RUNNER_TEMP/out/$low-index.sqlite" "$RUNNER_TEMP/out/$low.search.sqlite"
+          rm -f "$RUNNER_TEMP/out/$low-index.json"
+          python3 scripts/split-map.py "$RUNNER_TEMP/out" "$low"
+          python3 scripts/regional-basemap-desc.py "$RUNNER_TEMP/out" "$CODE"
+          mkdir -p "$RUNNER_TEMP/desc" "$RUNNER_TEMP/files"
+          mv "$RUNNER_TEMP/out/$low.basemap-desc.json" "$RUNNER_TEMP/desc/"
+          mv "$RUNNER_TEMP/out/$low.search.sqlite" "$RUNNER_TEMP/files/"
+          mv "$RUNNER_TEMP/out/$low.pmtiles"* "$RUNNER_TEMP/files/"
+          ls -la "$RUNNER_TEMP/files"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: basemap-desc-${{ matrix.code }}
+          path: ${{ runner.temp }}/desc/
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: basemap-files-${{ matrix.code }}
+          path: ${{ runner.temp }}/files/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
 
   factory:
-    needs: precheck
+    needs: [precheck, basemap]
     if: needs.precheck.outputs.go == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 330
@@ -262,6 +323,11 @@ jobs:
           PART_BYTES: ${{ inputs.part_bytes }}
         run: python3 scripts/regional-package.py "$WORK" "${PART_BYTES:-}"
 
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: basemap-desc-*
+          merge-multiple: true
+          path: /data/regional/basemaps
       - name: manifest
         id: manifest
         run: |
@@ -272,7 +338,7 @@ jobs:
             --previous manifest.json --tag "$TAG" --engine-lock regional-engine.lock \
             --pipeline-rev "${{ github.sha }}" --run-id "${{ github.run_id }}" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            > "$WORK/manifest.json"
+            --basemaps "$WORK/basemaps" > "$WORK/manifest.json"
           echo "--- manifest against the files:"
           if [ "$COMPLETE" = true ]; then
             python3 scripts/regional-manifest.py check "$WORK/manifest.json" "$WORK" --provenance --complete regional.json
@@ -336,6 +402,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: regional-release-${{ github.run_number }}
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: basemap-files-*
+          merge-multiple: true
           path: dist
       - name: draft -> upload -> verify -> (delete | publish -> urls -> manifest.json)
         env:

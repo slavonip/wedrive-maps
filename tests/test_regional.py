@@ -250,6 +250,27 @@ class Manifest(unittest.TestCase):
         urls = dict(manifest.urls(m))
         self.assertIn(old, urls)
 
+    def test_map_and_search_built_in_this_run_replace_the_carried_ones(self):
+        self.built("MD", b"md-new")
+        bm = os.path.join(self.d, "bm")
+        os.makedirs(bm)
+        json.dump({"code": "MD",
+                   "map": {"format": "pmtiles", "file": "md.pmtiles", "bytes": 30, "sha256": "a" * 64,
+                           "parts": [{"name": "md.pmtiles.part001", "bytes": 20, "sha256": "b" * 64},
+                                     {"name": "md.pmtiles.part002", "bytes": 10, "sha256": "c" * 64}],
+                           "schema": "protomaps-v4", "dataDate": "2026-09-26"},
+                   "search": {"format": "wedrive-search/sqlite-fts4", "file": "md.search.sqlite", "bytes": 5, "sha256": "e" * 64}},
+                  open(os.path.join(bm, "md.basemap-desc.json"), "w"))
+        prev = {"regions": {"MD": {"map": {"available": True, "url": "u"}}}}
+        m = manifest.build(self.cfg, self.d, self.BASE, prev, self.TAG, LOCK, "abc", 1, "r", basemaps=bm)
+        r = m["regions"]["MD"]
+        self.assertEqual(r["map"]["url"], self.BASE + "/md.pmtiles")
+        self.assertEqual(r["search"]["url"], self.BASE + "/md.search.sqlite")
+        self.assertEqual(manifest.assets(m), ["md-2026-09-26.tar.gz", "md.pmtiles.part001", "md.pmtiles.part002", "md.search.sqlite"])
+        urls = dict(manifest.urls(m))
+        self.assertEqual(urls[self.BASE + "/md.pmtiles.part002"], 10)
+        self.assertEqual(urls[self.BASE + "/md.search.sqlite"], 5)
+
     def test_app_contract_fields_are_all_there(self):
         self.built("MD", b"md")
         r = self.m()["regions"]["MD"]
