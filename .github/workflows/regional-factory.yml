@@ -139,6 +139,10 @@ jobs:
             echo "::error::the image is not engine $ENGINE_REF $ENGINE_SHA"; exit 1
           fi
           gid_test | tail -2
+          # Frontiers (schema 2) need frontier_dump in the image. An image pinned before it existed
+          # would otherwise fail an hour later, on the first country, instead of here.
+          command -v frontier_dump >/dev/null \
+            || { echo "::error::the pinned engine image has no frontier_dump: rebuild it (engine-image.yml) and pin its digest in regional-engine.lock"; exit 1; }
 
       - name: resource sampler
         run: |
