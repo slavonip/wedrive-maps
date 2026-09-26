@@ -1,50 +1,59 @@
 {
-  "schema": 1,
+  "schema": 2,
   "kind": "regional",
-  "tag": "regional-2026-09-26-13",
-  "created": "2026-09-26T00:02:25Z",
+  "tag": "regional-2026-09-26-14",
+  "created": "2026-09-26T21:02:15Z",
   "engine": {
     "version": "multi-region-runtime-v2",
     "sha": "509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e",
-    "digest": "sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e",
-    "image": "ghcr.io/slavonip/wedrive-engine@sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e"
+    "digest": "sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41",
+    "image": "ghcr.io/slavonip/wedrive-engine@sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41"
   },
   "timezones": {
     "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps-vendor/timezones.sqlite",
     "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
   },
   "pipeline": {
-    "revision": "80a2526d43fe3af18315d3eeb7bc1a6f68f286cb",
-    "run_id": 36200018901,
-    "run_url": "https://github.com/slavonip/wedrive-maps/actions/runs/36200018901"
+    "revision": "d4f94f54f6687e410ca300e731b989ad121f670f",
+    "run_id": 36268623785,
+    "run_url": "https://github.com/slavonip/wedrive-maps/actions/runs/36268623785"
   },
   "regions": {
     "MD": {
       "region_id": 1,
       "title": "Moldova",
-      "graph_version": "2026-09-24",
-      "package": "md-2026-09-24.tar.gz",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-13/md-2026-09-24.tar.gz",
-      "bytes": 44392780,
-      "sha256": "71e87e12e59530554a7273b4ac4e6270a3a09786a1e7b650cc5681da889f7fd5",
+      "graph_version": "2026-09-25",
+      "package": "md-2026-09-25.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/md-2026-09-25.tar.gz",
+      "bytes": 44395034,
+      "sha256": "e3f2735afaaedcf6b3657e24aedd5f14fe580cad4b33850d1a8b8cb653a2de35",
       "tiles": 114,
       "engine": "multi-region-runtime-v2",
-      "release": "regional-2026-09-26-13",
+      "release": "regional-2026-09-26-14",
       "engine_sha": "509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e",
       "source": {
         "url": "https://download.geofabrik.de/europe/moldova-latest.osm.pbf",
-        "md5": "0ff8902849e76c8cf0b95e1dd645a475",
-        "sha256": "20666e38bd33a61a666efb587330dd92399853fb14cefa51d5b11988fc261961",
-        "bytes": 101135870,
-        "replication": "2026-09-24T20:21:20Z",
-        "sequence": "4918"
+        "md5": "e2bdc20f60d515360f2828fafffa72b8",
+        "sha256": "54a403ff54d9c3164a64b57492474c3bee786127f68a3e86b98f5a6f318dd7d5",
+        "bytes": 101137080,
+        "replication": "2026-09-25T20:24:36Z",
+        "sequence": "4919"
       },
       "timezones": {
         "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
       },
       "tar_bytes": 118456320,
-      "tar_sha256": "0ba5c9a7cf09bbf55962cfa018216af92b6d14c3c8794572b03f0f501aac37d0",
-      "engine_digest": "sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e",
+      "tar_sha256": "336f170e568f0700a7956b1f3ebebe9df8447efbe8dd1711c71ad6be652eaaa2",
+      "engine_digest": "sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "md-2026-09-25.frontier",
+        "bytes": 5355,
+        "sha256": "6c8efef20ab766fc68db184b2fbea5d46ccf7de2c707c0af0be295381ade545d",
+        "entries": 117,
+        "osm_resolved": 117,
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/md-2026-09-25.frontier"
+      },
       "portals": [
         "MD-RO"
       ]
@@ -52,29 +61,38 @@
     "RO": {
       "region_id": 2,
       "title": "Romania",
-      "graph_version": "2026-09-24",
-      "package": "ro-2026-09-24.tar.gz",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-13/ro-2026-09-24.tar.gz",
-      "bytes": 158223173,
-      "sha256": "b2a3c0bb34aaa8170535b4ea93b81e638891c72d55256eb6a857d6e8919f4231",
+      "graph_version": "2026-09-25",
+      "package": "ro-2026-09-25.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/ro-2026-09-25.tar.gz",
+      "bytes": 158218687,
+      "sha256": "8d72d74f4d1a8b8a67dd6de33b5a9f7f6a85ab5d45b7a0acb6853afa3790445a",
       "tiles": 636,
       "engine": "multi-region-runtime-v2",
-      "release": "regional-2026-09-26-13",
+      "release": "regional-2026-09-26-14",
       "engine_sha": "509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e",
       "source": {
         "url": "https://download.geofabrik.de/europe/romania-latest.osm.pbf",
-        "md5": "df701acec3a148a81c986d1015a0806f",
-        "sha256": "24b5ef1f883489c9327bb4efcc46cec6396350e69e597561672cd0c5a1ad1d6a",
-        "bytes": 328854443,
-        "replication": "2026-09-24T20:21:20Z",
-        "sequence": "4918"
+        "md5": "b53463617c72954d95e4119b9cde63f7",
+        "sha256": "0bb67d66c6c70dae1babb31ba7e06bb0edd1bdd2c38deb041cdb7f259e5b2a1c",
+        "bytes": 328942890,
+        "replication": "2026-09-25T20:24:36Z",
+        "sequence": "4919"
       },
       "timezones": {
         "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
       },
-      "tar_bytes": 391557120,
-      "tar_sha256": "460d75c92b7270a8177d0aa200c6c160d5dd326ed051be8769b079f7f9a7d0d7",
-      "engine_digest": "sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e",
+      "tar_bytes": 391628800,
+      "tar_sha256": "fce26a25d0dec0634a6e49ea3f6cab1eff3991e3235518d93ead0d2fb3c1481d",
+      "engine_digest": "sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "ro-2026-09-25.frontier",
+        "bytes": 10362,
+        "sha256": "11828d9d1e2d2b0369c56710ccd1aa54f41d39b990e8e4f65106301db4ffdae1",
+        "entries": 226,
+        "osm_resolved": 226,
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/ro-2026-09-25.frontier"
+      },
       "portals": [
         "MD-RO",
         "RO-HU"
@@ -106,6 +124,15 @@
       "tar_bytes": 373370880,
       "tar_sha256": "c78af1e86abb1dd0f8a08164aae6d6c059dbfec36fbec6fb3311fc0d9c7eea8c",
       "engine_digest": "sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "hu-2026-09-25.frontier",
+        "bytes": 49661,
+        "sha256": "8cebc573c474f1ee6c5af210ee7611b8f107969655d349c521f16d452cecccc7",
+        "entries": 1099,
+        "osm_resolved": 1099,
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/hu-2026-09-25.frontier"
+      },
       "portals": [
         "HU-AT",
         "RO-HU"
@@ -137,6 +164,15 @@
       "tar_bytes": 815841280,
       "tar_sha256": "2c3d8413524302083f048f345e66791d730dfe02d272ef56cd78f8c41e1614f3",
       "engine_digest": "sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "at-2026-09-25.frontier",
+        "bytes": 81525,
+        "sha256": "5e739fc1e95a97add2ad8fd35bf8a30303dc1e86ced6df4cd1386e9448dc3a57",
+        "entries": 1806,
+        "osm_resolved": 1806,
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/at-2026-09-25.frontier"
+      },
       "portals": [
         "AT-DE",
         "HU-AT"
@@ -145,29 +181,38 @@
     "DE": {
       "region_id": 5,
       "title": "Germany",
-      "graph_version": "2026-09-24",
-      "package": "de-2026-09-24.tar.gz",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-13/de-2026-09-24.tar.gz",
-      "bytes": 1880597346,
-      "sha256": "928ddd36cfe25340ed82f818dd7acb6da7c37d6e79aad380e34bcbf03e17153f",
+      "graph_version": "2026-09-25",
+      "package": "de-2026-09-25.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/de-2026-09-25.tar.gz",
+      "bytes": 1880786192,
+      "sha256": "0d930e5fff2fc6e1c8b5f36c49890d843109844bde3147302285a7db9d63e304",
       "tiles": 1151,
       "engine": "multi-region-runtime-v2",
-      "release": "regional-2026-09-26-13",
+      "release": "regional-2026-09-26-14",
       "engine_sha": "509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e",
       "source": {
         "url": "https://download.geofabrik.de/europe/germany-latest.osm.pbf",
-        "md5": "5f5fdc7a9c1e891d8589a8c6aa9a32a1",
-        "sha256": "788a1da033a7b6e266cc7bd536694b354c19ecf8b6dbdf102b41392cbf98f3ad",
-        "bytes": 4846851625,
-        "replication": "2026-09-24T20:21:20Z",
-        "sequence": "4918"
+        "md5": "fd9bab7a9f3e618c80fd11dc5bbcbef5",
+        "sha256": "17a824f525fba715a35740ce0470726d641a80db11d22c8a13cf34d3fa83a93c",
+        "bytes": 4847577526,
+        "replication": "2026-09-25T20:24:36Z",
+        "sequence": "4919"
       },
       "timezones": {
         "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
       },
-      "tar_bytes": 5157457920,
-      "tar_sha256": "d50be714a2fe6766252d6de870c29c3743edf6f8e016ad4a9e86ea61d484f1b8",
-      "engine_digest": "sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e",
+      "tar_bytes": 5157969920,
+      "tar_sha256": "459f308534347b7d43946d16a830e317f8468a6663bc42a078e0b6f3a1fabee8",
+      "engine_digest": "sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "de-2026-09-25.frontier",
+        "bytes": 178004,
+        "sha256": "d94c2e4d48c317e914404ec49e2f6070321cf682d0fb1fa965055009020f301f",
+        "entries": 4003,
+        "osm_resolved": 4003,
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/de-2026-09-25.frontier"
+      },
       "portals": [
         "AT-DE"
       ]
@@ -176,22 +221,22 @@
   "portals": {
     "MD-RO": {
       "versions": [
-        "MD-2026-09-24",
-        "RO-2026-09-24"
+        "MD-2026-09-25",
+        "RO-2026-09-25"
       ],
       "file": "md-ro.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-13/md-ro.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/md-ro.portals",
       "bytes": 1856,
-      "sha256": "893cfb71b7e5bd71b60d6ec14a3cf75d9aec33b51a8bc615807ff61e5c369b39",
+      "sha256": "4997d35a94da396c5b74894675ce4ec41e61e411d33fcfed5cba276c1181924a",
       "rows": 32
     },
     "RO-HU": {
       "versions": [
-        "RO-2026-09-24",
+        "RO-2026-09-25",
         "HU-2026-09-25"
       ],
       "file": "ro-hu.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-13/ro-hu.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/ro-hu.portals",
       "bytes": 15222,
       "sha256": "caf0bdeb5d3cf93ce3ed3ddd7784adae52bd960704a909f814455fbd44a74320",
       "rows": 258
@@ -202,7 +247,7 @@
         "AT-2026-09-25"
       ],
       "file": "hu-at.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-13/hu-at.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/hu-at.portals",
       "bytes": 32332,
       "sha256": "20271a9f4788a7c1e5c3968ef349893dafc7ba5c2ff56548e1e686bc36ddd0ed",
       "rows": 548
@@ -210,12 +255,12 @@
     "AT-DE": {
       "versions": [
         "AT-2026-09-25",
-        "DE-2026-09-24"
+        "DE-2026-09-25"
       ],
       "file": "at-de.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-13/at-de.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/at-de.portals",
       "bytes": 57492,
-      "sha256": "bcc3dd7ccda592cc9d7cb2e14359e286f44c1ad5ea5be0278c9240996302234d",
+      "sha256": "edcca4da4093ba75c7afead3418beffef060f75399cd3d6e95e4e7f74fca8950",
       "rows": 976
     }
   }
