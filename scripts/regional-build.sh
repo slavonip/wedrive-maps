@@ -101,6 +101,19 @@ TILES="$(find "$WORK/tiles" -name '*.gph' | wc -l)"
 [ "$TILES" -gt 0 ] || { echo "тайлов не получилось"; tail -30 "$WORK/tiles.log"; exit 1; }
 echo "==> тайлов: $TILES, $(du -sh "$WORK/tiles" | cut -f1)"
 
+# FRONTIER — the border nodes of THIS graph with the OSM ids of THIS extract. It is what lets the
+# country be updated alone: the device joins frontiers of any two versions (rule D1), so nothing
+# here names a neighbour or a neighbour's version. A frontier that fails its gates (collision,
+# impossible level, malformed) stops the country: a package without one could not be joined.
+echo "==> frontier"
+FRONTIER="$OUT/${low}-${DATA_DATE}.frontier"
+python3 "$(dirname "$0")/regional-frontier.py" build "$WORK/tiles" "$PBF" "$CODE" "$DATA_DATE" "$FRONTIER" \
+  || { echo "frontier $CODE не прошёл проверку — пакет не выпускается" >&2; exit 1; }
+FR_SHA="$(sha256sum "$FRONTIER" | cut -d' ' -f1)"
+FR_BYTES="$(stat -c %s "$FRONTIER")"
+FR_ENTRIES="$(sed -n 's/^entries //p' "$FRONTIER")"
+FR_OSM="$(sed -n 's/^osm_resolved //p' "$FRONTIER")"
+
 # ПУТЬ АРХИВА ЗАДАЁТСЯ В КОНФИГЕ, а не аргументом: valhalla_build_extract пишет туда, куда
 # указывает mjolnir.tile_extract. Позиционного аргумента у него нет вовсе, и переданный
 # argparse отвергает с кодом 2. Отдельный конфиг под упаковку нужен потому, что в основном
@@ -152,7 +165,15 @@ cat > "$OUT/${low}.package.json" <<JSON
     "replication": "$REPLICATION",
     "sequence": "$SEQUENCE"
   },
-  "timezones": {"sha256": "$TIMEZONES_SHA256"}
+  "timezones": {"sha256": "$TIMEZONES_SHA256"},
+  "frontier": {
+    "format": "wedrive-frontier/1",
+    "file": "$(basename "$FRONTIER")",
+    "bytes": $FR_BYTES,
+    "sha256": "$FR_SHA",
+    "entries": $FR_ENTRIES,
+    "osm_resolved": $FR_OSM
+  }
 }
 JSON
 echo "==> описание: $OUT/${low}.package.json"

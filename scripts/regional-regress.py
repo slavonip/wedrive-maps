@@ -51,6 +51,30 @@ def main():
 
     fail = 0
     ran = 0
+
+    # THE ENGINE MUST ACCEPT EVERY PORTAL IT IS GIVEN. The table comes from frontiers (D1); a row
+    # the engine rejects (patch 21: missing node, same region, undrivable, or a distance-0 row whose
+    # ends are more than 2 m apart) is a crossing the car silently loses while every route still
+    # finds another one. Routes cannot see that, so it is checked here, by the engine's own count.
+    r = subprocess.run(["valhalla_service", config, "route", json.dumps(
+        {"locations": [{"lat": 0.0, "lon": 0.0}, {"lat": 0.0, "lon": 0.001}], "costing": "auto"})],
+        capture_output=True, text=True, env=dict(os.environ, WEDRIVE_DEBUG_BIDIR="1"))
+    m = re.search(r"WEDRIVE: регионов (\d+), порталов (\d+), отвергнуто (\d+)", r.stdout + r.stderr)
+    if m:
+        print("движок: регионов %s, порталов %s, отвергнуто %s" % m.groups())
+        if int(m.group(3)):
+            print("ПРОВАЛ: движок отверг %s порталов таблицы" % m.group(3))
+            fail += 1
+    else:
+        try:
+            table = json.load(open(config, encoding="utf-8")).get("mjolnir", {}).get("wedrive_portals", "")
+        except (OSError, ValueError):
+            table = ""
+        rows = sum(1 for l in open(table, encoding="utf-8") if l.strip()) if table and os.path.isfile(table) else 0
+        if rows:
+            print("ПРОВАЛ: движок не сообщил, сколько из %d порталов принял" % rows)
+            fail += 1
+
     print("%-34s %10s %8s %6s" % ("маршрут", "км", "швов", ""))
     for p in cfg["probes"]["routes"]:
         needs = set(p["needs"])

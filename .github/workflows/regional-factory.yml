@@ -75,7 +75,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: tests of the regional scripts
-        run: python3 tests/test_regional.py
+        run: |
+          python3 tests/test_regional.py
+          python3 tests/test_frontier.py
       - name: mode
         id: mode
         env:
@@ -190,9 +192,25 @@ jobs:
             echo "      tiles: $n"; [ "$n" -gt 0 ] || { echo "::error::$code has no tiles"; exit 1; }
           done
 
-      # ВСЕ таблицы, а не только затронутые пересборкой: таблица стоит секунды, её отсутствие —
-      # границы. Для непересобранных пар это те же байты тайлов, и таблица выходит та же.
-      - name: portal tables
+      # FRONTIERS. A rebuilt country made its own in regional-build.sh; a carried one brought its
+      # published frontier. A carried country published BEFORE frontiers existed gets one here
+      # (migration): from its unpacked tiles and, if Geofabrik still serves it, the exact extract
+      # it was built from (md5 = provenance).
+      - name: frontiers (migration backfill) and what changed since the previous release
+        run: |
+          set -u
+          python3 scripts/regional-frontier.py backfill "$WORK" "$WORK/installed"
+          python3 scripts/regional-frontier.py report "$WORK" manifest.json | tee "$WORK/frontier-report.txt"
+
+      # THE TABLE THE APP BUILDS: D1 over the set's frontiers. It is what the regression below runs
+      # on, because it is what the car runs on. Ambiguity, or a border of regional.json with both
+      # countries present and no portal, fails the run.
+      - name: portals from frontiers (D1)
+        run: python3 scripts/regional-frontier.py set regional.json "$WORK" "$WORK/set.d1" --report "$WORK/frontier-portals.json"
+
+      # LEGACY pair tables, still published for apps that predate frontiers (schema 1). Nothing in
+      # this run depends on them any more; they go in a separate step once the car runs schema 2.
+      - name: legacy pair portal tables
         run: python3 scripts/regional-portals.py regional.json "$WORK/installed" "$WORK"
 
       - name: router configuration on the assembled set
@@ -210,14 +228,12 @@ jobs:
           m.pop("tile_extract", None)
           m["wedrive_regions"] = [{"id": cfg["countries"][code]["region_id"],
                                    "dir": "%s/installed/%s/tiles" % (work, code)} for code in installed]
-          tables = [os.path.join(work, f) for f in sorted(os.listdir(work)) if f.endswith(".portals")]
-          allp = os.path.join(work, "all.portals")
-          with open(allp, "w") as out:
-              for t in tables:
-                  out.write(open(t, encoding="utf-8").read())
-          m["wedrive_portals"] = allp
+          # The D1 table from frontiers — never the legacy pair tables: the regression proves what
+          # the app does.
+          m["wedrive_portals"] = os.path.join(work, "set.d1")
           json.dump(c, open("%s/router.json" % work, "w"), indent=1)
-          print("   regions: %s, tables: %d" % (", ".join(installed), len(tables)))
+          rows = sum(1 for l in open(m["wedrive_portals"]) if l.strip())
+          print("   regions: %s, portals from frontiers: %d rows" % (", ".join(installed), rows))
           PY
 
       - name: regression on the assembled set
@@ -281,6 +297,8 @@ jobs:
           retention-days: 30
           path: |
             /data/regional/regress.txt
+            /data/regional/frontier-report.txt
+            /data/regional/frontier-portals.json
             /data/regional/resources.txt
             /data/regional/samples.csv
             /data/regional/timings.txt

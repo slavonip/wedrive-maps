@@ -60,6 +60,17 @@ def carry(manifest, code, work, fetch=fetch):
             raise SystemExit("%s: %s does not match the manifest (bytes/sha256)" % (code, r["package"]))
     desc = {k: r[k] for k in KEEP if k in r}
     desc.update({"code": code, "carried": True, "url": r["url"], "parts": r.get("parts") or []})
+    # The frontier travels with its country and is checked like the package. A country published
+    # before frontiers existed has none; regional-frontier.py backfill makes it after unpacking.
+    fr = r.get("frontier")
+    if fr:
+        fdst = os.path.join(work, fr["file"])
+        if not (os.path.isfile(fdst) and sha256(fdst) == fr["sha256"]):
+            fetch(fr["url"], fdst)
+        if os.path.getsize(fdst) != fr["bytes"] or sha256(fdst) != fr["sha256"]:
+            os.remove(fdst)
+            raise SystemExit("%s: frontier %s does not match the manifest" % (code, fr["file"]))
+        desc["frontier"] = dict(fr)
     with open(os.path.join(work, "%s.package.json" % code.lower()), "w", encoding="utf-8") as f:
         json.dump(desc, f, indent=2)
     print("   %s carried: %s (%d bytes, sha256 ok)" % (code, r["package"], r["bytes"]))

@@ -102,6 +102,15 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
                 r["engine_digest"] = prev_digest
         elif lock:
             r["engine_digest"] = lock["image"].split("@", 1)[1]
+        # FRONTIER (schema 2): the country's own border nodes, joined with a neighbour's on the
+        # device by rule D1. It names no neighbour and no neighbour's version — which is the whole
+        # point: a country is updated alone. It has its own url because a carried country can get
+        # its frontier in a later release than its package (migration backfill).
+        fb = d.get("frontier")
+        if fb:
+            f = {k: fb[k] for k in ("format", "file", "bytes", "sha256", "entries", "osm_resolved") if k in fb}
+            f["url"] = fb.get("url") or "%s/%s" % (base_url, fb["file"])
+            r["frontier"] = f
         # map/search: из описания переносимой страны или из предыдущего манифеста — никогда не
         # теряются из-за того, что граф пересобран.
         for k in OPTIONAL_CARRY:
@@ -133,7 +142,10 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
     for code, r in regions.items():
         r["portals"] = sorted(n for n in portals if code in n.split("-"))
 
-    m = {"schema": 1, "kind": "regional", "tag": tag,
+    # schema 2 = frontiers. Pair tables stay, as the legacy path for apps that predate frontiers;
+    # an app that reads frontiers never needs them and never lets their versions gate a set.
+    m = {"schema": 2 if any(r.get("frontier") for r in regions.values()) else 1,
+         "kind": "regional", "tag": tag,
          "created": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
     if lock:
         m["engine"] = {"version": lock["engine_ref"], "sha": lock["engine_sha"],
@@ -150,12 +162,20 @@ def here(m, r):
     return r.get("release", tag_of(r["url"])) == m.get("tag")
 
 
+def frontier_here(m, r):
+    f = r.get("frontier")
+    return bool(f) and tag_of(f["url"]) == m.get("tag")
+
+
 def assets(m):
-    """Files uploaded into THIS run's release: packages (or their parts) built here, all tables."""
+    """Files uploaded into THIS run's release: packages (or their parts) built here, the frontiers
+    made here (rebuilt or backfilled countries), all legacy tables."""
     out = []
     for r in m["regions"].values():
         if here(m, r):
             out += [p["name"] for p in r["parts"]] if r.get("parts") else [r["package"]]
+        if frontier_here(m, r):
+            out.append(r["frontier"]["file"])
     out += [t["file"] for t in m["portals"].values()]
     return out
 
@@ -167,6 +187,8 @@ def urls(m):
         base = r["url"].rsplit("/", 1)[0]
         out += [("%s/%s" % (base, p["name"]), p["bytes"]) for p in r["parts"]] if r.get("parts") \
             else [(r["url"], r["bytes"])]
+        if r.get("frontier"):
+            out.append((r["frontier"]["url"], r["frontier"]["bytes"]))
     out += [(t["url"], t["bytes"]) for t in m["portals"].values()]
     return out
 
@@ -180,6 +202,8 @@ def verify_assets(m, directory):
                 want.update({p["name"]: (p["bytes"], p["sha256"]) for p in r["parts"]})
             else:
                 want[r["package"]] = (r["bytes"], r["sha256"])
+        if frontier_here(m, r):
+            want[r["frontier"]["file"]] = (r["frontier"]["bytes"], r["frontier"]["sha256"])
     want.update({t["file"]: (t["bytes"], t["sha256"]) for t in m["portals"].values()})
     problems = []
     for name, (size, digest) in sorted(want.items()):
@@ -203,6 +227,10 @@ def complete(m, cfg_path):
             problems.append("incomplete: no %s" % code)
         elif r["region_id"] != c["region_id"]:
             problems.append("%s: region_id %s, regional.json says %s" % (code, r["region_id"], c["region_id"]))
+        elif not r.get("frontier"):
+            # Without a frontier the country can only be joined by a pair table, i.e. only to the
+            # exact neighbour versions that table was made for — the coupling schema 2 removes.
+            problems.append("incomplete: %s has no frontier" % code)
     for border in cfg["borders"]:
         n = "%s-%s" % tuple(border["between"])
         if n not in m["portals"]:
@@ -216,20 +244,21 @@ def plan(manifest_path, code):
     if code not in m["regions"]:
         print("нет такой страны в манифесте: %s" % code)
         return 1
-    tables = [n for n in m["portals"] if code in n.split("-")]
-    print("обновилась %s (версия %s)" % (code, m["regions"][code]["graph_version"]))
+    r = m["regions"][code]
+    print("обновилась %s (версия %s)" % (code, r["graph_version"]))
     print("\nСКАЧАТЬ:")
-    print("   пакет   %-8s %s" % (code, m["regions"][code]["package"]))
-    for t in tables:
-        print("   таблица %-8s %s  (%s)" % (t, m["portals"][t]["file"],
-                                            ", ".join(m["portals"][t]["versions"])))
+    print("   пакет    %-8s %s" % (code, r["package"]))
+    if r.get("frontier"):
+        print("   frontier %-8s %s" % (code, r["frontier"]["file"]))
+    else:
+        # schema 1 only: without a frontier the country joins its neighbours through pair tables,
+        # each made for one exact pair of versions.
+        for t in (n for n in m["portals"] if code in n.split("-")):
+            print("   таблица  %-8s %s  (%s)" % (t, m["portals"][t]["file"], ", ".join(m["portals"][t]["versions"])))
     print("\nНЕ СКАЧИВАТЬ:")
     for c in m["regions"]:
         if c != code:
-            print("   пакет   %-8s %s" % (c, m["regions"][c]["package"]))
-    for t in m["portals"]:
-        if t not in tables:
-            print("   таблица %-8s %s" % (t, m["portals"][t]["file"]))
+            print("   пакет    %-8s %s" % (c, m["regions"][c]["package"]))
     return 0
 
 
@@ -271,6 +300,19 @@ def check(m, work, complete_cfg=None, provenance=False):
                 print("   %-8s %-28s %s%s" % (code, r["package"], "ok" if ok else "СУММА НЕ СОШЛАСЬ",
                                              "" if here(m, r) else "  (перенос из %s)" % r.get("release")))
                 bad += 0 if ok else 1
+        f = r.get("frontier")
+        if f:
+            p = os.path.join(work, f["file"])
+            if f.get("format") != "wedrive-frontier/1":
+                print("   %-8s frontier format %s unknown" % (code, f.get("format"))); bad += 1
+            elif not os.path.isfile(p):
+                print("   НЕТ ФАЙЛА %s (frontier %s)" % (f["file"], code)); bad += 1
+            elif sha256(p) != f["sha256"] or os.path.getsize(p) != f["bytes"]:
+                print("   %-8s %-28s FRONTIER НЕ СОШЁЛСЯ" % (code, f["file"])); bad += 1
+            else:
+                print("   %-8s %-28s ok  frontier %d, OSM id %d%s" % (
+                    code, f["file"], f.get("entries", 0), f.get("osm_resolved", 0),
+                    "" if frontier_here(m, r) else "  (перенос)"))
         if provenance:
             src = r.get("source") or {}
             for k in ("md5", "sha256", "replication"):

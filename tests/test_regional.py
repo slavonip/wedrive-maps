@@ -127,6 +127,20 @@ class Carry(unittest.TestCase):
         with self.assertRaises(SystemExit):
             carry.carry(man, "DE", self.d, fetch=self.fake_fetch({"de.part001": b"abc", "de.part002": b"XYZ"}))
 
+    def test_frontier_travels_with_the_package_and_is_checked(self):
+        data, fr = b"tiles!", b"wedrive-frontier 1\n"
+        f = {"format": "wedrive-frontier/1", "file": "md-2026-09-19.frontier", "bytes": len(fr), "sha256": sha(fr),
+             "url": "https://github.com/o/r/releases/download/regional-old/md-2026-09-19.frontier"}
+        man = {"regions": {"MD": region("MD", bytes=len(data), sha256=sha(data), frontier=f)}}
+        files = {"md-2026-09-19.tar.gz": data, "md-2026-09-19.frontier": fr}
+        d = carry.carry(man, "MD", self.d, fetch=self.fake_fetch(files))
+        self.assertEqual(d["frontier"], f)
+        self.assertEqual(open(os.path.join(self.d, "md-2026-09-19.frontier"), "rb").read(), fr)
+        files["md-2026-09-19.frontier"] = b"tampered"
+        os.remove(os.path.join(self.d, "md-2026-09-19.frontier"))
+        with self.assertRaises(SystemExit):
+            carry.carry(man, "MD", self.d, fetch=self.fake_fetch(files))
+
     def test_country_not_in_manifest_cannot_be_carried(self):
         with self.assertRaises(SystemExit):
             carry.carry({"regions": {}}, "MD", self.d)
@@ -256,11 +270,61 @@ class Manifest(unittest.TestCase):
         self.built("MD", b"md", source={})
         self.assertGreater(manifest.check(self.m(), self.d, provenance=True), 0)
 
+    def frontier(self, code, text=b"wedrive-frontier 1\n", url=None):
+        name = "%s-2026-09-26.frontier" % code.lower()
+        self.put(name, text)
+        fb = {"format": "wedrive-frontier/1", "file": name, "bytes": len(text), "sha256": sha(text),
+              "entries": 3, "osm_resolved": 2}
+        if url:
+            fb["url"] = url
+        return fb
+
+    def test_frontier_of_a_built_country_is_in_this_release(self):
+        self.built("MD", b"md", frontier=self.frontier("MD"))
+        m = self.m()
+        f = m["regions"]["MD"]["frontier"]
+        self.assertEqual(m["schema"], 2)
+        self.assertEqual(f["url"], self.BASE + "/md-2026-09-26.frontier")
+        self.assertEqual((f["format"], f["entries"], f["osm_resolved"]), ("wedrive-frontier/1", 3, 2))
+        self.assertIn("md-2026-09-26.frontier", manifest.assets(m))
+        self.assertIn((f["url"], f["bytes"]), manifest.urls(m))
+        self.assertEqual(manifest.check(m, self.d), 0)
+        self.assertEqual(manifest.verify_assets(m, self.d), [])
+
+    def test_carried_frontier_stays_in_its_release_backfilled_one_is_new(self):
+        old = "https://github.com/o/r/releases/download/regional-2026-09-20-8/"
+        self.carried("RO", b"ro-old", old + "ro-2026-09-19.tar.gz")
+        d = json.load(open(os.path.join(self.d, "ro.package.json")))
+        d["frontier"] = self.frontier("RO", url=old + "ro-2026-09-26.frontier")
+        json.dump(d, open(os.path.join(self.d, "ro.package.json"), "w"))
+        self.carried("HU", b"hu-old", old + "hu-2026-09-19.tar.gz")
+        d = json.load(open(os.path.join(self.d, "hu.package.json")))
+        d["frontier"] = dict(self.frontier("HU"), backfilled=True)          # made in this run
+        json.dump(d, open(os.path.join(self.d, "hu.package.json"), "w"))
+        m = self.m()
+        self.assertEqual(m["regions"]["RO"]["frontier"]["url"], old + "ro-2026-09-26.frontier")
+        self.assertEqual(m["regions"]["HU"]["frontier"]["url"], self.BASE + "/hu-2026-09-26.frontier")
+        self.assertEqual(manifest.assets(m), ["hu-2026-09-26.frontier"])  # neither package is re-uploaded
+
+    def test_changed_frontier_is_caught(self):
+        self.built("MD", b"md", frontier=self.frontier("MD"))
+        m = self.m()
+        self.put("md-2026-09-26.frontier", b"wedrive-frontier 1\nX\n")
+        self.assertGreater(manifest.check(m, self.d), 0)
+
+    def test_completeness_needs_a_frontier_per_country(self):
+        for code in CFG["countries"]:
+            self.built(code, code.encode())
+        for b in CFG["borders"]:
+            a, c = b["between"]
+            self.put("%s-%s.portals" % (a.lower(), c.lower()), b"1\n")
+        self.assertIn("incomplete: MD has no frontier", manifest.complete(self.m(), self.cfg))
+
     def test_completeness(self):
         self.built("MD", b"md")
         self.assertTrue(manifest.complete(self.m(), self.cfg))
         for code in CFG["countries"]:
-            self.built(code, code.encode())
+            self.built(code, code.encode(), frontier=self.frontier(code))
         for b in CFG["borders"]:
             a, c = b["between"]
             self.put("%s-%s.portals" % (a.lower(), c.lower()), b"1\n")
@@ -287,12 +351,14 @@ class Portals(unittest.TestCase):
 class Regress(unittest.TestCase):
     """regional-regress.py against a fake valhalla_service: seams, lost regions and km decide."""
 
-    def run_with(self, km, seams, lost=0, countries=("MD",)):
+    def run_with(self, km, seams, lost=0, countries=("MD",), engine_line=None):
         d = tempfile.mkdtemp()
         try:
             fake = os.path.join(d, "valhalla_service")
             with open(fake, "w") as f:
                 f.write("#!/bin/sh\n")
+                if engine_line:
+                    f.write("echo '%s' >&2\n" % engine_line)
                 for _ in range(seams):
                     f.write("echo 'WEDRIVE SEAM x' >&2\n")
                 for _ in range(lost):
@@ -320,6 +386,13 @@ class Regress(unittest.TestCase):
 
     def test_no_probe_for_the_set_fails(self):
         self.assertEqual(self.run_with(1.0, 0, countries=("XX",)).returncode, 1)
+
+    def test_a_portal_rejected_by_the_engine_fails(self):
+        r = self.run_with(138.0, 0, engine_line="[INFO] WEDRIVE: регионов 2, порталов 30, отвергнуто 2")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("отверг 2", r.stdout)
+        r = self.run_with(138.0, 0, engine_line="[INFO] WEDRIVE: регионов 2, порталов 32, отвергнуто 0")
+        self.assertEqual(r.returncode, 0, r.stdout)
 
 
 if __name__ == "__main__":
