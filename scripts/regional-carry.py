@@ -71,6 +71,17 @@ def carry(manifest, code, work, fetch=fetch):
             os.remove(fdst)
             raise SystemExit("%s: frontier %s does not match the manifest" % (code, fr["file"]))
         desc["frontier"] = dict(fr)
+    # Navigation features travel the same way: the carried country keeps the very file of its own
+    # graph version. One published before features existed simply has none until it is rebuilt.
+    fe = r.get("features")
+    if fe:
+        edst = os.path.join(work, fe["file"])
+        if not (os.path.isfile(edst) and sha256(edst) == fe["sha256"]):
+            fetch(fe["url"], edst)
+        if os.path.getsize(edst) != fe["bytes"] or sha256(edst) != fe["sha256"]:
+            os.remove(edst)
+            raise SystemExit("%s: features %s does not match the manifest" % (code, fe["file"]))
+        desc["features"] = dict(fe)
     with open(os.path.join(work, "%s.package.json" % code.lower()), "w", encoding="utf-8") as f:
         json.dump(desc, f, indent=2)
     print("   %s carried: %s (%d bytes, sha256 ok)" % (code, r["package"], r["bytes"]))

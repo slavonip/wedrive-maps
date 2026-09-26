@@ -233,6 +233,31 @@ class Manifest(unittest.TestCase):
         return subprocess.run([sys.executable, os.path.join(HERE, "lite_manifest.py")] + args,
                               capture_output=True, text=True)
 
+    def files(self):
+        r = subprocess.run([sys.executable, os.path.join(HERE, "lite_manifest.py"), "files", self.out],
+                           capture_output=True, text=True)
+        return r.stdout.split()
+
+    def test_without_features_the_release_is_the_contract_five(self):
+        self.assertEqual(self.make().returncode, 0)
+        self.assertNotIn("features", json.load(open(self.out)))
+        self.assertEqual(self.files(), ["europe_lite.tar.gz", "europe_lite.osm.pbf", "gates.json",
+                                        "europe-lite.json", "SHA256SUMS"])
+
+    def test_features_ride_in_the_manifest_with_their_counts(self):
+        with open(os.path.join(self.d, "europe_lite.features"), "w") as f:
+            f.write("wedrive-features 1\ncountry EU\ngraph_version 2026-09-21\nsource x\nentries 0\n"
+                    "counts camera_speed=0,camera_red_light=0,camera_section=0,level_crossing=0,"
+                    "tram_level_crossing=0,traffic_signals=0\nid type lat_e7 lon_e7 bearing maxspeed way_ids attrs\n")
+        r = self.make()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        fe = json.load(open(self.out))["features"]
+        self.assertEqual((fe["file"], fe["format"], fe["counts"]["camera_speed"]),
+                         ("europe_lite.features", "wedrive-features/1", 0))
+        self.assertTrue(fe["url"].endswith("/europe-lite-2026-09-21/europe_lite.features"))
+        self.assertIn("europe_lite.features", self.files())
+        self.assertEqual(len(self.files()), 6)
+
     def test_make_gives_the_contract(self):
         r = self.make()
         self.assertEqual(r.returncode, 0, r.stdout)

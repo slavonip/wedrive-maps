@@ -111,6 +111,13 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
             f = {k: fb[k] for k in ("format", "file", "bytes", "sha256", "entries", "osm_resolved") if k in fb}
             f["url"] = fb.get("url") or "%s/%s" % (base_url, fb["file"])
             r["frontier"] = f
+        # NAVIGATION FEATURES: cameras, enforcement, level crossings, signals of THIS graph version,
+        # travelling with the country exactly like the frontier (carried with it, own url).
+        fe = d.get("features")
+        if fe:
+            f = {k: fe[k] for k in ("format", "file", "bytes", "sha256", "entries", "counts") if k in fe}
+            f["url"] = fe.get("url") or "%s/%s" % (base_url, fe["file"])
+            r["features"] = f
         # map/search: из описания переносимой страны или из предыдущего манифеста — никогда не
         # теряются из-за того, что граф пересобран.
         for k in OPTIONAL_CARRY:
@@ -167,6 +174,11 @@ def frontier_here(m, r):
     return bool(f) and tag_of(f["url"]) == m.get("tag")
 
 
+def features_here(m, r):
+    f = r.get("features")
+    return bool(f) and tag_of(f["url"]) == m.get("tag")
+
+
 def assets(m):
     """Files uploaded into THIS run's release: packages (or their parts) built here, the frontiers
     made here (rebuilt or backfilled countries), all legacy tables."""
@@ -176,6 +188,8 @@ def assets(m):
             out += [p["name"] for p in r["parts"]] if r.get("parts") else [r["package"]]
         if frontier_here(m, r):
             out.append(r["frontier"]["file"])
+        if features_here(m, r):
+            out.append(r["features"]["file"])
     out += [t["file"] for t in m["portals"].values()]
     return out
 
@@ -189,6 +203,8 @@ def urls(m):
             else [(r["url"], r["bytes"])]
         if r.get("frontier"):
             out.append((r["frontier"]["url"], r["frontier"]["bytes"]))
+        if r.get("features"):
+            out.append((r["features"]["url"], r["features"]["bytes"]))
     out += [(t["url"], t["bytes"]) for t in m["portals"].values()]
     return out
 
@@ -204,6 +220,8 @@ def verify_assets(m, directory):
                 want[r["package"]] = (r["bytes"], r["sha256"])
         if frontier_here(m, r):
             want[r["frontier"]["file"]] = (r["frontier"]["bytes"], r["frontier"]["sha256"])
+        if features_here(m, r):
+            want[r["features"]["file"]] = (r["features"]["bytes"], r["features"]["sha256"])
     want.update({t["file"]: (t["bytes"], t["sha256"]) for t in m["portals"].values()})
     problems = []
     for name, (size, digest) in sorted(want.items()):
@@ -313,6 +331,18 @@ def check(m, work, complete_cfg=None, provenance=False):
                 print("   %-8s %-28s ok  frontier %d, OSM id %d%s" % (
                     code, f["file"], f.get("entries", 0), f.get("osm_resolved", 0),
                     "" if frontier_here(m, r) else "  (перенос)"))
+        fe = r.get("features")
+        if fe:
+            p = os.path.join(work, fe["file"])
+            if fe.get("format") != "wedrive-features/1":
+                print("   %-8s features format %s unknown" % (code, fe.get("format"))); bad += 1
+            elif not os.path.isfile(p):
+                print("   НЕТ ФАЙЛА %s (features %s)" % (fe["file"], code)); bad += 1
+            elif sha256(p) != fe["sha256"] or os.path.getsize(p) != fe["bytes"]:
+                print("   %-8s %-28s FEATURES НЕ СОШЛИСЬ" % (code, fe["file"])); bad += 1
+            else:
+                print("   %-8s %-28s ok  features %d%s" % (code, fe["file"], fe.get("entries", 0),
+                                                        "" if features_here(m, r) else "  (перенос)"))
         if provenance:
             src = r.get("source") or {}
             for k in ("md5", "sha256", "replication"):

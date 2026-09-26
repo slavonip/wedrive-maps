@@ -24,14 +24,19 @@ say() { echo "[$(date +%H:%M:%S)] $*"; }
 cd "$DIR"
 
 # --- 1 --------------------------------------------------------------------------------------------
-for f in europe_lite.tar.gz europe_lite.osm.pbf gates.json europe-lite.json; do
+# The release's files come from the manifest: the contract five, plus europe_lite.features when the
+# manifest describes it (releases before 2026-09-27 have none).
+[ -s europe-lite.json ] || { echo "missing europe-lite.json"; exit 1; }
+mapfile -t ALL < <(python3 "$HERE/lite_manifest.py" files europe-lite.json)
+SUMMED=(); for f in "${ALL[@]}"; do [ "$f" = SHA256SUMS ] || SUMMED+=("$f"); done
+for f in "${SUMMED[@]}"; do
   [ -s "$f" ] || { echo "missing $f"; exit 1; }
 done
 python3 "$HERE/lite_manifest.py" check europe-lite.json --dir "$DIR"
 TAG="$(python3 -c 'import json;print(json.load(open("europe-lite.json"))["tag"])')"
 VERSION="$(python3 -c 'import json;print(json.load(open("europe-lite.json"))["version"])')"
 [ "$(python3 -c 'import json;print(json.load(open("gates.json"))["verdict"])')" = PASS ] || { echo "gates.json is not PASS"; exit 1; }
-sha256sum europe_lite.tar.gz europe_lite.osm.pbf gates.json europe-lite.json > SHA256SUMS
+sha256sum "${SUMMED[@]}" > SHA256SUMS
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
   echo "release $TAG already exists: tags are immutable, nothing published"; exit 1
 fi
@@ -51,24 +56,24 @@ print("- gates: struct %s, transit %s (%s pairs, %s new transits), routes %s (pa
     g["struct"]["verdict"], g["transit"]["verdict"], g["transit"].get("pairs"), g["transit"].get("new_transits"),
     g["routes"]["verdict"], g["routes"].get("pass"), g["routes"].get("known"), g["routes"].get("accepted"), g["routes"].get("fail")))
 print("- run: %s" % (m["run"].get("url") or m["run"].get("note") or "-"))
-print("\nThe manifest is europe-lite.json; SHA256SUMS covers the other four assets.")
+print("\nThe manifest is europe-lite.json; SHA256SUMS covers every other asset.")
 PY
 say "draft $TAG"
 gh release create "$TAG" --repo "$REPO" --draft --title "Europe Lite $VERSION" --notes-file notes.md
 say "upload"
-gh release upload "$TAG" --repo "$REPO" europe_lite.tar.gz europe_lite.osm.pbf gates.json europe-lite.json SHA256SUMS
+gh release upload "$TAG" --repo "$REPO" "${ALL[@]}"
 say "verify the draft's assets by downloading them back"
 CHK="$(mktemp -d)"
 gh release download "$TAG" --repo "$REPO" --dir "$CHK"
 ( cd "$CHK" && sha256sum -c SHA256SUMS && cmp SHA256SUMS "$DIR/SHA256SUMS" )
-n="$(ls "$CHK" | wc -l)"; [ "$n" = 5 ] || { echo "the draft has $n assets, expected 5"; exit 1; }
+n="$(ls "$CHK" | wc -l)"; [ "$n" = "${#ALL[@]}" ] || { echo "the draft has $n assets, expected ${#ALL[@]}"; exit 1; }
 rm -rf "$CHK"
 
 # --- 5 --------------------------------------------------------------------------------------------
 gh release edit "$TAG" --repo "$REPO" --draft=false --latest=false
 PUBLISHED=1
 say "published $TAG; checking the public URLs"
-for f in europe_lite.tar.gz europe_lite.osm.pbf gates.json europe-lite.json SHA256SUMS; do
+for f in "${ALL[@]}"; do
   want="$(stat -c %s "$f")"
   got="$(curl -sfIL "https://github.com/$REPO/releases/download/$TAG/$f" | awk 'tolower($1)=="content-length:"{v=$2} END{gsub("\r","",v); print v}')"
   [ "$got" = "$want" ] || { echo "public $f: size $got, expected $want — pointer NOT moved"; exit 1; }

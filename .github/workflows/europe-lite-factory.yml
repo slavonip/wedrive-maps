@@ -114,6 +114,16 @@ jobs:
           bash "$LITE/factory/source-json.sh" "$WORK" "$WORK/source.json"
       - name: build.sh --new-data
         run: bash "$LITE/build.sh" --new-data "$WORK" "$LITE_IMAGE"
+      # NAVIGATION FEATURES of the Lite road network: node features and their road association come
+      # from europe_lite_final.osm.pbf itself (by construction the Lite roads with every node and
+      # tag); enforcement relations from the source, kept where they touch a Lite road. Full
+      # country files are authoritative on the device; this covers countries driven on Lite only.
+      - name: navigation features (Lite)
+        run: |
+          set -euo pipefail
+          rep=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["replication"])' "$WORK/source.json")
+          python3 scripts/regional-features.py build-lite "$WORK/europe_lite_final.osm.pbf" "$WORK/europe.osm.pbf"             "${rep:0:10}" "$WORK/europe_lite.features" --source "$rep"
+          ls -l "$WORK/europe_lite.features"
       - name: graph facts
         id: graph
         run: |
@@ -133,6 +143,7 @@ jobs:
           path: |
             ${{ env.WORK }}/europe_lite_final.osm.pbf
             ${{ env.WORK }}/europe_lite.tar.gz
+            ${{ env.WORK }}/europe_lite.features
             ${{ env.WORK }}/connectors.osm.pbf
             ${{ env.WORK }}/europe_admin.osm.pbf
             ${{ env.WORK }}/timezones.sqlite
@@ -260,19 +271,22 @@ jobs:
         with:
           name: lite-gates
           path: ${{ runner.temp }}/gates
-      - name: the five assets under their contract names, and the manifest
+      - name: the assets under their contract names, and the manifest
         run: |
           set -euo pipefail
           D="$RUNNER_TEMP/release"; I="$RUNNER_TEMP/in"; mkdir -p "$D"
           mv "$I/europe_lite.tar.gz" "$D/europe_lite.tar.gz"
           mv "$I/europe_lite_final.osm.pbf" "$D/europe_lite.osm.pbf"
+          # features gate against the current pointer: a type gone to zero stops the release
+          python3 scripts/regional-features.py gates-lite "$I/europe_lite.features" europe-lite.json
+          mv "$I/europe_lite.features" "$D/europe_lite.features"
           cp "$RUNNER_TEMP/gates/gates.json" "$D/gates.json"
           python3 "$LITE/factory/lite_manifest.py" make --repo "$GITHUB_REPOSITORY" --dir "$D" \
             --source "$I/source.json" --gates "$D/gates.json" --lite-image "$LITE_IMAGE" \
             --tiles "${{ needs.build.outputs.tiles }}" --tar-bytes "${{ needs.build.outputs.tar_bytes }}" \
             --run-id "$GITHUB_RUN_ID" --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             --factory-commit "$GITHUB_SHA" --out "$D/europe-lite.json"
-          ( cd "$D" && sha256sum europe_lite.tar.gz europe_lite.osm.pbf gates.json europe-lite.json > SHA256SUMS && ls -l )
+          ( cd "$D" && sha256sum europe_lite.tar.gz europe_lite.osm.pbf europe_lite.features gates.json europe-lite.json > SHA256SUMS && ls -l )
           cat "$D/europe-lite.json"
       - uses: actions/upload-artifact@v4
         with:

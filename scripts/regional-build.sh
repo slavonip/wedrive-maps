@@ -114,6 +114,20 @@ FR_BYTES="$(stat -c %s "$FRONTIER")"
 FR_ENTRIES="$(sed -n 's/^entries //p' "$FRONTIER")"
 FR_OSM="$(sed -n 's/^osm_resolved //p' "$FRONTIER")"
 
+# NAVIGATION FEATURES — cameras, enforcement (red light, section control), level crossings and
+# traffic signals of THIS extract: the same OSM snapshot as the graph, so every way id in it names
+# a way of this graph version. Updated with the country and only with it. The gates against the
+# previous release (a type gone to zero, far-off coordinates) run in the factory's manifest step.
+echo "==> features"
+FEATURES="$OUT/${low}-${DATA_DATE}.features"
+python3 "$(dirname "$0")/regional-features.py" build "$PBF" "$CODE" "$DATA_DATE" "$FEATURES" \
+  --source "$REPLICATION" \
+  || { echo "features $CODE не извлеклись — пакет не выпускается" >&2; exit 1; }
+FE_SHA="$(sha256sum "$FEATURES" | cut -d' ' -f1)"
+FE_BYTES="$(stat -c %s "$FEATURES")"
+FE_ENTRIES="$(sed -n 's/^entries //p' "$FEATURES")"
+FE_COUNTS="$(python3 "$(dirname "$0")/regional-features.py" counts "$FEATURES")"
+
 # ПУТЬ АРХИВА ЗАДАЁТСЯ В КОНФИГЕ, а не аргументом: valhalla_build_extract пишет туда, куда
 # указывает mjolnir.tile_extract. Позиционного аргумента у него нет вовсе, и переданный
 # argparse отвергает с кодом 2. Отдельный конфиг под упаковку нужен потому, что в основном
@@ -173,6 +187,14 @@ cat > "$OUT/${low}.package.json" <<JSON
     "sha256": "$FR_SHA",
     "entries": $FR_ENTRIES,
     "osm_resolved": $FR_OSM
+  },
+  "features": {
+    "format": "wedrive-features/1",
+    "file": "$(basename "$FEATURES")",
+    "bytes": $FE_BYTES,
+    "sha256": "$FE_SHA",
+    "entries": $FE_ENTRIES,
+    "counts": $FE_COUNTS
   }
 }
 JSON

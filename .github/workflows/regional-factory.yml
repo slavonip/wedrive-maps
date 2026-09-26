@@ -78,6 +78,7 @@ jobs:
         run: |
           python3 tests/test_regional.py
           python3 tests/test_frontier.py
+          python3 tests/test_features.py
       - name: mode
         id: mode
         env:
@@ -206,6 +207,15 @@ jobs:
           python3 scripts/regional-frontier.py backfill "$WORK" "$WORK/installed"
           python3 scripts/regional-frontier.py report "$WORK" manifest.json | tee "$WORK/frontier-report.txt"
 
+      # NAVIGATION FEATURES: a carried country published before features existed gets them from
+      # the dated extract its graph was built from (md5 = provenance); then every country's file is
+      # gated against the previous production release (a type gone to zero fails the run).
+      - name: navigation features (migration backfill) and gates
+        run: |
+          set -u
+          python3 scripts/regional-features.py backfill "$WORK"
+          python3 scripts/regional-features.py gates "$WORK" regional.json manifest.json | tee "$WORK/features-report.txt"
+
       # THE TABLE THE APP BUILDS: D1 over the set's frontiers. It is what the regression below runs
       # on, because it is what the car runs on. Ambiguity, or a border of regional.json with both
       # countries present and no portal, fails the run.
@@ -303,6 +313,7 @@ jobs:
             /data/regional/regress.txt
             /data/regional/frontier-report.txt
             /data/regional/frontier-portals.json
+            /data/regional/features-report.txt
             /data/regional/resources.txt
             /data/regional/samples.csv
             /data/regional/timings.txt

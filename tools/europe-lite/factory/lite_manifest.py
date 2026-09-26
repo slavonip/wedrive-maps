@@ -20,6 +20,7 @@ import argparse, datetime, hashlib, json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 LITE = os.path.dirname(HERE)
 GRAPH, PBF = "europe_lite.tar.gz", "europe_lite.osm.pbf"
+FEATURES = "europe_lite.features"
 ASSETS = [GRAPH, PBF, "gates.json", "europe-lite.json", "SHA256SUMS"]
 PATCHES = {"B2": "valhalla-3.6.3-ferry-first-edge.patch",
            "C": "valhalla-3.6.3-border-control-contract.patch"}
@@ -44,6 +45,21 @@ def keyvals(path):
             k, v = (x.strip() for x in s.split("=", 1))
             out.setdefault(k, []).append(v)
     return {k: v[0] if len(v) == 1 else v for k, v in out.items()}
+
+
+def features_counts(path):
+    """The counts line of a wedrive-features file (the header is the contract, see
+    scripts/regional-features.py)."""
+    with open(path, encoding="ascii") as f:
+        for line in f:
+            if line.startswith("counts "):
+                return {k: int(v) for k, v in (kv.split("=") for kv in line.split(" ", 1)[1].strip().split(","))}
+    raise SystemExit("%s has no counts line" % path)
+
+
+def release_files(m):
+    """The files of a release: the contract five, plus the features when the manifest has them."""
+    return [GRAPH, PBF] + ([FEATURES] if m.get("features") else []) + ["gates.json", "europe-lite.json", "SHA256SUMS"]
 
 
 def url(repo, tag, name):
@@ -91,6 +107,11 @@ def make(a):
         "run": {"id": a.run_id, "url": a.run_url} if a.run_id else {"id": None, "url": None,
                                                                        "note": a.run_note},
     }
+    # Navigation features of the Lite roads (optional: releases before 2026-09-27 have none, and
+    # they must stay valid for a rollback).
+    if os.path.exists(os.path.join(a.dir, FEATURES)):
+        m["features"] = dict(entry(a.repo, tag, a.dir, FEATURES), format="wedrive-features/1",
+                             counts=features_counts(os.path.join(a.dir, FEATURES)))
     with open(a.out, "w", encoding="utf-8") as f:
         json.dump(m, f, indent=1, sort_keys=True)
         f.write("\n")
@@ -124,7 +145,7 @@ def validate(m, d=None):
         if not SHA.match(str(e.get("patches", {}).get(k, {}).get("sha256", ""))): p.append("patch %s hash missing" % k)
     if not e.get("image"): p.append("engine.image missing")
     if not m["pipeline"].get("revision"): p.append("pipeline.revision missing")
-    for key, name in (("graph", GRAPH), ("pbf", PBF)):
+    for key, name in (("graph", GRAPH), ("pbf", PBF)) + ((("features", FEATURES),) if "features" in m else ()):
         x = m[key]
         if x.get("file") != name: p.append("%s.file is %r, the contract says %r" % (key, x.get("file"), name))
         if not str(x.get("url", "")).endswith("/releases/download/%s/%s" % (m["tag"], name)):
@@ -136,6 +157,10 @@ def validate(m, d=None):
             if not os.path.exists(f): p.append("%s missing in %s" % (name, d))
             elif os.path.getsize(f) != x["bytes"] or sha256(f) != x["sha256"]:
                 p.append("%s in %s does not match the manifest" % (name, d))
+    if "features" in m:
+        fe = m["features"]
+        if fe.get("format") != "wedrive-features/1": p.append("features.format is %r" % fe.get("format"))
+        if not isinstance(fe.get("counts"), dict) or not fe["counts"]: p.append("features.counts missing")
     g = m["gates"]
     if g.get("verdict") != "PASS": p.append("gates verdict is %r" % g.get("verdict"))
     for k in ("struct", "transit", "routes"):
@@ -172,7 +197,12 @@ def main():
     ck = sub.add_parser("check")
     ck.add_argument("manifest")
     ck.add_argument("--dir")
+    fl = sub.add_parser("files", help="the file names of the release this manifest describes, one per line")
+    fl.add_argument("manifest")
     a = ap.parse_args()
+    if a.cmd == "files":
+        print("\n".join(release_files(json.load(open(a.manifest, encoding="utf-8")))))
+        return 0
     return make(a) if a.cmd == "make" else check(a)
 
 
