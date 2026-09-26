@@ -10,9 +10,8 @@
 # anywhere leaves the pointer where it was (tools/europe-lite/factory/publish.sh).
 #
 # Runners: GitHub-hosted ubuntu-22.04 (osmium-tool 1.14.0 and python 3.10, the versions final2 was
-# built with). The first runs are measurements (publish=false); if a job does not fit the hosted
-# limits, the factory moves to the existing Hetzner self-hosted runner rather than to a changed
-# pipeline.
+# built with). Measured on the production runs: every job fits the hosted limits. There is no
+# self-hosted fallback any more (Hetzner removed 2026-09-26).
 name: europe-lite-factory
 
 on:

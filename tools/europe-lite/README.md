@@ -231,9 +231,9 @@ reviewed commit.
 **Order of switching it on:** engine image → commit its digest to `engine.lock` → publish final2 as
 `europe-lite-2026-09-21` (`factory/seed-final2.sh`, then `factory/publish.sh`) → a manual run with
 `publish=false` (measurement: `lite-build-logs` holds the resource samples) → a manual run with
-`publish=true` → only then the monthly schedule (`17 3 3 * *`; enabled on 2026-09-25 after runs 36111034562 and 36124922573 — a scheduled run publishes, and precheck skips it when Geofabrik has nothing newer). If a
-job does not fit GitHub-hosted limits (6 h, ~86 GB free disk, 16 GB RAM), the factory moves to the
-existing Hetzner self-hosted runner; the pipeline is not changed to make it fit.
+`publish=true` → only then the monthly schedule (`17 3 3 * *`; enabled on 2026-09-25 after runs 36111034562 and 36124922573 — a scheduled run publishes, and precheck skips it when Geofabrik has nothing newer). Every
+job fits GitHub-hosted limits (6 h, ~86 GB free disk, 16 GB RAM), measured on those runs. There is
+no self-hosted fallback any more: Hetzner was removed on 2026-09-26.
 
 ## Diagnostics (not part of the build)
 

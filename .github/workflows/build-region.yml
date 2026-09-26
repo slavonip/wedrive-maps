@@ -28,16 +28,9 @@ on:
   #   # both exist. Moves to the 1st when the packages are retired.
   #   - cron: "17 2 8 * *"
 
-  # ── CALLABLE, SO EUROPE DOES NOT GET A SECOND PIPELINE ────────────────────────────────────
-  # `europe-build.yml` creates an ephemeral Hetzner machine and then calls THIS workflow to do
-  # the work. The alternative was copying the build steps into that workflow, which would have
-  # given the largest and least-tested build its own divergent copy of the logic — so a fix
-  # found on eu-core would silently not apply to Europe, and the two would drift in exactly the
-  # direction nobody checks.
-  #
-  # What varies between them is one thing: WHICH MACHINE the build job runs on. Everything else
-  # — coverage, the timezone gate, build-master.sh, the cuts, the probes, publication — is the
-  # same code reached the same way.
+  # Callable, so a caller reuses exactly these steps rather than a copy. The only caller was
+  # europe-build.yml (an ephemeral Hetzner builder), removed with Hetzner on 2026-09-26: every
+  # build runs on GitHub-hosted runners.
   workflow_call:
     inputs:
       region:
@@ -47,11 +40,6 @@ on:
         type: string
         required: false
         default: "vendored"
-      runner:
-        description: "JSON array of runner labels for the BUILD job only. Plan and publish stay free."
-        type: string
-        required: false
-        default: '["ubuntu-latest"]'
 
 concurrency:
   group: build-region
@@ -92,22 +80,9 @@ jobs:
 
   build:
     needs: plan
-    # THE ONLY THING EUROPE CHANGES. `ubuntu-latest` for eu-core and every scheduled run;
-    # the ephemeral Hetzner builder when the caller passes its labels. The `||` fallback is
-    # load-bearing: on `workflow_dispatch` this input does not exist, and `fromJSON('')` is a
-    # hard error rather than a default.
-    runs-on: ${{ fromJSON(inputs.runner || '["ubuntu-latest"]') }}
-    # ── THE SIX-HOUR CLIFF IS A JOB DEFAULT, NOT A RUNNER PROPERTY ──────────────────────────
-    # A self-hosted runner may execute a job for five days, but `timeout-minutes` still defaults
-    # to 360 wherever the job runs. Moving Europe onto our own machine and leaving that default
-    # in place would have re-imposed the exact limit the move exists to escape -- and it would
-    # have done so at hour six of a paid build, with the graph nearly finished.
-    #
-    # 720 rather than the maximum: the estimate is 4.5 h with an unknown error, so this is
-    # generous, and a build still running at twelve hours is a build that has gone wrong in a way
-    # more time will not fix. The machine's `expires` label and the hourly watchdog bound the
-    # cost independently, so pass a matching `ttl_hours` when dispatching.
-    timeout-minutes: 720
+    # GitHub-hosted only (Hetzner removed 2026-09-26). 350: just under the hosted six-hour limit.
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
     container:
       image: ghcr.io/valhalla/valhalla:3.6.3
       options: --user root
