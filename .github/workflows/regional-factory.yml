@@ -104,11 +104,15 @@ jobs:
             echo "::error::publish needs the whole set of regional.json; a partial set is a control run (dry or verify)"
             exit 1
           fi
+      # (each step has its OWN $GITHUB_OUTPUT file: the plan's value is read through its output,
+      # not by grepping a file that is empty here — that mistake cost run 36272141398)
       - name: the rebuilt countries as a matrix for the basemap job
         id: matrix
+        env:
+          REBUILT: ${{ steps.plan.outputs.rebuild }}
         run: |
-          rb=$(grep '^rebuild=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)
-          echo "rebuild_json=$(python3 -c 'import json,sys;print(json.dumps([c for c in sys.argv[1].split(",") if c]))' "$rb")" >> "$GITHUB_OUTPUT"
+          echo "rebuild_json=$(python3 -c 'import json,sys;print(json.dumps([c for c in sys.argv[1].split(",") if c]))' "$REBUILT")" >> "$GITHUB_OUTPUT"
+          echo "basemap matrix: $REBUILT"
 
   # ── BASEMAP + SEARCH of every rebuilt country, in parallel: what the driver sees (Protomaps
   # pmtiles) and what he searches (SQLite FTS4 index, Search v2). Built with the country, so a
