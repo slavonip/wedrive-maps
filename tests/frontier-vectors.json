@@ -1,0 +1,96 @@
+{
+  "about": "D1 frontier matching vectors. SHARED by wedrive-maps/tests/test_frontier.py and wedrive data/src/test/resources/frontier-vectors.json (byte-identical copies). Rows: [level, lat_e7, lon_e7, local_id, osm_node_id|null]. Expected pairs: [index_in_A, index_in_B, method, distance_m]. Coordinates are real: X = 47.6943833,16.9752574, the HU-AT node OSM moved by 2.66 m between v8 and v13. 1 m of latitude = ~89.93 units of lat_e7.",
+  "cases": [
+    {
+      "name": "E: same (osm, level), coordinate moved 2.66 m -> accepted by id, real distance",
+      "A": [[2, 476943833, 169752574, 18, 2330850050]],
+      "B": [[2, 476943833, 169752218, 26, 2330850050]],
+      "pairs": [[0, 0, "osm", 2.67]],
+      "ambiguous": 0
+    },
+    {
+      "name": "F: no OSM id on either side, exact coordinate -> accepted by coordinate",
+      "A": [[1, 476943833, 169752574, 17, null]],
+      "B": [[1, 476943833, 169752574, 25, null]],
+      "pairs": [[0, 0, "coord", 0.0]],
+      "ambiguous": 0
+    },
+    {
+      "name": "artificial 5 m fallback: A without id, B with another id, 3.0 m apart, one candidate -> accepted",
+      "A": [[2, 476943833, 169752574, 18, null]],
+      "B": [[2, 476944103, 169752574, 26, 999]],
+      "pairs": [[0, 0, "near", 3.01]],
+      "ambiguous": 0
+    },
+    {
+      "name": "artificial 5 m fallback: different ids 3.0 m apart -> accepted by distance",
+      "A": [[2, 476943833, 169752574, 18, 111]],
+      "B": [[2, 476944103, 169752574, 26, 222]],
+      "pairs": [[0, 0, "near", 3.01]],
+      "ambiguous": 0
+    },
+    {
+      "name": "4.99 m, one candidate -> accepted",
+      "A": [[2, 476943833, 169752574, 18, null]],
+      "B": [[2, 476944282, 169752574, 26, null]],
+      "pairs": [[0, 0, "near", 5.0]],
+      "ambiguous": 0
+    },
+    {
+      "name": "A: 5.01 m -> rejected",
+      "A": [[2, 476943833, 169752574, 18, null]],
+      "B": [[2, 476944284, 169752574, 26, null]],
+      "pairs": [],
+      "ambiguous": 0
+    },
+    {
+      "name": "B: two candidates within 5 m -> rejected as ambiguous",
+      "A": [[2, 476943833, 169752574, 18, null]],
+      "B": [[2, 476944013, 169752574, 26, null], [2, 476943563, 169752574, 34, null]],
+      "pairs": [],
+      "ambiguous": 1
+    },
+    {
+      "name": "mutual uniqueness: one B, two A within 5 m -> rejected",
+      "A": [[2, 476943833, 169752574, 18, null], [2, 476944193, 169752574, 42, null]],
+      "B": [[2, 476944013, 169752574, 26, null]],
+      "pairs": [],
+      "ambiguous": 2
+    },
+    {
+      "name": "C: same coordinate, different level, no id -> rejected",
+      "A": [[1, 476943833, 169752574, 17, null]],
+      "B": [[2, 476943833, 169752574, 26, null]],
+      "pairs": [],
+      "ambiguous": 0
+    },
+    {
+      "name": "D: same osm id, different level -> not matched",
+      "A": [[1, 476943833, 169752574, 17, 2330850050]],
+      "B": [[2, 476943833, 169752574, 26, 2330850050]],
+      "pairs": [],
+      "ambiguous": 0
+    },
+    {
+      "name": "id wins over a closer point: A id 5; B has id 5 at 4 m and a no-id node on the exact point",
+      "A": [[2, 476943833, 169752574, 18, 5]],
+      "B": [[2, 476944193, 169752574, 26, 5], [2, 476943833, 169752574, 34, null]],
+      "pairs": [[0, 0, "osm", 4.01]],
+      "ambiguous": 0
+    },
+    {
+      "name": "one OSM node on two levels (measured on RO-HU, HU-AT, AT-DE): each level pairs with its own level",
+      "A": [[1, 476943833, 169752574, 17, 77], [2, 476943833, 169752574, 18, 77]],
+      "B": [[1, 476943833, 169752574, 25, 77], [2, 476943833, 169752574, 26, 77]],
+      "pairs": [[0, 0, "osm", 0.0], [1, 1, "osm", 0.0]],
+      "ambiguous": 0
+    },
+    {
+      "name": "vanished crossing is never matched to a new one 808 m away (RO-HU, measured)",
+      "A": [[2, 461583385, 203768083, 18, 306893621]],
+      "B": [[2, 461532964, 203692478, 26, 14207550809]],
+      "pairs": [],
+      "ambiguous": 0
+    }
+  ]
+}

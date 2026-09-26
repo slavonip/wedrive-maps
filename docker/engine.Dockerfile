@@ -51,6 +51,14 @@ RUN cd wedrive/tools \
       $(pkg-config --cflags --libs libvalhalla) \
  && cp /src/valhalla/wedrive/tools/make-manifest.py /usr/local/bin/make-manifest.py 2>/dev/null || true
 
+# FRONTIER: the border nodes of ONE country graph (scripts/regional-frontier.py). It lives in this
+# repository, not in the engine's, because it is a factory tool that only READS tiles: it adds a
+# binary to the image and changes nothing the engine does — engine_sha, and with it every
+# country's rebuild decision, stay the same.
+COPY docker/tools/frontier_dump.cc /src/factory-tools/frontier_dump.cc
+RUN g++ -std=c++20 -O2 /src/factory-tools/frontier_dump.cc -o /usr/local/bin/frontier_dump \
+      $(pkg-config --cflags --libs libvalhalla)
+
 # Отпечаток движка внутри образа: по нему манифест называет версию, которой собран пакет.
 RUN echo "${ENGINE_REF}" > /etc/wedrive-engine-ref \
  && git -C /src/valhalla rev-parse HEAD > /etc/wedrive-engine-sha
@@ -79,3 +87,4 @@ RUN ldconfig
 RUN gid_test > /dev/null && echo "инвариант GraphId: ok"
 RUN valhalla_build_tiles --help > /dev/null 2>&1 || true
 RUN test -x /usr/local/bin/portal_border || (echo "нет portal_border" >&2; exit 1)
+RUN test -x /usr/local/bin/frontier_dump || (echo "нет frontier_dump" >&2; exit 1)

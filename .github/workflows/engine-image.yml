@@ -23,6 +23,7 @@ on:
     branches: [main]
     paths:
       - "docker/engine.Dockerfile"
+      - "docker/tools/**"
       - ".github/workflows/engine-image.yml"
 
 permissions:
@@ -77,7 +78,7 @@ jobs:
           echo "--- инвариант GraphId:"
           docker run --rm "$IMG" gid_test | tail -4
           echo "--- инструменты:"
-          docker run --rm "$IMG" sh -c 'ls /usr/local/bin | grep -E "valhalla_build_tiles|valhalla_build_admins|valhalla_build_extract|valhalla_service|portal_border"'
+          docker run --rm "$IMG" sh -c 'ls /usr/local/bin | grep -E "valhalla_build_tiles|valhalla_build_admins|valhalla_build_extract|valhalla_service|portal_border|frontier_dump"'
 
       # The factory never runs this tag: it runs the DIGEST pinned in regional-engine.lock. A new
       # engine reaches the factory only as a reviewed commit of these lines to that file.
