@@ -267,6 +267,8 @@ class Manifest(unittest.TestCase):
         self.assertEqual(r["map"]["url"], self.BASE + "/md.pmtiles")
         self.assertEqual(r["search"]["url"], self.BASE + "/md.search.sqlite")
         self.assertEqual(manifest.assets(m), ["md-2026-09-26.tar.gz", "md.pmtiles.part001", "md.pmtiles.part002", "md.search.sqlite"])
+        # the factory job moves only its own outputs; map/search arrive via the basemap artifact (run 36272220204)
+        self.assertEqual(manifest.assets(m, side=False), ["md-2026-09-26.tar.gz"])
         urls = dict(manifest.urls(m))
         self.assertEqual(urls[self.BASE + "/md.pmtiles.part002"], 10)
         self.assertEqual(urls[self.BASE + "/md.search.sqlite"], 5)

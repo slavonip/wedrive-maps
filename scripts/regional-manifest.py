@@ -200,9 +200,12 @@ def side_files(entry):
     return [(entry["file"], entry["bytes"], entry["sha256"])]
 
 
-def assets(m):
+def assets(m, side=True):
     """Files uploaded into THIS run's release: packages (or their parts) built here, the frontiers
-    made here (rebuilt or backfilled countries), all legacy tables."""
+    made here (rebuilt or backfilled countries), all legacy tables and, unless side=False, the
+    map/search files. Those are built by the basemap job and reach the release through their own
+    artifact, so the factory job (which moves only ITS OWN outputs into dist) asks with side=False;
+    publish still verifies the full list (verify_assets)."""
     out = []
     for r in m["regions"].values():
         if here(m, r):
@@ -211,7 +214,7 @@ def assets(m):
             out.append(r["frontier"]["file"])
         if features_here(m, r):
             out.append(r["features"]["file"])
-        for k in OPTIONAL_CARRY:
+        for k in (OPTIONAL_CARRY if side else ()):
             if side_here(m, r, k):
                 out += [n for n, _, _ in side_files(r[k])]
     out += [t["file"] for t in m["portals"].values()]
@@ -436,7 +439,8 @@ def main():
         a = ap.parse_args(sys.argv[2:])
         return 1 if check(json.load(open(a.manifest, encoding="utf-8")), a.work, a.complete, a.provenance) else 0
     if cmd == "assets":
-        print("\n".join(assets(json.load(open(sys.argv[2], encoding="utf-8")))))
+        side = "--built-here" not in sys.argv[3:]
+        print("\n".join(assets(json.load(open(sys.argv[2], encoding="utf-8")), side=side)))
         return 0
     if cmd == "verify-assets":
         problems = verify_assets(json.load(open(sys.argv[2], encoding="utf-8")), sys.argv[3])

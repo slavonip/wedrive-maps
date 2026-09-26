@@ -352,7 +352,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           mkdir -p "$WORK/dist"
           cp "$WORK/manifest.json" "$WORK/dist/"
-          python3 scripts/regional-manifest.py assets "$WORK/manifest.json" | while read -r f; do
+          python3 scripts/regional-manifest.py assets "$WORK/manifest.json" --built-here | while read -r f; do
             mv "$WORK/$f" "$WORK/dist/"
           done
           find "$WORK/dist" -maxdepth 1 -type f -printf '   %s  %f\n'
