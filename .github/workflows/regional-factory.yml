@@ -37,6 +37,13 @@ on:
         description: "Порог разрезания пакета, байт. Пусто = 1.9 ГиБ (предел актива GitHub). Меньше — проверить механику на небольшой стране."
         required: false
         default: ""
+  # Monthly, enabled 2026-09-26 after control runs MD, MD+RO, all five (verify) and the first
+  # production run 36200018901 (regional-2026-09-26-13). The 4th at 03:17 UTC: a day after Europe
+  # Lite (3rd, 03:17) so the two heavy factories never share an evening, and outside Geofabrik's
+  # publishing window, when -latest and its .md5 can disagree for tens of minutes. A scheduled run
+  # is mode=publish; precheck ends it without a release when no source changed.
+  schedule:
+    - cron: '17 3 4 * *'
 
 concurrency:
   group: regional-factory
