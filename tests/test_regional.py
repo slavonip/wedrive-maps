@@ -419,5 +419,44 @@ class Regress(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
 
 
+class SourceIdentity(unittest.TestCase):
+    """Owner 2026-09-27: graph, frontier, features and search addresses of one country version come
+    from ONE PBF, or the run fails — never a warning."""
+
+    def region(self, graph="aaa", fr="aaa", fe="aaa", ad="aaa"):
+        r = {"source": {"md5": graph}}
+        if fr is not None: r["frontier"] = {"file": "f", "source_md5": fr}
+        if fe is not None: r["features"] = {"file": "e", "source_md5": fe}
+        if ad is not None: r["search"] = {"file": "s", "addresses": {"houses": 1, "source_md5": ad}}
+        return r
+
+    def test_one_source_passes(self):
+        rows, problems = manifest.sources({"regions": {"MD": self.region()}}, {"MD"})
+        self.assertEqual(problems, [])
+        self.assertEqual(len(rows), 4)
+
+    def test_a_search_from_another_pbf_fails(self):
+        _, problems = manifest.sources({"regions": {"MD": self.region(ad="bbb")}}, {"MD"})
+        self.assertTrue(any("search/addresses" in p for p in problems))
+
+    def test_a_country_built_now_must_carry_every_stamp(self):
+        _, problems = manifest.sources({"regions": {"MD": self.region(ad=None)}}, {"MD"})
+        self.assertTrue(any("no source identity" in p for p in problems))
+
+    def test_old_graph_with_a_new_search_fails_even_when_carried(self):
+        _, problems = manifest.sources({"regions": {"RO": self.region(graph="old", fr=None, fe=None, ad="new")}}, set())
+        self.assertEqual(len(problems), 1)
+
+    def test_a_pre_identity_carried_country_is_not_failed_for_missing_stamps(self):
+        _, problems = manifest.sources({"regions": {"RO": self.region(fr=None, fe=None, ad=None)}}, set())
+        self.assertEqual(problems, [])
+
+    def test_a_graph_only_frontier_is_not_a_pbf_asset(self):
+        r = self.region(fr=None)
+        r["frontier"] = {"file": "f", "source": "graph-only"}
+        _, problems = manifest.sources({"regions": {"MD": r}}, {"MD"})
+        self.assertEqual(problems, [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

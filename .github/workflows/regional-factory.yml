@@ -80,6 +80,10 @@ jobs:
           python3 tests/test_regional.py
           python3 tests/test_frontier.py
           python3 tests/test_features.py
+      - name: tests of the address index (builds a tiny PBF, so osmium)
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y osmium-tool >/dev/null
+          python3 tests/test_search_addresses.py
       - name: mode
         id: mode
         env:
@@ -134,6 +138,8 @@ jobs:
         run: |
           sudo rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
           df -h / | tail -1
+      - name: osmium (address extraction)
+        run: sudo apt-get -qq update && sudo apt-get -qq install -y osmium-tool >/dev/null && osmium --version | head -1
       - name: map and search index
         env:
           CODE: ${{ matrix.code }}
@@ -146,6 +152,18 @@ jobs:
           OUT_DIR="$RUNNER_TEMP/out" WORK="$RUNNER_TEMP" bash scripts/build-basemap.sh "$low" $box
           # build-index.py already wrote Search v2 (search_db.py: aliases as a JSON array, the
           # accepted encoding). NOT index-to-sqlite.py: that is the rejected space-joined prototype.
+          #
+          # HOUSE NUMBERS into the same file (block 10, owner 2026-09-27): the tiles carry no
+          # address at all, so they come from the country's Geofabrik PBF — the same extract the
+          # graph is built from, md5-verified, its md5 recorded in the asset. Streamed through an
+          # on-disk scratch table (Germany ~20.7 M addresses). Fails the job if nothing is indexed.
+          geo=$(python3 -c 'import json,sys;print(json.load(open("regional.json"))["countries"][sys.argv[1]]["geofabrik"])' "$CODE")
+          bash scripts/fetch-pbf.sh "$geo" "$RUNNER_TEMP/src.osm.pbf"
+          /usr/bin/time -v python3 scripts/search_addresses.py "$RUNNER_TEMP/src.osm.pbf" \
+            "$RUNNER_TEMP/out/$low-index.sqlite" --work "$RUNNER_TEMP" \
+            --source-md5 "$(cat "$RUNNER_TEMP/src.osm.pbf.md5")" 2> "$RUNNER_TEMP/addr-time.txt"
+          grep -E 'Maximum resident|Elapsed' "$RUNNER_TEMP/addr-time.txt" || true
+          rm -f "$RUNNER_TEMP/src.osm.pbf"
           mv "$RUNNER_TEMP/out/$low-index.sqlite" "$RUNNER_TEMP/out/$low.search.sqlite"
           rm -f "$RUNNER_TEMP/out/$low-index.json"
           python3 scripts/split-map.py "$RUNNER_TEMP/out" "$low"
@@ -343,6 +361,11 @@ jobs:
             --pipeline-rev "${{ github.sha }}" --run-id "${{ github.run_id }}" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --basemaps "$WORK/basemaps" > "$WORK/manifest.json"
+          # HARD GATE (owner 2026-09-27): graph, frontier, features and search house numbers of a
+          # country come from ONE Geofabrik PBF. The basemap job downloads it separately, so the
+          # md5s are compared here; any mismatch fails the run and nothing is published.
+          echo "--- source identity:"
+          python3 scripts/regional-manifest.py sources "$WORK/manifest.json" --built "$REBUILD"
           echo "--- manifest against the files:"
           if [ "$COMPLETE" = true ]; then
             python3 scripts/regional-manifest.py check "$WORK/manifest.json" "$WORK" --provenance --complete regional.json

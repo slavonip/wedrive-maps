@@ -19,6 +19,7 @@ and hashes, not gigabytes); the files themselves go straight to the publish job.
 import hashlib
 import json
 import os
+import sqlite3
 import sys
 
 SEARCH_FORMAT = "wedrive-search/sqlite-fts4"
@@ -50,6 +51,13 @@ def main(argv):
     im = json.load(open(os.path.join(out, "%s-index-meta.json" % low), encoding="utf-8"))
     s = {"format": SEARCH_FORMAT, "file": os.path.basename(sq), "bytes": os.path.getsize(sq),
          "sha256": sha256(sq), "counts": im.get("counts")}
+    # house numbers inside the same file (search_addresses.py): counted, with the PBF they came from
+    c = sqlite3.connect(sq)
+    if c.execute("SELECT count(*) FROM sqlite_master WHERE name = 'addr_meta'").fetchone()[0]:
+        am = dict(c.execute("SELECT k, v FROM addr_meta"))
+        s["addresses"] = {"format": am.get("format"), "streets": int(am.get("streets", 0)),
+                          "houses": int(am.get("houses", 0)), "source_md5": am.get("source_md5")}
+    c.close()
     desc = {"code": code, "map": m, "search": s}
     path = os.path.join(out, "%s.basemap-desc.json" % low)
     with open(path, "w", encoding="utf-8") as f:

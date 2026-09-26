@@ -186,7 +186,8 @@ cat > "$OUT/${low}.package.json" <<JSON
     "bytes": $FR_BYTES,
     "sha256": "$FR_SHA",
     "entries": $FR_ENTRIES,
-    "osm_resolved": $FR_OSM
+    "osm_resolved": $FR_OSM,
+    "source_md5": "$MD5"
   },
   "features": {
     "format": "wedrive-features/1",
@@ -194,7 +195,8 @@ cat > "$OUT/${low}.package.json" <<JSON
     "bytes": $FE_BYTES,
     "sha256": "$FE_SHA",
     "entries": $FE_ENTRIES,
-    "counts": $FE_COUNTS
+    "counts": $FE_COUNTS,
+    "source_md5": "$MD5"
   }
 }
 JSON

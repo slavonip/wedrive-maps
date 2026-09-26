@@ -447,12 +447,18 @@ def backfill(work, installed):
             print("   WARNING %s: no provenance to find the source extract — frontier without OSM ids" % code)
         out = os.path.join(work, "%s-%s.frontier" % (code.lower(), d["graph_version"]))
         _fr, problems = build(tiles, pbf, code, d["graph_version"], out)
+        from_source = pbf != "-"
         if pbf != "-":
             os.remove(pbf)
         if problems:
             raise FrontierError("%s: %s" % (code, "; ".join(problems)))
         d["frontier"] = frontier_block(out)
         d["frontier"]["backfilled"] = True
+        # source identity (owner 2026-09-27): the PBF the OSM ids came from, or none at all
+        if from_source:
+            d["frontier"]["source_md5"] = (d.get("source") or {}).get("md5")
+        else:
+            d["frontier"]["source"] = "graph-only"
         with open(desc_path, "w", encoding="utf-8") as f:
             json.dump(d, f, indent=2)
         made.append(code)

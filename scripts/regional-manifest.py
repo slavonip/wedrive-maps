@@ -108,14 +108,14 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
         # its frontier in a later release than its package (migration backfill).
         fb = d.get("frontier")
         if fb:
-            f = {k: fb[k] for k in ("format", "file", "bytes", "sha256", "entries", "osm_resolved") if k in fb}
+            f = {k: fb[k] for k in ("format", "file", "bytes", "sha256", "entries", "osm_resolved", "source_md5", "source") if k in fb}
             f["url"] = fb.get("url") or "%s/%s" % (base_url, fb["file"])
             r["frontier"] = f
         # NAVIGATION FEATURES: cameras, enforcement, level crossings, signals of THIS graph version,
         # travelling with the country exactly like the frontier (carried with it, own url).
         fe = d.get("features")
         if fe:
-            f = {k: fe[k] for k in ("format", "file", "bytes", "sha256", "entries", "counts") if k in fe}
+            f = {k: fe[k] for k in ("format", "file", "bytes", "sha256", "entries", "counts", "source_md5") if k in fe}
             f["url"] = fe.get("url") or "%s/%s" % (base_url, fe["file"])
             r["features"] = f
         # map/search: из описания переносимой страны или из предыдущего манифеста — никогда не
@@ -227,6 +227,38 @@ def assets(m, side=True):
                 out += [n for n, _, _ in side_files(r[k])]
     out += [t["file"] for t in m["portals"].values()]
     return out
+
+
+def sources(m, built=()):
+    """SOURCE IDENTITY (owner 2026-09-27, a hard gate): every asset of a country derived from its
+    Geofabrik PBF — frontier OSM ids, features, search house numbers — must come from THE SAME PBF
+    as its graph (region.source.md5). The graph job and the basemap job download it separately;
+    this is where "same file" stops being an assumption.
+
+    For a country built in THIS run all three stamps are required and must match. A carried country
+    is checked wherever it carries a stamp (a pre-2026-09-27 release has none, and a graph-only
+    frontier has no PBF at all). -> (rows for the report, problems)."""
+    rows, problems = [], []
+    for code in sorted(m["regions"]):
+        r = m["regions"][code]
+        want = (r.get("source") or {}).get("md5")
+        stamps = {"graph": want,
+                  "frontier": (r.get("frontier") or {}).get("source_md5"),
+                  "features": (r.get("features") or {}).get("source_md5"),
+                  "search/addresses": ((r.get("search") or {}).get("addresses") or {}).get("source_md5")}
+        if (r.get("frontier") or {}).get("source") == "graph-only":
+            stamps["frontier"] = "graph-only"
+        for what, got in stamps.items():
+            rows.append((code, what, got))
+            if what == "graph" or got == "graph-only":
+                continue
+            if code in built and not got:
+                problems.append("%s: %s has no source identity (built in this run)" % (code, what))
+            elif got and got != want:
+                problems.append("%s: %s from %s, graph from %s" % (code, what, got, want))
+        if code in built and not want:
+            problems.append("%s: the graph has no source md5" % code)
+    return rows, problems
 
 
 def urls(m):
@@ -446,6 +478,18 @@ def main():
         ap.add_argument("--complete"); ap.add_argument("--provenance", action="store_true")
         a = ap.parse_args(sys.argv[2:])
         return 1 if check(json.load(open(a.manifest, encoding="utf-8")), a.work, a.complete, a.provenance) else 0
+    if cmd == "sources":
+        ap = argparse.ArgumentParser()
+        ap.add_argument("manifest"); ap.add_argument("--built", default="")
+        a = ap.parse_args(sys.argv[2:])
+        built = {c for c in a.built.replace(" ", ",").split(",") if c}
+        rows, problems = sources(json.load(open(a.manifest, encoding="utf-8")), built)
+        for code, what, got in rows:
+            print("   %-3s %-17s %s%s" % (code, what, got or "-", "   (built now)" if code in built and what == "graph" else ""))
+        for p in problems:
+            print("   PROBLEM: " + p)
+        print("SOURCE CONSISTENCY: " + ("PASS" if not problems else "FAIL"))
+        return 1 if problems else 0
     if cmd == "assets":
         side = "--built-here" not in sys.argv[3:]
         print("\n".join(assets(json.load(open(sys.argv[2], encoding="utf-8")), side=side)))

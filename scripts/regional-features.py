@@ -547,7 +547,8 @@ def backfill(work):
         fe = load(out)
         d["features"] = {"format": "%s/%d" % (FORMAT, VERSION), "file": os.path.basename(out),
                          "bytes": os.path.getsize(out), "sha256": sha256(out),
-                         "entries": len(fe["rows"]), "counts": fe["counts"], "backfilled": True}
+                         "entries": len(fe["rows"]), "counts": fe["counts"], "backfilled": True,
+                         "source_md5": src.get("md5")}   # checked equal above
         with open(path, "w", encoding="utf-8") as f:
             json.dump(d, f, indent=2)
         made.append(d["code"])

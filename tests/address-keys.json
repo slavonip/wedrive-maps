@@ -1,0 +1,18 @@
+{
+  "note": "Shared by wedrive (core AddressKeys) and wedrive-maps (scripts/search_addresses.py). Change both files together.",
+  "street": [
+    ["Alba-Iulia", "alba iulia"],
+    ["Strada Alba Iulia", "strada alba iulia"],
+    ["Strada Alba-Iulia", "strada alba iulia"],
+    ["Șoseaua Muncești", "soseaua muncesti"],
+    ["Şoseaua Munceşti", "soseaua muncesti"],
+    ["Bulevardul Mircea cel Bătrân", "bulevardul mircea cel batran"],
+    ["str. 31 August 1989", "str 31 august 1989"],
+    ["Stradela Ion  Creangă", "stradela ion creanga"],
+    ["улица Ленина", "улица ленина"]
+  ],
+  "house": [
+    ["10", "10"], ["10A", "10a"], ["10a", "10a"], ["10 A", "10a"], ["10/1", "10/1"],
+    ["200/5", "200/5"], ["26D", "26d"], ["10А", "10a"], ["10\\1", "10/1"], ["abc", null]
+  ]
+}
