@@ -153,6 +153,24 @@ class FactorySet(unittest.TestCase):
             with self.assertRaises(F.FrontierError):
                 F.set_portals(CFG, d, os.path.join(d, "set.d1"))
 
+    def test_every_factory_command_runs_through_main(self):
+        # The factory calls these through the CLI. A local variable named like a module function
+        # once made `report` unreachable from main() (UnboundLocalError), and only a run of the
+        # command itself shows that — so every command is run here, not just its function.
+        with tempfile.TemporaryDirectory() as d:
+            self.make(d, "MD", [(2, 470000000, 280000000, 18, 1)], "2026-09-19")
+            self.make(d, "RO", [(2, 470000000, 280000000, 26, 1)], "2026-09-24")
+            man = os.path.join(d, "previous.json")
+            with open(man, "w") as f:
+                json.dump({"regions": {}}, f)
+            cfg = os.path.join(ROOT, "regional.json")
+            self.assertEqual(F.main(["x", "set", cfg, d, os.path.join(d, "set.d1"), "--report", os.path.join(d, "r.json")]), 0)
+            self.assertEqual(F.main(["x", "report", d, man]), 0)
+            self.assertEqual(F.main(["x", "validate", os.path.join(d, "md.frontier")]), 0)
+            self.assertEqual(F.main(["x", "diff", os.path.join(d, "md.frontier"), os.path.join(d, "ro.frontier")]), 0)
+            self.assertEqual(F.main(["x", "portals", cfg, os.path.join(d, "p.portals"),
+                                     "MD=" + os.path.join(d, "md.frontier"), "RO=" + os.path.join(d, "ro.frontier")]), 0)
+
     def test_dated_extract_is_derived_from_provenance(self):
         self.assertEqual(F.dated_extract({"url": "https://download.geofabrik.de/europe/moldova-latest.osm.pbf",
                                           "replication": "2026-09-24T20:21:20Z"}),

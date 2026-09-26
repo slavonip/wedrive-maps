@@ -246,8 +246,8 @@ def portal_rows(A, ra, B, rb, pairs):
 
 
 def build_portals(cfg, frontiers):
-    """frontiers: {CODE: parsed}. All pairs of countries. -> (rows, report{pair: stats})."""
-    rows, report = [], {}
+    """frontiers: {CODE: parsed}. All pairs of countries. -> (rows, {pair: stats})."""
+    rows, by_pair = [], {}
     codes = sorted(frontiers)
     for x in range(len(codes)):
         for y in range(x + 1, len(codes)):
@@ -258,8 +258,8 @@ def build_portals(cfg, frontiers):
                 continue
             rows += portal_rows(A, cfg["countries"][a]["region_id"], B, cfg["countries"][b]["region_id"], pairs)
             stats["versions"] = [frontiers[a]["graph_version"], frontiers[b]["graph_version"]]
-            report["%s-%s" % (a, b)] = stats
-    return rows, report
+            by_pair["%s-%s" % (a, b)] = stats
+    return rows, by_pair
 
 
 # ---------------------------------------------------------------- building a frontier
@@ -470,11 +470,11 @@ def set_portals(cfg, work, out, report_path=None):
         if sha256(path) != fb["sha256"]:
             raise FrontierError("%s: %s does not match its description" % (code, fb["file"]))
         frontiers[code] = load(path)
-    rows, report = build_portals(cfg, frontiers)
+    rows, by_pair = build_portals(cfg, frontiers)
     with open(out, "w", encoding="ascii", newline="\n") as f:
         f.write("\n".join(rows) + ("\n" if rows else ""))
     problems = []
-    for name, s in sorted(report.items()):
+    for name, s in sorted(by_pair.items()):
         print("   %-6s %-23s osm %4d  coord %3d  near %d  ambiguous %d  | unmatched %d/%d"
               % (name, "/".join(s["versions"]), s["osm"], s["coord"], s["near"], s["ambiguous"],
                  s["unmatched_a"], s["unmatched_b"]))
@@ -482,11 +482,11 @@ def set_portals(cfg, work, out, report_path=None):
             problems.append("%s: %d ambiguous frontier entries" % (name, s["ambiguous"]))
     for border in cfg["borders"]:
         a, b = border["between"]
-        if a in frontiers and b in frontiers and "%s-%s" % tuple(sorted((a, b))) not in report:
+        if a in frontiers and b in frontiers and "%s-%s" % tuple(sorted((a, b))) not in by_pair:
             problems.append("%s-%s: both countries present, no portal joins them" % (a, b))
     if report_path:
         with open(report_path, "w", encoding="utf-8") as f:
-            json.dump(report, f, indent=2, sort_keys=True)
+            json.dump(by_pair, f, indent=2, sort_keys=True)
     print("   portals from frontiers: %d rows" % len(rows))
     return problems
 
@@ -566,11 +566,11 @@ def main(argv):
                 if "=" in a:
                     code, path = a.split("=", 1)
                     frontiers[code.upper()] = load(path)
-            rows, report = build_portals(cfg, frontiers)
+            rows, by_pair = build_portals(cfg, frontiers)
             with open(out, "w", encoding="ascii", newline="\n") as f:
                 f.write("\n".join(rows) + ("\n" if rows else ""))
             problems = []
-            for name, s in sorted(report.items()):
+            for name, s in sorted(by_pair.items()):
                 print("   %-6s %s  osm %d  coord %d  near %d  ambiguous %d  | unmatched %d/%d"
                       % (name, "/".join(s["versions"]), s["osm"], s["coord"], s["near"], s["ambiguous"],
                          s["unmatched_a"], s["unmatched_b"]))
@@ -579,11 +579,11 @@ def main(argv):
             if "--require-borders" in rest:
                 for border in cfg["borders"]:
                     a, b = border["between"]
-                    if a in frontiers and b in frontiers and "%s-%s" % tuple(sorted((a, b))) not in report:
+                    if a in frontiers and b in frontiers and "%s-%s" % tuple(sorted((a, b))) not in by_pair:
                         problems.append("%s-%s: both countries present, no portal joins them" % (a, b))
             if report_path:
                 with open(report_path, "w", encoding="utf-8") as f:
-                    json.dump(report, f, indent=2, sort_keys=True)
+                    json.dump(by_pair, f, indent=2, sort_keys=True)
             for p in problems:
                 print("   FAIL " + p)
             print("   portals: %d rows" % len(rows))
