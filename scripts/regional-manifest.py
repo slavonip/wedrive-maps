@@ -261,6 +261,20 @@ def sources(m, built=()):
     return rows, problems
 
 
+def carry_losses(m, prev, built=()):
+    """A carried country must keep every block the previous manifest gave it (owner 2026-09-27):
+    a map, search, frontier or features block that vanishes on carry is a lost asset, never a
+    change. -> problems."""
+    out = []
+    for code, pr in (prev or {}).get("regions", {}).items():
+        if code in built or code not in m["regions"]:
+            continue
+        for k in ("map", "search", "frontier", "features"):
+            if pr.get(k) and not m["regions"][code].get(k):
+                out.append("%s: carried without its %s (previous %s had it)" % (code, k, prev.get("tag")))
+    return out
+
+
 def urls(m):
     """Every (url, bytes) the manifest points to, carried countries included."""
     out = []
@@ -481,9 +495,13 @@ def main():
     if cmd == "sources":
         ap = argparse.ArgumentParser()
         ap.add_argument("manifest"); ap.add_argument("--built", default="")
+        ap.add_argument("--previous")
         a = ap.parse_args(sys.argv[2:])
         built = {c for c in a.built.replace(" ", ",").split(",") if c}
-        rows, problems = sources(json.load(open(a.manifest, encoding="utf-8")), built)
+        m = json.load(open(a.manifest, encoding="utf-8"))
+        rows, problems = sources(m, built)
+        if a.previous and os.path.exists(a.previous):
+            problems += carry_losses(m, json.load(open(a.previous, encoding="utf-8")), built)
         for code, what, got in rows:
             print("   %-3s %-17s %s%s" % (code, what, got or "-", "   (built now)" if code in built and what == "graph" else ""))
         for p in problems:

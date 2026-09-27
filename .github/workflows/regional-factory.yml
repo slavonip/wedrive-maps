@@ -75,6 +75,10 @@ jobs:
       timezones_sha256: ${{ steps.plan.outputs.timezones_sha256 }}
     steps:
       - uses: actions/checkout@v4
+      - name: the live manifest (not the one frozen when this run was dispatched)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/live-manifest.py "$GITHUB_REPOSITORY" manifest.json
       - name: tests of the regional scripts
         run: |
           python3 tests/test_regional.py
@@ -212,6 +216,10 @@ jobs:
       COMPLETE: ${{ needs.precheck.outputs.complete }}
     steps:
       - uses: actions/checkout@v4
+      - name: the live manifest (not the one frozen when this run was dispatched)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/live-manifest.py "$GITHUB_REPOSITORY" manifest.json
 
       - name: the engine is the one in regional-engine.lock
         run: |
@@ -365,7 +373,7 @@ jobs:
           # country come from ONE Geofabrik PBF. The basemap job downloads it separately, so the
           # md5s are compared here; any mismatch fails the run and nothing is published.
           echo "--- source identity:"
-          python3 scripts/regional-manifest.py sources "$WORK/manifest.json" --built "$REBUILD"
+          python3 scripts/regional-manifest.py sources "$WORK/manifest.json" --built "$REBUILD" --previous manifest.json
           echo "--- manifest against the files:"
           if [ "$COMPLETE" = true ]; then
             python3 scripts/regional-manifest.py check "$WORK/manifest.json" "$WORK" --provenance --complete regional.json

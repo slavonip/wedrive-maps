@@ -451,6 +451,12 @@ class SourceIdentity(unittest.TestCase):
         _, problems = manifest.sources({"regions": {"RO": self.region(fr=None, fe=None, ad=None)}}, set())
         self.assertEqual(problems, [])
 
+    def test_a_carried_country_may_not_lose_its_map_or_search(self):
+        prev = {"tag": "old", "regions": {"MD": {"map": {}, "search": {}}, "RO": {"map": {"f": 1}, "search": {"f": 1}}}}
+        new = {"regions": {"MD": {}, "RO": {"map": {"f": 1}}}}
+        losses = manifest.carry_losses(new, prev, {"MD"})
+        self.assertEqual(losses, ["RO: carried without its search (previous old had it)"])
+
     def test_a_graph_only_frontier_is_not_a_pbf_asset(self):
         r = self.region(fr=None)
         r["frontier"] = {"file": "f", "source": "graph-only"}
