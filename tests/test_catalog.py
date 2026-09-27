@@ -49,6 +49,12 @@ class Catalog(unittest.TestCase):
         self.assertEqual(legacy, ["AT-DE", "HU-AT", "MD-RO", "RO-HU"])
         self.assertTrue(all(b.get("required") for b in CFG["borders"] if b.get("legacy")))
 
+    def test_empty_frontier_only_for_islands(self):
+        may = sorted(c for c, v in CFG["countries"].items() if v.get("frontier_may_be_empty"))
+        self.assertEqual(may, ["CY", "FO", "IM", "IS", "MT", "XA", "XG"])
+        for land in ("AD", "LI", "LU", "MC", "MK", "MD", "DE"):     # real road borders
+            self.assertFalse(CFG["countries"][land].get("frontier_may_be_empty"), land)
+
     @unittest.skipUnless(os.environ.get("ONLINE"), "ONLINE=1 to ask Geofabrik")
     def test_every_source_exists(self):
         for code, c in CFG["countries"].items():

@@ -132,9 +132,10 @@ def load(path):
 def validate(fr, allow_empty=False):
     """Gates of one frontier. -> list of problems (empty = PASS).
 
-    allow_empty: a country with no REQUIRED border (an island, a microstate whose extract stops at
-    its own line) may legitimately have none; it is then joined to nothing and routes alone. The
-    graph job sets FRONTIER_EMPTY_OK=1 only for such countries (regional.json "required")."""
+    allow_empty: only an island with no land road border may legitimately have none; it is then
+    joined to nothing and routes alone. The graph job sets FRONTIER_EMPTY_OK=1 only for countries
+    marked "frontier_may_be_empty" in regional.json. Any country with a real road border and an
+    empty frontier fails — it is never published without its crossings."""
     p = []
     rows = fr["rows"]
     if not rows and not allow_empty:

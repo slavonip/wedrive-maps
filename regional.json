@@ -175,7 +175,8 @@
         34.96,
         36.0
       ],
-      "polygon": "polygons/cy.geojson"
+      "polygon": "polygons/cy.geojson",
+      "frontier_may_be_empty": true
     },
     "CZ": {
       "region_id": 14,
@@ -247,7 +248,8 @@
         -5.52,
         62.91
       ],
-      "polygon": "polygons/fo.geojson"
+      "polygon": "polygons/fo.geojson",
+      "frontier_may_be_empty": true
     },
     "FR": {
       "region_id": 20,
@@ -331,7 +333,8 @@
         -3.69,
         54.67
       ],
-      "polygon": "polygons/im.geojson"
+      "polygon": "polygons/im.geojson",
+      "frontier_may_be_empty": true
     },
     "IS": {
       "region_id": 27,
@@ -343,7 +346,8 @@
         -12.42,
         67.5
       ],
-      "polygon": "polygons/is.geojson"
+      "polygon": "polygons/is.geojson",
+      "frontier_may_be_empty": true
     },
     "IT": {
       "region_id": 28,
@@ -451,7 +455,8 @@
         14.86,
         36.33
       ],
-      "polygon": "polygons/mt.geojson"
+      "polygon": "polygons/mt.geojson",
+      "frontier_may_be_empty": true
     },
     "NL": {
       "region_id": 37,
@@ -595,7 +600,8 @@
         -23.72,
         40.08
       ],
-      "polygon": "polygons/xa.geojson"
+      "polygon": "polygons/xa.geojson",
+      "frontier_may_be_empty": true
     },
     "XG": {
       "region_id": 49,
@@ -607,7 +613,8 @@
         -1.79,
         50.07
       ],
-      "polygon": "polygons/xg.geojson"
+      "polygon": "polygons/xg.geojson",
+      "frontier_may_be_empty": true
     },
     "XK": {
       "region_id": 50,

@@ -244,8 +244,10 @@ jobs:
           set -u
           export TIMEZONES_DB="$WORK/timezones.sqlite"
           geo=$(python3 -c "import json,sys;print(json.load(open('regional.json'))['countries'][sys.argv[1]]['geofabrik'])" "$CODE")
-          # a country in no REQUIRED border (islands, microstates) may have an empty frontier
-          FRONTIER_EMPTY_OK=$(python3 -c "import json,sys;c=json.load(open('regional.json'));print(0 if any(b.get('required') and sys.argv[1] in b['between'] for b in c['borders']) else 1)" "$CODE")
+          # ONLY an island with no land road border may have an empty frontier (regional.json
+          # "frontier_may_be_empty", set by hand for CY FO IM IS MT XA XG). A country with a real
+          # road border and no frontier FAILS — it must never be published without its crossings.
+          FRONTIER_EMPTY_OK=$(python3 -c "import json,sys;print(1 if json.load(open('regional.json'))['countries'][sys.argv[1]].get('frontier_may_be_empty') else 0)" "$CODE")
           export FRONTIER_EMPTY_OK; echo "empty frontier allowed: $FRONTIER_EMPTY_OK"
           t=$(date +%s)
           bash scripts/regional-build.sh "$CODE" "$geo" "$WORK"

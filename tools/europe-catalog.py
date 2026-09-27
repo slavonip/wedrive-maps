@@ -139,6 +139,8 @@ def main():
         countries[code] = {"region_id": rid, "title": title, "geofabrik": c["geofabrik"],
                            "bbox": [round(w, 2), round(s, 2), round(e, 2), round(n, 2)],
                            "polygon": "polygons/%s.geojson" % code.lower()}
+        if code in old and old[code].get("frontier_may_be_empty"):
+            countries[code]["frontier_may_be_empty"] = True      # hand-set, islands only
 
     known = {tuple(sorted(b["between"])): b for b in cfg["borders"]}
     borders = []
