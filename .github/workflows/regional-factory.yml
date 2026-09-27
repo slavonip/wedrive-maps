@@ -244,6 +244,9 @@ jobs:
           set -u
           export TIMEZONES_DB="$WORK/timezones.sqlite"
           geo=$(python3 -c "import json,sys;print(json.load(open('regional.json'))['countries'][sys.argv[1]]['geofabrik'])" "$CODE")
+          # a country in no REQUIRED border (islands, microstates) may have an empty frontier
+          FRONTIER_EMPTY_OK=$(python3 -c "import json,sys;c=json.load(open('regional.json'));print(0 if any(b.get('required') and sys.argv[1] in b['between'] for b in c['borders']) else 1)" "$CODE")
+          export FRONTIER_EMPTY_OK; echo "empty frontier allowed: $FRONTIER_EMPTY_OK"
           t=$(date +%s)
           bash scripts/regional-build.sh "$CODE" "$geo" "$WORK"
           echo "$CODE built in $(( $(date +%s)-t )) s"

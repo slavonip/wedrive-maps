@@ -129,11 +129,15 @@ def load(path):
         return parse(f.read(), os.path.basename(path))
 
 
-def validate(fr):
-    """Gates of one frontier. -> list of problems (empty = PASS)."""
+def validate(fr, allow_empty=False):
+    """Gates of one frontier. -> list of problems (empty = PASS).
+
+    allow_empty: a country with no REQUIRED border (an island, a microstate whose extract stops at
+    its own line) may legitimately have none; it is then joined to nothing and routes alone. The
+    graph job sets FRONTIER_EMPTY_OK=1 only for such countries (regional.json "required")."""
     p = []
     rows = fr["rows"]
-    if not rows:
+    if not rows and not allow_empty:
         p.append("empty frontier: a country graph always has a border")
     if rows != sorted(rows, key=lambda r: (r[0], r[1], r[2], r[3])):
         p.append("rows not in canonical order")
@@ -331,7 +335,7 @@ def build(tiles, pbf, code, graph_version, out, dump_path=None):
         rows.append((lv, la, lo, local, osm))
     write(out, code, graph_version, rows)
     fr = load(out)
-    problems = validate(fr)
+    problems = validate(fr, allow_empty=os.environ.get("FRONTIER_EMPTY_OK") == "1")
     print("   frontier %s %s: %d entries, OSM id from PBF %d, from tiles %d, two OSM nodes on one point %d, "
           "no OSM node %d" % (code, graph_version, len(rows), stats["pbf"], stats["tile"],
                                 stats["ambiguous"], stats["absent"]))

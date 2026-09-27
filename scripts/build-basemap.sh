@@ -140,7 +140,7 @@ echo "==> detail extract at z15 (for the index only; discarded afterwards)"
 "$PMTILES" extract "https://build.protomaps.com/$BUILD" "$DETAIL"   "${CUT[@]}" --maxzoom=15 --download-threads=8
 
 echo '==> search index'
-python3 "$HERE/build-index.py" "$OUT_DIR/$PACKAGE-index.json"   --places "$BASEMAP" --detail "$DETAIL" --bbox "$W,$S,$E,$N" --pmtiles "$PMTILES"
+python3 "$HERE/build-index.py" "$OUT_DIR/$PACKAGE-index.json"   --places "$BASEMAP" --detail "$DETAIL" --bbox="$W,$S,$E,$N" --pmtiles "$PMTILES"
 
 # The detail archive is a gigabyte-scale intermediate on a runner with a finite disk, and the
 # next package in the matrix needs that space.

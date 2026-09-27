@@ -56,6 +56,11 @@ class FileFormat(unittest.TestCase):
         self.assertEqual(fr["rows"][0][4], None)
         self.assertEqual(F.validate(fr), [])
 
+    def test_empty_frontier_only_where_allowed(self):
+        empty = {"country": "XX", "graph_version": "v", "rows": []}
+        self.assertTrue(F.validate(empty))                       # a required border: refused
+        self.assertEqual(F.validate(empty, allow_empty=True), [])  # island / microstate
+
     def test_same_rows_same_bytes(self):
         a, _ = self.roundtrip()
         b, _ = self.roundtrip()
