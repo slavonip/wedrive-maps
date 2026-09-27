@@ -167,7 +167,36 @@
       "portals": [
         "MD-RO",
         "RO-HU"
-      ]
+      ],
+      "map": {
+        "format": "pmtiles",
+        "file": "ro.pmtiles",
+        "bytes": 654271355,
+        "sha256": "10e1b1c64892865a8e3d2a0378f1c3f92686ff0b1a891bbba72ad937b18c74a1",
+        "schema": "protomaps-v4",
+        "build": "20260926.pmtiles",
+        "dataDate": "2026-09-26",
+        "maxzoom": 14,
+        "bbox": [
+          20.24,
+          43.61,
+          30.28,
+          48.27
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/ro.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "ro.search.sqlite",
+        "bytes": 74956800,
+        "sha256": "bf6e211535d3fbd084d1f1aa584615460155a7b5dc1b51701228899640bc3708",
+        "counts": {
+          "places": 16715,
+          "streets": 324978,
+          "pois": 327409
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/ro.search.sqlite"
+      }
     },
     "HU": {
       "region_id": 3,
@@ -224,7 +253,36 @@
       "portals": [
         "HU-AT",
         "RO-HU"
-      ]
+      ],
+      "map": {
+        "format": "pmtiles",
+        "file": "hu.pmtiles",
+        "bytes": 466152790,
+        "sha256": "991740ed1ec39c77be5621c824390d3941563b0948ab128f073e86b610cc33fb",
+        "schema": "protomaps-v4",
+        "build": "20260926.pmtiles",
+        "dataDate": "2026-09-26",
+        "maxzoom": 14,
+        "bbox": [
+          16.11,
+          45.73,
+          22.91,
+          48.59
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/hu.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "hu.search.sqlite",
+        "bytes": 74072064,
+        "sha256": "177284cf9acf41454fdd3d62f5b5889b849321f51d48ddb30655a25f772adaa8",
+        "counts": {
+          "places": 9241,
+          "streets": 233224,
+          "pois": 448988
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/hu.search.sqlite"
+      }
     },
     "AT": {
       "region_id": 4,
@@ -281,7 +339,36 @@
       "portals": [
         "AT-DE",
         "HU-AT"
-      ]
+      ],
+      "map": {
+        "format": "pmtiles",
+        "file": "at.pmtiles",
+        "bytes": 1058391106,
+        "sha256": "716fa6d39e978d9f2742c4080d2557b50fbcb44353687a08f3c47c0747189c33",
+        "schema": "protomaps-v4",
+        "build": "20260926.pmtiles",
+        "dataDate": "2026-09-26",
+        "maxzoom": 14,
+        "bbox": [
+          9.53,
+          46.37,
+          17.16,
+          49.02
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/at.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "at.search.sqlite",
+        "bytes": 141471744,
+        "sha256": "39809741dad663a40df7245f8f4c9f9af30a5e534cf8e702850c620afb68a972",
+        "counts": {
+          "places": 12170,
+          "streets": 432045,
+          "pois": 885725
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/at.search.sqlite"
+      }
     },
     "DE": {
       "region_id": 5,
@@ -337,7 +424,48 @@
       },
       "portals": [
         "AT-DE"
-      ]
+      ],
+      "map": {
+        "format": "pmtiles",
+        "file": "de.pmtiles",
+        "bytes": 3461593057,
+        "sha256": "b52cb4d58ddcb6a6a8d390a89b8874eb6549efc08b69b38f570590a36bd987ce",
+        "schema": "protomaps-v4",
+        "build": "20260926.pmtiles",
+        "dataDate": "2026-09-26",
+        "maxzoom": 14,
+        "bbox": [
+          5.86,
+          47.27,
+          15.05,
+          55.15
+        ],
+        "parts": [
+          {
+            "name": "de.pmtiles.part001",
+            "bytes": 1900000000,
+            "sha256": "2f2282937d896479a5e93fff88da16e6f47309bfd14d899250aa72a51c8243f2"
+          },
+          {
+            "name": "de.pmtiles.part002",
+            "bytes": 1561593057,
+            "sha256": "a85017c98ec77fa72922b9a9b73fa74e6879eeca05bf1e586c0bd87a285d33ea"
+          }
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/de.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "de.search.sqlite",
+        "bytes": 583450624,
+        "sha256": "ff70261205cd8504f3bd15ebebe5909ae6e9fbfdb815b95da315b217e38bd8a4",
+        "counts": {
+          "places": 42789,
+          "streets": 1941866,
+          "pois": 3497011
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/de.search.sqlite"
+      }
     }
   },
   "portals": {
@@ -385,5 +513,21 @@
       "sha256": "edcca4da4093ba75c7afead3418beffef060f75399cd3d6e95e4e7f74fca8950",
       "rows": 976
     }
-  }
+  },
+  "repairs": [
+    {
+      "restored_from": "regional-2026-09-26-19",
+      "blocks": [
+        "RO.map",
+        "RO.search",
+        "HU.map",
+        "HU.search",
+        "AT.map",
+        "AT.search",
+        "DE.map",
+        "DE.search"
+      ],
+      "why": "run 36279166763 carried RO/HU/AT/DE from a stale manifest (fixed in d351255)"
+    }
+  ]
 }
