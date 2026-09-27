@@ -137,7 +137,7 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
 
     for border in cfg["borders"]:
         a, b = border["between"]
-        if a not in regions or b not in regions:
+        if not border.get("legacy") or a not in regions or b not in regions:
             continue
         name = "%s-%s" % (a, b)
         f = os.path.join(work, "%s-%s.portals" % (a.lower(), b.lower()))
@@ -172,6 +172,16 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
     m["pipeline"] = {"revision": pipeline_rev, "run_id": run_id, "run_url": run_url}
     m["min_app"] = min_app()
     m["regions"], m["portals"] = regions, portals
+    # ABSENT (regional-effective.py): a country whose build failed in this run and that was never
+    # published. A country that WAS published can never be absent — it is carried instead — so a
+    # failed run can shrink nothing the cars already have.
+    ap = os.path.join(work, "absent.json")
+    absent = json.load(open(ap, encoding="utf-8")) if os.path.isfile(ap) else {}
+    lost = sorted(c for c in absent if c in prev_regions)
+    if lost:
+        raise SystemExit("absent but previously published (must be carried): %s" % lost)
+    if absent:
+        m["absent"] = absent
     return m
 
 
@@ -330,7 +340,9 @@ def complete(m, cfg_path):
     problems = []
     for code, c in cfg["countries"].items():
         r = m["regions"].get(code)
-        if not r:
+        if not r and code in m.get("absent", {}):
+            print("   absent %s: %s (never published; next run tries again)" % (code, m["absent"][code]))
+        elif not r:
             problems.append("incomplete: no %s" % code)
         elif r["region_id"] != c["region_id"]:
             problems.append("%s: region_id %s, regional.json says %s" % (code, r["region_id"], c["region_id"]))
@@ -339,6 +351,8 @@ def complete(m, cfg_path):
             # exact neighbour versions that table was made for — the coupling schema 2 removes.
             problems.append("incomplete: %s has no frontier" % code)
     for border in cfg["borders"]:
+        if not border.get("legacy") or any(c in m.get("absent", {}) for c in border["between"]):
+            continue          # joined from frontiers on the device; no pair table exists
         n = "%s-%s" % tuple(border["between"])
         if n not in m["portals"]:
             problems.append("incomplete: no table %s" % n)

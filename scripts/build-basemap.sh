@@ -19,6 +19,12 @@ W="${2:?west}"; S="${3:?south}"; E="${4:?east}"; N="${5:?north}"
 OUT_DIR="${OUT_DIR:-/data/out}"
 WORK="${WORK:-/data}"
 MAXZOOM="${MAXZOOM:-14}"
+# REGION: the country polygon (polygons/<cc>.geojson, from Geofabrik's index). When set, both
+# extracts are cut by it instead of by the rectangle: Norway's rectangle holds all of Sweden and
+# Finland, and Russia's spans the antimeridian. The routing graph is never cut by it: it is the
+# full Geofabrik extract, whose overlap at the border is what frontiers join.
+REGION="${REGION:-}"
+if [ -n "$REGION" ]; then CUT=(--region="$REGION"); else CUT=(--bbox="$W,$S,$E,$N"); fi
 
 # 14 NAVIGATES; 15 additionally brings POIs including parking, at a real size cost (§13), and
 # Protomaps basemaps stop at 15 — asking for more silently yields nothing. Overridable rather
@@ -50,9 +56,9 @@ BUILD=$(curl -fsSL https://build-metadata.protomaps.dev/builds.json |
 echo "    $BUILD"
 
 BASEMAP="$OUT_DIR/$PACKAGE.pmtiles"
-echo "==> extract $W,$S,$E,$N at z0-$MAXZOOM"
+echo "==> extract ${REGION:-$W,$S,$E,$N} at z0-$MAXZOOM"
 "$PMTILES" extract "https://build.protomaps.com/$BUILD" "$BASEMAP" \
-  --bbox="$W,$S,$E,$N" --maxzoom="$MAXZOOM" --download-threads=8
+  "${CUT[@]}" --maxzoom="$MAXZOOM" --download-threads=8
 
 # ── what it is, stamped beside it ───────────────────────────────────────────────────────────
 # `pmtiles show` reads the header and the metadata the archive carries about itself, including
@@ -131,7 +137,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DETAIL="$WORK/detail-$PACKAGE.pmtiles"
 
 echo "==> detail extract at z15 (for the index only; discarded afterwards)"
-"$PMTILES" extract "https://build.protomaps.com/$BUILD" "$DETAIL"   --bbox="$W,$S,$E,$N" --maxzoom=15 --download-threads=8
+"$PMTILES" extract "https://build.protomaps.com/$BUILD" "$DETAIL"   "${CUT[@]}" --maxzoom=15 --download-threads=8
 
 echo '==> search index'
 python3 "$HERE/build-index.py" "$OUT_DIR/$PACKAGE-index.json"   --places "$BASEMAP" --detail "$DETAIL" --bbox "$W,$S,$E,$N" --pmtiles "$PMTILES"

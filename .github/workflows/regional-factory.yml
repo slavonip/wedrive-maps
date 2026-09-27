@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     strategy:
-      fail-fast: true
+      fail-fast: false        # one country failing must not cancel fifty (regional-effective.py)
       matrix:
         code: ${{ fromJSON(needs.precheck.outputs.rebuild_json) }}
     steps:
@@ -152,8 +152,9 @@ jobs:
           low=$(echo "$CODE" | tr '[:upper:]' '[:lower:]')
           box=$(python3 -c 'import json,sys;print(" ".join(str(x) for x in json.load(open("regional.json"))["countries"][sys.argv[1]]["bbox"]))' "$CODE")
           mkdir -p "$RUNNER_TEMP/out"
+          poly=$(python3 -c 'import json,sys;print(json.load(open("regional.json"))["countries"][sys.argv[1]].get("polygon",""))' "$CODE")
           # shellcheck disable=SC2086
-          OUT_DIR="$RUNNER_TEMP/out" WORK="$RUNNER_TEMP" bash scripts/build-basemap.sh "$low" $box
+          REGION="${poly:+$GITHUB_WORKSPACE/$poly}" OUT_DIR="$RUNNER_TEMP/out" WORK="$RUNNER_TEMP" bash scripts/build-basemap.sh "$low" $box
           # build-index.py already wrote Search v2 (search_db.py: aliases as a JSON array, the
           # accepted encoding). NOT index-to-sqlite.py: that is the rejected space-joined prototype.
           #
@@ -191,9 +192,80 @@ jobs:
           compression-level: 0
           if-no-files-found: error
 
-  factory:
-    needs: [precheck, basemap]
+  # ── GRAPH of every rebuilt country, in parallel: regional-build.sh unchanged (graph, frontier,
+  # features from the country's full Geofabrik extract), then gzip -n + parts. Each country is its
+  # own job; GitHub queues what does not fit its concurrency. A failed country is carried (if it
+  # was published before) or left out, by regional-effective.py in the factory job.
+  graph:
+    needs: precheck
     if: needs.precheck.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        code: ${{ fromJSON(needs.precheck.outputs.rebuild_json) }}
+    container:
+      image: ${{ needs.precheck.outputs.image }}
+      options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      ENGINE_REF: ${{ needs.precheck.outputs.engine_ref }}
+      ENGINE_SHA: ${{ needs.precheck.outputs.engine_sha }}
+      TZ_URL: ${{ needs.precheck.outputs.timezones_url }}
+      TIMEZONES_SHA256: ${{ needs.precheck.outputs.timezones_sha256 }}
+      CODE: ${{ matrix.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: the engine is the one in regional-engine.lock
+        run: |
+          set -u
+          have_ref=$(cat /etc/wedrive-engine-ref); have_sha=$(cat /etc/wedrive-engine-sha)
+          if [ "$have_ref" != "$ENGINE_REF" ] || [ "$have_sha" != "$ENGINE_SHA" ]; then
+            echo "::error::the image is not engine $ENGINE_REF $ENGINE_SHA"; exit 1
+          fi
+          command -v frontier_dump >/dev/null || { echo "::error::no frontier_dump in the image"; exit 1; }
+          df -h / | tail -1
+      - name: timezone database (pinned, sha-checked)
+        run: |
+          set -u
+          mkdir -p "$WORK"
+          curl -fsSL --retry 3 -o "$WORK/timezones.sqlite.part" "$TZ_URL"
+          [ "$(sha256sum "$WORK/timezones.sqlite.part" | cut -d' ' -f1)" = "$TIMEZONES_SHA256" ] \
+            || { echo "::error::timezones.sqlite does not match regional-engine.lock"; exit 1; }
+          mv "$WORK/timezones.sqlite.part" "$WORK/timezones.sqlite"
+      - name: build
+        run: |
+          set -u
+          export TIMEZONES_DB="$WORK/timezones.sqlite"
+          geo=$(python3 -c "import json,sys;print(json.load(open('regional.json'))['countries'][sys.argv[1]]['geofabrik'])" "$CODE")
+          t=$(date +%s)
+          bash scripts/regional-build.sh "$CODE" "$geo" "$WORK"
+          echo "$CODE built in $(( $(date +%s)-t )) s"
+          rm -rf "$WORK/src" "$WORK"/work_*
+          df -h / | tail -1
+      - name: package (gzip -n, parts over the asset limit)
+        run: |
+          python3 scripts/regional-package.py "$WORK"
+          low=$(echo "$CODE" | tr '[:upper:]' '[:lower:]')
+          python3 scripts/regional-graph-out.py "$WORK/$low.package.json" "$WORK" "$WORK/out"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: graph-${{ matrix.code }}
+          path: /data/regional/out/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+
+  factory:
+    needs: [precheck, graph, basemap]
+    # runs when some countries failed too: regional-effective.py carries or leaves them out
+    if: always() && needs.precheck.result == 'success' && needs.precheck.outputs.go == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 330
     container:
@@ -250,28 +322,35 @@ jobs:
             || { echo "::error::timezones.sqlite does not match regional-engine.lock"; exit 1; }
           mv "$WORK/timezones.sqlite.part" "$WORK/timezones.sqlite"
 
-      - name: build the changed countries
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: graph-*
+          merge-multiple: true
+          path: /data/regional
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: basemap-desc-*
+          merge-multiple: true
+          path: /data/regional/basemaps
+      # What the matrix really delivered: rebuilt = graph AND map/search succeeded; a failed
+      # country is carried from its previous release, or absent if it never had one. REBUILD and
+      # the effective lists go to EFF_REBUILD / EFF_CARRY for every later step.
+      - name: effective rebuild / carry / absent
         run: |
           set -u
-          export TIMEZONES_DB="$WORK/timezones.sqlite"
-          for code in ${REBUILD//,/ }; do
-            geo=$(python3 -c "import json,sys;print(json.load(open('regional.json'))['countries'][sys.argv[1]]['geofabrik'])" "$code")
-            echo "::group::$code ($geo)"
-            t=$(date +%s)
-            bash scripts/regional-build.sh "$code" "$geo" "$WORK"
-            echo "$code built in $(( $(date +%s)-t )) s" | tee -a "$WORK/timings.txt"
-            echo "::endgroup::"
-            df -h / | tail -1
-          done
+          mkdir -p "$WORK/basemaps"
+          python3 scripts/regional-effective.py "$WORK" "$WORK/basemaps" manifest.json \
+            --rebuild "$REBUILD" --carry "$CARRY" --github-env "$GITHUB_ENV"
 
       # Страны, которые НЕ пересобирали, берутся из уже опубликованного — иначе «обновить одну
       # страну» превращается в «собрать все». Каждый байт сверяется с манифестом.
       - name: carry the unchanged countries
         run: |
           set -u
-          for code in ${CARRY//,/ }; do
+          for code in ${EFF_CARRY//,/ }; do
             python3 scripts/regional-carry.py manifest.json "$code" "$WORK"
           done
+          df -h / | tail -1
 
       - name: unpack the set
         run: |
@@ -282,8 +361,15 @@ jobs:
             dir="$WORK/installed/$code"
             mkdir -p "$dir/tiles"
             echo "   $code <- $pkg"
-            # tar распознаёт .tar.gz перенесённых пакетов сам
-            tar -xf "$WORK/$pkg" -C "$dir/tiles"
+            parts=$(python3 -c "import json,sys;print(' '.join(p['name'] for p in json.load(open(sys.argv[1])).get('parts') or []))" "$desc")
+            if [ -n "$parts" ] && [ ! -f "$WORK/$pkg" ]; then
+              # a package of THIS run cut into parts by its graph job: joined only in the stream
+              # shellcheck disable=SC2086
+              (cd "$WORK" && cat $parts) | tar -xzf - -C "$dir/tiles"
+            else
+              # tar распознаёт .tar.gz сам
+              tar -xf "$WORK/$pkg" -C "$dir/tiles"
+            fi
             n=$(find "$dir/tiles" -name '*.gph' | wc -l)
             echo "      tiles: $n"; [ "$n" -gt 0 ] || { echo "::error::$code has no tiles"; exit 1; }
           done
@@ -347,17 +433,7 @@ jobs:
           python3 scripts/regional-regress.py regional.json "$WORK/router.json" $(ls "$WORK/installed") \
             | tee "$WORK/regress.txt"
 
-      # gzip -n и части — ПОСЛЕ регрессии: набор распакован из целых .tar, они больше не нужны.
-      - name: package (gzip -n, parts over the asset limit)
-        env:
-          PART_BYTES: ${{ inputs.part_bytes }}
-        run: python3 scripts/regional-package.py "$WORK" "${PART_BYTES:-}"
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: basemap-desc-*
-          merge-multiple: true
-          path: /data/regional/basemaps
+      # gzip -n and parts happen in each graph job now (regional-package.py, unchanged).
       - name: manifest
         id: manifest
         run: |
@@ -373,7 +449,7 @@ jobs:
           # country come from ONE Geofabrik PBF. The basemap job downloads it separately, so the
           # md5s are compared here; any mismatch fails the run and nothing is published.
           echo "--- source identity:"
-          python3 scripts/regional-manifest.py sources "$WORK/manifest.json" --built "$REBUILD" --previous manifest.json
+          python3 scripts/regional-manifest.py sources "$WORK/manifest.json" --built "$EFF_REBUILD" --previous manifest.json
           echo "--- manifest against the files:"
           if [ "$COMPLETE" = true ]; then
             python3 scripts/regional-manifest.py check "$WORK/manifest.json" "$WORK" --provenance --complete regional.json
@@ -425,15 +501,20 @@ jobs:
   # ── ПУБЛИКАЦИЯ: на runner'е, а не в контейнере (в образе движка нет gh) ──────────────────────────
   publish:
     needs: [precheck, factory]
-    if: needs.precheck.outputs.mode == 'verify' || needs.precheck.outputs.mode == 'publish'
+    # explicit: the factory job runs under always(), so its success is what gates publishing
+    if: always() && needs.factory.result == 'success' && (needs.precheck.outputs.mode == 'verify' || needs.precheck.outputs.mode == 'publish')
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 330
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
+      - name: disk (the whole of Europe passes through this runner once)
+        run: |
+          sudo rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
+          df -h / | tail -1
       - uses: actions/download-artifact@v4
         with:
           name: regional-release-${{ github.run_number }}

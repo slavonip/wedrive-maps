@@ -489,7 +489,11 @@ def set_portals(cfg, work, out, report_path=None):
     for border in cfg["borders"]:
         a, b = border["between"]
         if a in frontiers and b in frontiers and "%s-%s" % tuple(sorted((a, b))) not in by_pair:
-            problems.append("%s-%s: both countries present, no portal joins them" % (a, b))
+            if border.get("required", True):
+                problems.append("%s-%s: both countries present, no portal joins them" % (a, b))
+            else:
+                # polygons of Geofabrik also overlap at sea (FR-GB, GB-IE): not every pair is a road
+                print("   note %s-%s: neighbours by polygon, no portal (not required)" % (a, b))
     if report_path:
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(by_pair, f, indent=2, sort_keys=True)

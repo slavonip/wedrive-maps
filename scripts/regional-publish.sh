@@ -43,12 +43,19 @@ gh release create "$TAG" --repo "$REPO" --draft --title "Региональны�
 say "upload"
 ( cd "$DIST" && gh release upload "$TAG" --repo "$REPO" "${ASSETS[@]}" manifest.json )
 say "verify the draft by downloading it back"
+# ONE FILE AT A TIME (Europe: ~75 GB in DIST on a ~145 GB runner — a second full copy does not
+# fit). Every asset comes back from the draft, is compared with its local copy (which verify-assets
+# above already matched to the manifest), and is deleted before the next one is fetched.
+n="$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets | length')"
+[ "$n" = "$(( ${#ASSETS[@]} + 1 ))" ] || { echo "the draft has $n assets, expected $(( ${#ASSETS[@]} + 1 ))"; exit 1; }
 CHK="$(mktemp -d)"
-gh release download "$TAG" --repo "$REPO" --dir "$CHK"
-cmp "$CHK/manifest.json" "$M"
-python3 "$HERE/regional-manifest.py" verify-assets "$M" "$CHK"
-n="$(ls "$CHK" | wc -l)"; [ "$n" = "$(( ${#ASSETS[@]} + 1 ))" ] || { echo "the draft has $n assets, expected $(( ${#ASSETS[@]} + 1 ))"; exit 1; }
+for name in manifest.json "${ASSETS[@]}"; do
+  gh release download "$TAG" --repo "$REPO" --pattern "$name" --dir "$CHK" --clobber
+  cmp "$CHK/$name" "$DIST/$name" || { echo "$name came back different from what was uploaded"; exit 1; }
+  rm -f "$CHK/$name"
+done
 rm -rf "$CHK"
+say "all $n assets came back byte-identical"
 if [ "$MODE" = verify ]; then
   say "verify mode: every asset came back intact; the draft is deleted, manifest.json untouched"
   exit 0

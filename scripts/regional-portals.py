@@ -27,6 +27,9 @@ def main():
         print(__doc__)
         return 2
     cfg = json.load(open(sys.argv[1], encoding="utf-8"))
+    # Pair tables exist only for the borders that predate frontiers ("legacy": apps on schema 1).
+    # Every other border is joined on the device from frontiers (D1) and has no pair table.
+    cfg["borders"] = [b for b in cfg["borders"] if b.get("legacy")]
     root, out = sys.argv[2], sys.argv[3]
     only = {c.upper() for c in sys.argv[4:]} if len(sys.argv) > 4 else None
     os.makedirs(out, exist_ok=True)
