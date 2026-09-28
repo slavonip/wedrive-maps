@@ -36,7 +36,10 @@ command -v tile-join >/dev/null || { echo "::error::tile-join (tippecanoe) not o
 echo '==> newest Protomaps build'
 BUILD="${BUILD:-$(curl -fsSL https://build-metadata.protomaps.dev/builds.json |
   python3 -c 'import json,sys; print(sorted(d["key"] for d in json.load(sys.stdin))[-1])')}"
-echo "    $BUILD"
+# builds.json keys carry the extension ("20260927.pmtiles"); an input may be bare ("20260927").
+case "$BUILD" in *.pmtiles) ;; *) BUILD="$BUILD.pmtiles" ;; esac
+BUILD_ID="${BUILD%.pmtiles}"
+echo "    $BUILD (id $BUILD_ID)"
 
 # A remote extract is ranged reads against build.protomaps.com; one reset connection must not
 # fail the build (the AL lesson of run 36367106205). A partial output is removed before a retry.
@@ -64,9 +67,10 @@ cat "$WORK/show.txt"
 # z0 tile, and a z6 tile over Chișinău (47.02 N, 28.83 E -> x=37, y=22 at z6)
 "$PMTILES" tile "$OUT/world.pmtiles" 0 0 0 > "$WORK/z0.mvt"
 "$PMTILES" tile "$OUT/world.pmtiles" 6 37 22 > "$WORK/z6.mvt"
-python3 - "$OUT" "$WORK" "$BUILD" "$MAXZOOM" "$LAYERS" <<'PY'
+python3 - "$OUT" "$WORK" "$BUILD_ID" "$MAXZOOM" "$LAYERS" "$(stat -c %s "$FULL")" <<'PY'
 import hashlib, json, os, re, sys, datetime
 out, work, build, maxzoom, layers = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), sys.argv[5].split()
+all_layers_size = int(sys.argv[6])
 f = os.path.join(out, "world.pmtiles")
 head = open(f, "rb").read(8)
 assert head[:7] == b"PMTiles" and head[7] == 3, "not a PMTiles v3 archive"
@@ -83,7 +87,9 @@ sha = hashlib.sha256(open(f, "rb").read()).hexdigest()
 desc = {"file": "world.pmtiles", "size": size, "sha256": sha, "build": build,
         "date": "%s-%s-%s" % (build[:4], build[4:6], build[6:8]) if build[:8].isdigit() else build,
         "maxzoom": maxzoom, "layers": sorted(layers), "schema": "protomaps-v4",
+        "all_layers_size": all_layers_size,
         "created": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 json.dump(desc, open(os.path.join(out, "world.json"), "w"), indent=1)
-print("world.pmtiles %d bytes (%.1f MB), sha256 %s, layers %s" % (size, size / 1e6, sha, got))
+print("world.pmtiles %d bytes (%.1f MB; all layers z0-%d were %.1f MB), sha256 %s, layers %s"
+      % (size, size / 1e6, maxzoom, all_layers_size / 1e6, sha, got))
 PY
