@@ -182,6 +182,11 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
         raise SystemExit("absent but previously published (must be carried): %s" % lost)
     if absent:
         m["absent"] = absent
+    # The WORLD overview is published by its own workflow (world-basemap.yml) into this same
+    # manifest. A regional run does not build it, so it CARRIES it: otherwise every monthly run
+    # would silently take the world map away from the car.
+    if previous and previous.get("world"):
+        m["world"] = previous["world"]
     return m
 
 
@@ -302,6 +307,8 @@ def urls(m):
                 b = e["url"].rsplit("/", 1)[0]
                 out += [("%s/%s" % (b, n), size) for n, size, _ in side_files(e)] if e.get("parts") else [(e["url"], e["bytes"])]
     out += [(t["url"], t["bytes"]) for t in m["portals"].values()]
+    if m.get("world"):
+        out.append((m["world"]["url"], m["world"]["size"]))
     return out
 
 

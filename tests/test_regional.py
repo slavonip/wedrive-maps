@@ -251,6 +251,17 @@ class Manifest(unittest.TestCase):
         urls = dict(manifest.urls(m))
         self.assertIn(old, urls)
 
+    def test_the_world_overview_is_carried_by_every_regional_run(self):
+        self.built("MD", b"md-new")
+        world = {"url": "https://github.com/o/r/releases/download/world-20260927/world.pmtiles",
+                 "size": 31000000, "sha256": "e" * 64, "build": "20260927", "maxzoom": 6,
+                 "layers": ["boundaries", "earth", "places", "water"]}
+        m = self.m({"regions": {}, "world": world})
+        self.assertEqual(m["world"], world)
+        self.assertIn((world["url"], world["size"]), manifest.urls(m))
+        self.assertEqual(manifest.check(m, self.d, provenance=True), 0)
+        self.assertNotIn("world", self.m({"regions": {}}))
+
     def test_map_and_search_built_in_this_run_replace_the_carried_ones(self):
         self.built("MD", b"md-new")
         bm = os.path.join(self.d, "bm")
@@ -492,6 +503,25 @@ class DatedSource(unittest.TestCase):
                     "https://download.geofabrik.de/europe/germany-260927.osm.pbf.md5"):
             with self.assertRaises(SystemExit):
                 precheck.dated_name(bad, "europe/germany")
+
+
+class WorldManifest(unittest.TestCase):
+    """world-manifest.py writes ONLY manifest["world"] and refuses an incomplete descriptor."""
+    wm = load("world_manifest", "world-manifest.py")
+
+    def test_only_the_world_entry_changes(self):
+        m = {"kind": "regional", "tag": "regional-x", "regions": {"MD": {"url": "u"}}, "portals": {}}
+        w = {"size": 1, "sha256": "f" * 64, "build": "20260927", "date": "2026-09-27", "maxzoom": 6,
+             "layers": ["earth"], "schema": "protomaps-v4", "created": "t", "file": "world.pmtiles"}
+        out = self.wm.apply(json.loads(json.dumps(m)), w, "https://x/world.pmtiles")
+        self.assertEqual({k: v for k, v in out.items() if k != "world"}, m)
+        self.assertEqual(out["world"]["url"], "https://x/world.pmtiles")
+        self.assertEqual(out["world"]["sha256"], "f" * 64)
+        self.assertNotIn("created", out["world"])
+
+    def test_an_incomplete_descriptor_is_refused(self):
+        with self.assertRaises(SystemExit):
+            self.wm.apply({"kind": "regional"}, {"size": 1}, "u")
 
 
 if __name__ == "__main__":

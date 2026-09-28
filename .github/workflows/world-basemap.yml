@@ -1,0 +1,85 @@
+# The WORLD overview (owner, 2026-09-28): one world.pmtiles — Protomaps, z0-6, earth / water /
+# boundaries / places only — drawn by the app under every installed country. VISUAL ONLY: no
+# graph, no search, no features. Built ONLY here; published as a release asset and written into
+# the production manifest (manifest.json "world"), from where the app downloads it itself.
+#
+# Cadence: once a year (the overview of a planet hardly changes) + by hand. The regional factory
+# carries the manifest entry forward, so a monthly regional run never drops it.
+name: world basemap
+
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        description: "Protomaps build key (YYYYMMDD); empty = the newest"
+        required: false
+        default: ""
+  schedule:
+    - cron: "23 4 3 1 *"   # 3 January, 04:23 UTC
+
+permissions:
+  contents: write
+
+# SAME group as the regional factory: both commit manifest.json, and one must never rebase its
+# manifest over the other's in the middle of a run.
+concurrency:
+  group: regional-factory
+  cancel-in-progress: false
+
+jobs:
+  world:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      TIPPECANOE_VERSION: "2.79.0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: tippecanoe (tile-join)
+        run: |
+          set -euo pipefail
+          sudo apt-get -qq update && sudo apt-get -qq install -y build-essential libsqlite3-dev zlib1g-dev >/dev/null
+          git clone -q --depth 1 --branch "$TIPPECANOE_VERSION" https://github.com/felt/tippecanoe.git "$RUNNER_TEMP/tippecanoe"
+          make -s -C "$RUNNER_TEMP/tippecanoe" -j"$(nproc)" tile-join >/dev/null
+          echo "$RUNNER_TEMP/tippecanoe" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/tippecanoe/tile-join" --version 2>&1 | head -1 || true
+      - name: build and check world.pmtiles
+        env:
+          BUILD: ${{ inputs.build }}
+        run: |
+          set -euo pipefail
+          [ -n "${BUILD:-}" ] || unset BUILD
+          WORK="$RUNNER_TEMP/work" bash scripts/world-basemap.sh "$RUNNER_TEMP/out"
+          cat "$RUNNER_TEMP/out/world.json"
+      - name: publish (release world-<build>) and write the manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/out"
+          build=$(python3 -c 'import json;print(json.load(open("'"$OUT"'/world.json"))["build"])')
+          size=$(python3 -c 'import json;print(json.load(open("'"$OUT"'/world.json"))["size"])')
+          TAG="world-$build"
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --latest=false \
+              --title "WORLD overview $build" \
+              --notes "Protomaps build $build, z0-6, layers earth/water/boundaries/places. Map data © OpenStreetMap contributors (ODbL), Protomaps."
+          fi
+          gh release upload "$TAG" "$OUT/world.pmtiles" --repo "$GITHUB_REPOSITORY" --clobber
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/world.pmtiles"
+          # the published asset must be what was built, byte for byte, before the manifest moves
+          got=$(curl -sfIL "$URL" | awk 'tolower($1)=="content-length:"{v=$2} END{gsub("\r","",v); print v}')
+          [ "$got" = "$size" ] || { echo "::error::$URL: size $got, expected $size — manifest NOT moved"; exit 1; }
+          curl -fsSL -o "$RUNNER_TEMP/check.pmtiles" "$URL"
+          [ "$(sha256sum "$RUNNER_TEMP/check.pmtiles" | cut -d' ' -f1)" = "$(python3 -c 'import json;print(json.load(open("'"$OUT"'/world.json"))["sha256"])')" ] \
+            || { echo "::error::downloaded asset does not match its sha256 — manifest NOT moved"; exit 1; }
+          python3 scripts/live-manifest.py "$GITHUB_REPOSITORY" manifest.json
+          python3 scripts/world-manifest.py manifest.json "$OUT/world.json" "$URL"
+          git add manifest.json
+          git -c user.name="wedrive-factory" -c user.email="factory@users.noreply.github.com" \
+              commit -q -m "WORLD overview -> $TAG ($size bytes)"
+          for i in 1 2 3; do
+            git pull -q --rebase --autostash && git push -q && { echo "manifest.json world -> $TAG"; exit 0; }
+            sleep 5
+          done
+          echo "::error::manifest push failed three times: $TAG is published, manifest.json unchanged"; exit 1
