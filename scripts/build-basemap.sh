@@ -55,10 +55,24 @@ BUILD=$(curl -fsSL https://build-metadata.protomaps.dev/builds.json |
   python3 -c 'import json,sys; print(sorted(d["key"] for d in json.load(sys.stdin))[-1])')
 echo "    $BUILD"
 
+# A remote extract is minutes of ranged reads against build.protomaps.com, and one reset
+# connection used to fail the whole country (run 36367106205, AL: "connection reset by peer").
+# Retry the extract itself; a partial output is removed first, so a retry never builds on junk.
+extract() {
+  local out="$1"; shift
+  local n
+  for n in 1 2 3; do
+    rm -f "$out"
+    if "$PMTILES" extract "https://build.protomaps.com/$BUILD" "$out" "$@"; then return 0; fi
+    echo "    extract attempt $n failed" >&2
+    if [ "$n" -lt 3 ]; then sleep $((n * 45)); fi
+  done
+  return 1
+}
+
 BASEMAP="$OUT_DIR/$PACKAGE.pmtiles"
 echo "==> extract ${REGION:-$W,$S,$E,$N} at z0-$MAXZOOM"
-"$PMTILES" extract "https://build.protomaps.com/$BUILD" "$BASEMAP" \
-  "${CUT[@]}" --maxzoom="$MAXZOOM" --download-threads=8
+extract "$BASEMAP" "${CUT[@]}" --maxzoom="$MAXZOOM" --download-threads=8
 
 # ── what it is, stamped beside it ───────────────────────────────────────────────────────────
 # `pmtiles show` reads the header and the metadata the archive carries about itself, including
@@ -137,7 +151,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DETAIL="$WORK/detail-$PACKAGE.pmtiles"
 
 echo "==> detail extract at z15 (for the index only; discarded afterwards)"
-"$PMTILES" extract "https://build.protomaps.com/$BUILD" "$DETAIL"   "${CUT[@]}" --maxzoom=15 --download-threads=8
+extract "$DETAIL" "${CUT[@]}" --maxzoom=15 --download-threads=8
 
 echo '==> search index'
 python3 "$HERE/build-index.py" "$OUT_DIR/$PACKAGE-index.json"   --places "$BASEMAP" --detail "$DETAIL" --bbox="$W,$S,$E,$N" --pmtiles "$PMTILES"
