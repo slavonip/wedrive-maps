@@ -11,9 +11,15 @@
 #             Before it: a758968c (run 35460641774), which built regional-2026-09-20-8 and
 #             regional-2026-09-26-13 and has no frontier_dump. A new engine is a reviewed commit to
 #             this file, and a changed engine_sha makes the precheck rebuild every country.
-engine_ref = multi-region-runtime-v2
-engine_sha = 509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e
-image      = ghcr.io/slavonip/wedrive-engine@sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41
+#             da8b0f2f = engine-image run 36363201620 (2026-09-28), tag multi-region-runtime-v4: v2 +
+#             patch 67 (admin by polygon: frontiers of LU/NL/NO/RU/MK/... were empty) + patch 68
+#             (unidirectional A* SetOrigin region: Vienna no-route on the 32-region set).
+#             38253de0 = engine-image run 36365739930 (2026-09-28), tag multi-region-runtime-v5: v4 +
+#             patch 69 (an admin relation missing members keeps its closing rings: NL had no country
+#             polygon). Controls on v5: LU frontier 751 (as v4), NL 0 -> 2248.
+engine_ref = multi-region-runtime-v5
+engine_sha = c9f008848b6f97efd1404b31b60eb6b166adceea
+image      = ghcr.io/slavonip/wedrive-engine@sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb
 
 # Timezone database for every country graph: the promoted dataset of the maps-vendor release,
 # the same file Europe Lite uses. Checked by sha before any build; a mismatch fails the run.
