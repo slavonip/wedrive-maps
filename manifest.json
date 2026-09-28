@@ -4625,5 +4625,20 @@
       "sha256": "cec0874f58d45a7519a2f23306ff07651022e790627285a189d4c0db8202a66b",
       "rows": 976
     }
+  },
+  "world": {
+    "size": 17008480,
+    "sha256": "20ad906602f94d37cf66d74bd59d205d0477aec57160b2c84a80cd69b416698e",
+    "build": "20260925",
+    "date": "2026-09-25",
+    "maxzoom": 6,
+    "layers": [
+      "boundaries",
+      "earth",
+      "places",
+      "water"
+    ],
+    "schema": "protomaps-v4",
+    "url": "https://github.com/slavonip/wedrive-maps/releases/download/world-20260925/world.pmtiles"
   }
 }
