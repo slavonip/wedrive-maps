@@ -1,66 +1,66 @@
 {
   "schema": 2,
   "kind": "regional",
-  "tag": "regional-2026-09-27-20",
-  "created": "2026-09-27T00:05:10Z",
+  "tag": "regional-2026-09-28-22",
+  "created": "2026-09-28T04:39:55Z",
   "engine": {
-    "version": "multi-region-runtime-v2",
-    "sha": "509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e",
-    "digest": "sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41",
-    "image": "ghcr.io/slavonip/wedrive-engine@sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41"
+    "version": "multi-region-runtime-v5",
+    "sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+    "digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+    "image": "ghcr.io/slavonip/wedrive-engine@sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb"
   },
   "timezones": {
     "url": "https://github.com/slavonip/wedrive-maps/releases/download/maps-vendor/timezones.sqlite",
     "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
   },
   "pipeline": {
-    "revision": "b61fa3906cd17c06f38063cb3ffc0d6f24f74f84",
-    "run_id": 36279166763,
-    "run_url": "https://github.com/slavonip/wedrive-maps/actions/runs/36279166763"
+    "revision": "30e106a632561716565f7f9425c0a82e7bb88a0a",
+    "run_id": 36367106205,
+    "run_url": "https://github.com/slavonip/wedrive-maps/actions/runs/36367106205"
   },
   "min_app": 22,
   "regions": {
     "MD": {
       "region_id": 1,
       "title": "Moldova",
-      "graph_version": "2026-09-25",
-      "package": "md-2026-09-25.tar.gz",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/md-2026-09-25.tar.gz",
-      "bytes": 44395225,
-      "sha256": "b601cf427caad91aecbb502dfa3f561387d7a695dadb6303a63bbab315d93f0e",
+      "graph_version": "2026-09-27",
+      "package": "md-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/md-2026-09-27.tar.gz",
+      "bytes": 44394785,
+      "sha256": "2d8a54f72a73b0a68271b934dad0ba51a828267b3512357c1136b0dad2a137a9",
       "tiles": 114,
-      "engine": "multi-region-runtime-v2",
-      "release": "regional-2026-09-27-20",
-      "engine_sha": "509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e",
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
       "source": {
         "url": "https://download.geofabrik.de/europe/moldova-latest.osm.pbf",
-        "md5": "e2bdc20f60d515360f2828fafffa72b8",
-        "sha256": "54a403ff54d9c3164a64b57492474c3bee786127f68a3e86b98f5a6f318dd7d5",
-        "bytes": 101137080,
-        "replication": "2026-09-25T20:24:36Z",
-        "sequence": "4919"
+        "md5": "5dd107acc6ac5c7771f5a22805a97143",
+        "sha256": "62050f10c45a8120be2fc7a228525faa06ec780b1f0a8c9bea1f2f5d4fa88e4a",
+        "bytes": 101129276,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
       },
       "timezones": {
         "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
       },
       "tar_bytes": 118456320,
-      "tar_sha256": "db20a7f76e3d7b455763ebc9e15b016b4e644d203dfb189e29bf23a92f1979ea",
-      "engine_digest": "sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41",
+      "tar_sha256": "a1e8885606f133af5f334d851319f476656fdb049cf64ccf6b30d61623ea0609",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
       "frontier": {
         "format": "wedrive-frontier/1",
-        "file": "md-2026-09-25.frontier",
+        "file": "md-2026-09-27.frontier",
         "bytes": 5355,
-        "sha256": "6c8efef20ab766fc68db184b2fbea5d46ccf7de2c707c0af0be295381ade545d",
+        "sha256": "90ed8de666e6b5d479139a827df634478ad650491960bc2016f2f0ca6cb86c82",
         "entries": 117,
         "osm_resolved": 117,
-        "source_md5": "e2bdc20f60d515360f2828fafffa72b8",
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/md-2026-09-25.frontier"
+        "source_md5": "5dd107acc6ac5c7771f5a22805a97143",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/md-2026-09-27.frontier"
       },
       "features": {
         "format": "wedrive-features/1",
-        "file": "md-2026-09-25.features",
+        "file": "md-2026-09-27.features",
         "bytes": 120613,
-        "sha256": "ec5d67c88cf896a82b3163d72d484aaab8325c9153091362e9e955dfb73449ca",
+        "sha256": "e01775b20eba0c4668cd5a73dc9f3b3107a8d7daa3dd736e617dda03f600e036",
         "entries": 1631,
         "counts": {
           "camera_speed": 81,
@@ -70,17 +70,17 @@
           "tram_level_crossing": 0,
           "traffic_signals": 618
         },
-        "source_md5": "e2bdc20f60d515360f2828fafffa72b8",
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/md-2026-09-25.features"
+        "source_md5": "5dd107acc6ac5c7771f5a22805a97143",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/md-2026-09-27.features"
       },
       "map": {
         "format": "pmtiles",
         "file": "md.pmtiles",
-        "bytes": 156865263,
-        "sha256": "82edd48709cedf13325002d53d21ee82704fe7efaa60e85f7309e15242b1fd27",
+        "bytes": 81056103,
+        "sha256": "aedc992732ad82002f72826a88db289c224281540241323d678f7f5cf414b406",
         "schema": "protomaps-v4",
-        "build": "20260926.pmtiles",
-        "dataDate": "2026-09-26",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
         "maxzoom": 14,
         "bbox": [
           26.61,
@@ -88,25 +88,25 @@
           30.19,
           48.49
         ],
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/md.pmtiles"
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/md.pmtiles"
       },
       "search": {
         "format": "wedrive-search/sqlite-fts4",
         "file": "md.search.sqlite",
-        "bytes": 55562240,
-        "sha256": "ba7d8be6b4ab7e84bb965f3c5b924800fa7c3ffd361c1e50240483c25cec71aa",
+        "bytes": 49291264,
+        "sha256": "242256016ea1d6856c33278f7564343e61558fcb9bf3f3638ee7443428a1c53f",
         "counts": {
-          "places": 5039,
-          "streets": 86052,
-          "pois": 67763
+          "places": 2559,
+          "streets": 54433,
+          "pois": 49594
         },
         "addresses": {
           "format": "wedrive-address/1",
           "streets": 36950,
           "houses": 914871,
-          "source_md5": "e2bdc20f60d515360f2828fafffa72b8"
+          "source_md5": "5dd107acc6ac5c7771f5a22805a97143"
         },
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/md.search.sqlite"
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/md.search.sqlite"
       },
       "portals": [
         "MD-RO"
@@ -115,67 +115,64 @@
     "RO": {
       "region_id": 2,
       "title": "Romania",
-      "graph_version": "2026-09-25",
-      "package": "ro-2026-09-25.tar.gz",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/ro-2026-09-25.tar.gz",
-      "bytes": 158218687,
-      "sha256": "8d72d74f4d1a8b8a67dd6de33b5a9f7f6a85ab5d45b7a0acb6853afa3790445a",
+      "graph_version": "2026-09-27",
+      "package": "ro-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ro-2026-09-27.tar.gz",
+      "bytes": 158254892,
+      "sha256": "a15430fdfad9752e5baa28c8d67031944eb38a991b66d13762a630b5225d3bb7",
       "tiles": 636,
-      "engine": "multi-region-runtime-v2",
-      "release": "regional-2026-09-26-14",
-      "engine_sha": "509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e",
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
       "source": {
         "url": "https://download.geofabrik.de/europe/romania-latest.osm.pbf",
-        "md5": "b53463617c72954d95e4119b9cde63f7",
-        "sha256": "0bb67d66c6c70dae1babb31ba7e06bb0edd1bdd2c38deb041cdb7f259e5b2a1c",
-        "bytes": 328942890,
-        "replication": "2026-09-25T20:24:36Z",
-        "sequence": "4919"
+        "md5": "93af5a10e8b5cec9bb6b93175dc6162b",
+        "sha256": "302cb2e655ab9cafba837eedee98600ffe37d4235f0e7f528e62ceadb79bb31b",
+        "bytes": 329106964,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
       },
       "timezones": {
         "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
       },
-      "tar_bytes": 391628800,
-      "tar_sha256": "fce26a25d0dec0634a6e49ea3f6cab1eff3991e3235518d93ead0d2fb3c1481d",
-      "engine_digest": "sha256:20589a751998db1c60775a210eab036b5a8bd5a0e4594fd714b70ef99d26be41",
+      "tar_bytes": 391669760,
+      "tar_sha256": "4097d0f60d25332d9dfe4c7159ed28f0df5dd591902992b42eb59dc0285093a3",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
       "frontier": {
         "format": "wedrive-frontier/1",
-        "file": "ro-2026-09-25.frontier",
+        "file": "ro-2026-09-27.frontier",
         "bytes": 10362,
-        "sha256": "11828d9d1e2d2b0369c56710ccd1aa54f41d39b990e8e4f65106301db4ffdae1",
+        "sha256": "958e177d79f23ee401274c5a66fdc9651c1587361b3ad3adf5dae7fb97ad34e8",
         "entries": 226,
         "osm_resolved": 226,
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/ro-2026-09-25.frontier"
+        "source_md5": "93af5a10e8b5cec9bb6b93175dc6162b",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ro-2026-09-27.frontier"
       },
       "features": {
         "format": "wedrive-features/1",
-        "file": "ro-2026-09-25.features",
-        "bytes": 1119404,
-        "sha256": "14970af70c3079b63dca990a9e24cc740ef92253426c6f48a8038a81f0532212",
-        "entries": 16112,
+        "file": "ro-2026-09-27.features",
+        "bytes": 1119541,
+        "sha256": "4d92371eef31660d8531a70714b8b5005a621f61782d93406618ce68d5900737",
+        "entries": 16114,
         "counts": {
           "camera_speed": 342,
           "camera_red_light": 0,
           "camera_section": 0,
           "level_crossing": 8973,
-          "tram_level_crossing": 3012,
+          "tram_level_crossing": 3014,
           "traffic_signals": 3785
         },
-        "source_md5": "b53463617c72954d95e4119b9cde63f7",
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/ro-2026-09-25.features"
+        "source_md5": "93af5a10e8b5cec9bb6b93175dc6162b",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ro-2026-09-27.features"
       },
-      "portals": [
-        "MD-RO",
-        "RO-HU"
-      ],
       "map": {
         "format": "pmtiles",
         "file": "ro.pmtiles",
-        "bytes": 654271355,
-        "sha256": "10e1b1c64892865a8e3d2a0378f1c3f92686ff0b1a891bbba72ad937b18c74a1",
+        "bytes": 395187172,
+        "sha256": "19b7675afced9fe403f9ad940b21d6676b43b58a044db5b302fb4b4d21179671",
         "schema": "protomaps-v4",
-        "build": "20260926.pmtiles",
-        "dataDate": "2026-09-26",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
         "maxzoom": 14,
         "bbox": [
           20.24,
@@ -183,61 +180,72 @@
           30.28,
           48.27
         ],
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/ro.pmtiles"
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ro.pmtiles"
       },
       "search": {
         "format": "wedrive-search/sqlite-fts4",
         "file": "ro.search.sqlite",
-        "bytes": 74956800,
-        "sha256": "bf6e211535d3fbd084d1f1aa584615460155a7b5dc1b51701228899640bc3708",
+        "bytes": 71606272,
+        "sha256": "727e4078bd5c23614bebc48d4b42c8e1cbfbd77c3c34f0ea70017798a32eac47",
         "counts": {
-          "places": 16715,
-          "streets": 324978,
-          "pois": 327409
+          "places": 11973,
+          "streets": 159241,
+          "pois": 179645
         },
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/ro.search.sqlite"
-      }
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 45463,
+          "houses": 1033366,
+          "source_md5": "93af5a10e8b5cec9bb6b93175dc6162b"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ro.search.sqlite"
+      },
+      "portals": [
+        "MD-RO",
+        "RO-HU"
+      ]
     },
     "HU": {
       "region_id": 3,
       "title": "Hungary",
-      "graph_version": "2026-09-25",
-      "package": "hu-2026-09-25.tar.gz",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-13/hu-2026-09-25.tar.gz",
-      "bytes": 140865416,
-      "sha256": "d20bdbe2b75e20124adc5608539d4f8596edf9f2de462d5bb06ba81e4f67af26",
+      "graph_version": "2026-09-27",
+      "package": "hu-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hu-2026-09-27.tar.gz",
+      "bytes": 140915920,
+      "sha256": "595ad4bdb8b5d579a89fc56d70616ee64045c2b055f37b8d1c48190bd20183b5",
       "tiles": 256,
-      "engine": "multi-region-runtime-v2",
-      "release": "regional-2026-09-26-13",
-      "engine_sha": "509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e",
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
       "source": {
         "url": "https://download.geofabrik.de/europe/hungary-latest.osm.pbf",
-        "md5": "4f35bf3d2f6adfd38506baf892852c4f",
-        "sha256": "1981954d63e640f9340864bbd0587dc026d649445668b93fc1930b1fb268ace4",
-        "bytes": 325575147,
-        "replication": "2026-09-25T20:24:36Z",
-        "sequence": "4921"
+        "md5": "e9287dee80905b6aee8ebf284cd00f88",
+        "sha256": "0df3d42948fbd149e0c12869e118edb7f8cac5194b678b6be0ee11cef9f5d124",
+        "bytes": 325796497,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4923"
       },
       "timezones": {
         "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
       },
-      "tar_bytes": 373370880,
-      "tar_sha256": "c78af1e86abb1dd0f8a08164aae6d6c059dbfec36fbec6fb3311fc0d9c7eea8c",
-      "engine_digest": "sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e",
+      "tar_bytes": 373493760,
+      "tar_sha256": "61cdd3e137ed2863a01d876cf399ba4d17aa3e1060effeb7cb6e866fd54f0e74",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
       "frontier": {
         "format": "wedrive-frontier/1",
-        "file": "hu-2026-09-25.frontier",
+        "file": "hu-2026-09-27.frontier",
         "bytes": 49661,
-        "sha256": "8cebc573c474f1ee6c5af210ee7611b8f107969655d349c521f16d452cecccc7",
+        "sha256": "f284c48cbad7f41d76904ca8ce4e1c7f38887fa3c2fd883f4f2765f5f58ac604",
         "entries": 1099,
         "osm_resolved": 1099,
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/hu-2026-09-25.frontier"
+        "source_md5": "e9287dee80905b6aee8ebf284cd00f88",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hu-2026-09-27.frontier"
       },
       "features": {
         "format": "wedrive-features/1",
-        "file": "hu-2026-09-25.features",
-        "bytes": 1271870,
-        "sha256": "87e1126047511032316ddbc1cd91e3275b449bb0cd78386dfc9c9ee4502bc1da",
+        "file": "hu-2026-09-27.features",
+        "bytes": 1271879,
+        "sha256": "1d8d9f42e3a66ea070c91e597b00439b0b0672b820987439cc8ad7cbdb9e2733",
         "entries": 17602,
         "counts": {
           "camera_speed": 430,
@@ -247,21 +255,17 @@
           "tram_level_crossing": 1849,
           "traffic_signals": 5729
         },
-        "source_md5": "4f35bf3d2f6adfd38506baf892852c4f",
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/hu-2026-09-25.features"
+        "source_md5": "e9287dee80905b6aee8ebf284cd00f88",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hu-2026-09-27.features"
       },
-      "portals": [
-        "HU-AT",
-        "RO-HU"
-      ],
       "map": {
         "format": "pmtiles",
         "file": "hu.pmtiles",
-        "bytes": 466152790,
-        "sha256": "991740ed1ec39c77be5621c824390d3941563b0948ab128f073e86b610cc33fb",
+        "bytes": 250418783,
+        "sha256": "5ae34836ab931c08511d5d549a3b6805623e32866d30226fe1039de20db52386",
         "schema": "protomaps-v4",
-        "build": "20260926.pmtiles",
-        "dataDate": "2026-09-26",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
         "maxzoom": 14,
         "bbox": [
           16.11,
@@ -269,85 +273,92 @@
           22.91,
           48.59
         ],
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/hu.pmtiles"
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hu.pmtiles"
       },
       "search": {
         "format": "wedrive-search/sqlite-fts4",
         "file": "hu.search.sqlite",
-        "bytes": 74072064,
-        "sha256": "177284cf9acf41454fdd3d62f5b5889b849321f51d48ddb30655a25f772adaa8",
+        "bytes": 67006464,
+        "sha256": "93231c17510822089eb66b7590dc16c6c6110f13d65dbe97da39078eddd41a81",
         "counts": {
-          "places": 9241,
-          "streets": 233224,
-          "pois": 448988
+          "places": 5058,
+          "streets": 144327,
+          "pois": 250250
         },
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/hu.search.sqlite"
-      }
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 42892,
+          "houses": 735336,
+          "source_md5": "e9287dee80905b6aee8ebf284cd00f88"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hu.search.sqlite"
+      },
+      "portals": [
+        "HU-AT",
+        "RO-HU"
+      ]
     },
     "AT": {
       "region_id": 4,
       "title": "Austria",
-      "graph_version": "2026-09-25",
-      "package": "at-2026-09-25.tar.gz",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-13/at-2026-09-25.tar.gz",
-      "bytes": 317603980,
-      "sha256": "4607dbd0eb9562bdd490ee485e50fec22a4bd5e23883b68e28dc239d833233e6",
+      "graph_version": "2026-09-27",
+      "package": "at-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/at-2026-09-27.tar.gz",
+      "bytes": 317647615,
+      "sha256": "12fbf9e9dec8b8d02360221d2b6f466b13aaad7ab4fa9864b4e7a9a71a7cdef5",
       "tiles": 248,
-      "engine": "multi-region-runtime-v2",
-      "release": "regional-2026-09-26-13",
-      "engine_sha": "509825eba4147daf2b4ff3b5c4ecf78b4f77ab6e",
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
       "source": {
         "url": "https://download.geofabrik.de/europe/austria-latest.osm.pbf",
-        "md5": "7512da49dc077bfd5972741c775c667f",
-        "sha256": "0099d055db090659db48a1fc1b4fa4cd3fe1125e27d3d8bf73781e5f8206c09d",
-        "bytes": 810904843,
-        "replication": "2026-09-25T20:24:36Z",
-        "sequence": "4921"
+        "md5": "051a9b68f98b7ee0bd8f12ca94da9dd1",
+        "sha256": "ab70f09ce84ec77d7acc6ad90c2f1bf096fae0853efc355276614a4884f2dccd",
+        "bytes": 811087803,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4923"
       },
       "timezones": {
         "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
       },
-      "tar_bytes": 815841280,
-      "tar_sha256": "2c3d8413524302083f048f345e66791d730dfe02d272ef56cd78f8c41e1614f3",
-      "engine_digest": "sha256:a758968c972074ac7c7f79df171a5dd33fb2334049eceb7b2f2c7588d7ba322e",
+      "tar_bytes": 815974400,
+      "tar_sha256": "2f71cc72ce5263267c78872e9ed7f2be65b162da890c0047098e4299bd27c7fd",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
       "frontier": {
         "format": "wedrive-frontier/1",
-        "file": "at-2026-09-25.frontier",
+        "file": "at-2026-09-27.frontier",
         "bytes": 81525,
-        "sha256": "5e739fc1e95a97add2ad8fd35bf8a30303dc1e86ced6df4cd1386e9448dc3a57",
+        "sha256": "d3fc0dbc2ed2a9f7272c0ba8bcf394d1fb346f1a23b8e3cc97cf91b908dcd9a3",
         "entries": 1806,
         "osm_resolved": 1806,
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-14/at-2026-09-25.frontier"
+        "source_md5": "051a9b68f98b7ee0bd8f12ca94da9dd1",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/at-2026-09-27.frontier"
       },
       "features": {
         "format": "wedrive-features/1",
-        "file": "at-2026-09-25.features",
-        "bytes": 1679427,
-        "sha256": "accdd8f5239aa4229b28aedf60cc7844182368df56767c01912e00b3c3e69bdf",
-        "entries": 22858,
+        "file": "at-2026-09-27.features",
+        "bytes": 1679358,
+        "sha256": "0e41e32474b06756f54580be158b54ccb7b4b5f857138bab03dbe965acd54b5a",
+        "entries": 22857,
         "counts": {
-          "camera_speed": 1473,
+          "camera_speed": 1472,
           "camera_red_light": 54,
           "camera_section": 10,
           "level_crossing": 7534,
           "tram_level_crossing": 4376,
           "traffic_signals": 9411
         },
-        "source_md5": "7512da49dc077bfd5972741c775c667f",
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/at-2026-09-25.features"
+        "source_md5": "051a9b68f98b7ee0bd8f12ca94da9dd1",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/at-2026-09-27.features"
       },
-      "portals": [
-        "AT-DE",
-        "HU-AT"
-      ],
       "map": {
         "format": "pmtiles",
         "file": "at.pmtiles",
-        "bytes": 1058391106,
-        "sha256": "716fa6d39e978d9f2742c4080d2557b50fbcb44353687a08f3c47c0747189c33",
+        "bytes": 559465665,
+        "sha256": "3105eab44d619116636d2ecffc9af25ca3fa1b14a9ce458ca0845b11f6610b2c",
         "schema": "protomaps-v4",
-        "build": "20260926.pmtiles",
-        "dataDate": "2026-09-26",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
         "maxzoom": 14,
         "bbox": [
           9.53,
@@ -355,20 +366,30 @@
           17.16,
           49.02
         ],
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/at.pmtiles"
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/at.pmtiles"
       },
       "search": {
         "format": "wedrive-search/sqlite-fts4",
         "file": "at.search.sqlite",
-        "bytes": 141471744,
-        "sha256": "39809741dad663a40df7245f8f4c9f9af30a5e534cf8e702850c620afb68a972",
+        "bytes": 143994880,
+        "sha256": "3c864ad8e1d53c5e834a05c8069af640badac668f5870eef8d600b34860e64e7",
         "counts": {
-          "places": 12170,
-          "streets": 432045,
-          "pois": 885725
+          "places": 6779,
+          "streets": 202656,
+          "pois": 413291
         },
-        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/at.search.sqlite"
-      }
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 140244,
+          "houses": 2382141,
+          "source_md5": "051a9b68f98b7ee0bd8f12ca94da9dd1"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/at.search.sqlite"
+      },
+      "portals": [
+        "AT-DE",
+        "HU-AT"
+      ]
     },
     "DE": {
       "region_id": 5,
@@ -422,9 +443,6 @@
         "source_md5": "fd9bab7a9f3e618c80fd11dc5bbcbef5",
         "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/de-2026-09-25.features"
       },
-      "portals": [
-        "AT-DE"
-      ],
       "map": {
         "format": "pmtiles",
         "file": "de.pmtiles",
@@ -465,69 +483,3964 @@
           "pois": 3497011
         },
         "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-26-19/de.search.sqlite"
-      }
+      },
+      "portals": [
+        "AT-DE"
+      ]
+    },
+    "AD": {
+      "region_id": 6,
+      "title": "Andorra",
+      "graph_version": "2026-09-27",
+      "package": "ad-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ad-2026-09-27.tar.gz",
+      "bytes": 1332847,
+      "sha256": "db7b33aa3613358ed4e87c6d2f5bbeeb0a54adac8d4ce8aac9ea40442c477a33",
+      "tiles": 7,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/andorra-latest.osm.pbf",
+        "md5": "257babc06ecec378ea3e7bf6a1abc3e8",
+        "sha256": "8ca9205b1637409e356df47a2f89563481c486d8be4eac8863f7eeb581597a6f",
+        "bytes": 3487521,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 3082240,
+      "tar_sha256": "820603d8cb2a173912a4278d103f51c469a4a5e8ef15c394fc8a6170ea36ec68",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "ad-2026-09-27.frontier",
+        "bytes": 1489,
+        "sha256": "89db8ebb30f1a5edc4f1b957023934b70b9e92dda7894231218dbce9c7627203",
+        "entries": 32,
+        "osm_resolved": 32,
+        "source_md5": "257babc06ecec378ea3e7bf6a1abc3e8",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ad-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "ad-2026-09-27.features",
+        "bytes": 5858,
+        "sha256": "461b858b516477f82bf53eedc6dbd878ea3c9914d99d02c11f37e21fc993d7e7",
+        "entries": 73,
+        "counts": {
+          "camera_speed": 11,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 0,
+          "tram_level_crossing": 0,
+          "traffic_signals": 62
+        },
+        "source_md5": "257babc06ecec378ea3e7bf6a1abc3e8",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ad-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "ad.pmtiles",
+        "bytes": 4256471,
+        "sha256": "d2d5fbc14fdacd329ef79ec8319c5d949b905e71af77676cdb42faf083b61d56",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          1.41,
+          42.43,
+          1.79,
+          42.66
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ad.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "ad.search.sqlite",
+        "bytes": 528384,
+        "sha256": "b181315cdcfacb271c74ccf638a2c55c55b7c5526ea875a2f139e05119b65d9d",
+        "counts": {
+          "places": 135,
+          "streets": 768,
+          "pois": 2830
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 141,
+          "houses": 344,
+          "source_md5": "257babc06ecec378ea3e7bf6a1abc3e8"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ad.search.sqlite"
+      },
+      "portals": []
+    },
+    "BA": {
+      "region_id": 8,
+      "title": "Bosnia and Herzegovina",
+      "graph_version": "2026-09-27",
+      "package": "ba-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ba-2026-09-27.tar.gz",
+      "bytes": 47092848,
+      "sha256": "1366f563271f62c64d62ca0339eded07934d8aa15b97ec471f103e3e7551022a",
+      "tiles": 145,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/bosnia-herzegovina-latest.osm.pbf",
+        "md5": "9644d482f9575654cb2402da44cf2c12",
+        "sha256": "0c7e5b788ec3190f0dc92d03661ecc6fb379069be5f5db59833cb78a7b528d1a",
+        "bytes": 161328451,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 110264320,
+      "tar_sha256": "531da0c0d3e2b9880fcae134ceb94ea5b53aca700f199db8237148aba7fa585e",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "ba-2026-09-27.frontier",
+        "bytes": 37239,
+        "sha256": "2666bf9b79bd227000cf8eed69e4454c727115fa10e1350640a19d4ee59b7bdf",
+        "entries": 829,
+        "osm_resolved": 829,
+        "source_md5": "9644d482f9575654cb2402da44cf2c12",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ba-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "ba-2026-09-27.features",
+        "bytes": 137521,
+        "sha256": "9410ff0d44890eb7f6c62a3735f3c92e98e4e1d3502c5599999b1ec6550edcc3",
+        "entries": 1923,
+        "counts": {
+          "camera_speed": 249,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 731,
+          "tram_level_crossing": 71,
+          "traffic_signals": 872
+        },
+        "source_md5": "9644d482f9575654cb2402da44cf2c12",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ba-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "ba.pmtiles",
+        "bytes": 192065993,
+        "sha256": "a1a9fc79ef46f4247ccf965d6c4cf9faca6afcfc01b37510336447afb84d09bb",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          15.72,
+          42.55,
+          19.63,
+          45.28
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ba.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "ba.search.sqlite",
+        "bytes": 12480512,
+        "sha256": "04724ef628ae444c2cfcef158350b8b61ddeabb6d912a2ace5460f614755c01d",
+        "counts": {
+          "places": 5139,
+          "streets": 16774,
+          "pois": 48514
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 6327,
+          "houses": 154756,
+          "source_md5": "9644d482f9575654cb2402da44cf2c12"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ba.search.sqlite"
+      },
+      "portals": []
+    },
+    "BE": {
+      "region_id": 9,
+      "title": "Belgium",
+      "graph_version": "2026-09-27",
+      "package": "be-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/be-2026-09-27.tar.gz",
+      "bytes": 170897871,
+      "sha256": "7a6cbaa69a4c49e84fb81ec232225e3eb2d5e25d0728a306b4bf9975681d502f",
+      "tiles": 138,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/belgium-latest.osm.pbf",
+        "md5": "c6ad1dfa17b28d6002be6cc1ca50da24",
+        "sha256": "634d47d6466dcf18bf8e54bea91a862787d132ce13aceb1f14db532e7950ba41",
+        "bytes": 695222743,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 455004160,
+      "tar_sha256": "ad8e943cbee589ba8573dccf0f647877ba1be5cd175cce59a22f5aab03ff3d05",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "be-2026-09-27.frontier",
+        "bytes": 174793,
+        "sha256": "9b42e58b0befdf69ced68a1459fdd7f683d59eb9b323b5470ebea15838620549",
+        "entries": 3956,
+        "osm_resolved": 3956,
+        "source_md5": "c6ad1dfa17b28d6002be6cc1ca50da24",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/be-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "be-2026-09-27.features",
+        "bytes": 1531130,
+        "sha256": "691dea750650c535da56caba2e6cd1d11bd9ccb47c717a8db20e61a099a3064e",
+        "entries": 20789,
+        "counts": {
+          "camera_speed": 1451,
+          "camera_red_light": 255,
+          "camera_section": 123,
+          "level_crossing": 4605,
+          "tram_level_crossing": 3249,
+          "traffic_signals": 11106
+        },
+        "source_md5": "c6ad1dfa17b28d6002be6cc1ca50da24",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/be-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "be.pmtiles",
+        "bytes": 343444229,
+        "sha256": "5d93e11816a9f4a7a64718e2686f13f0f7cc2edfaa938885aaf0d083f8b39289",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          2.34,
+          49.49,
+          6.41,
+          51.6
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/be.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "be.search.sqlite",
+        "bytes": 186314752,
+        "sha256": "1c2476c19e7296b32fa42f5ea947325ecfe42102d748774a4538f52e607d33db",
+        "counts": {
+          "places": 4181,
+          "streets": 214399,
+          "pois": 298316
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 150236,
+          "houses": 4151979,
+          "source_md5": "c6ad1dfa17b28d6002be6cc1ca50da24"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/be.search.sqlite"
+      },
+      "portals": []
+    },
+    "BG": {
+      "region_id": 10,
+      "title": "Bulgaria",
+      "graph_version": "2026-09-27",
+      "package": "bg-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/bg-2026-09-27.tar.gz",
+      "bytes": 90701806,
+      "sha256": "e0905857b7358c88ef0afb45dfabffaa50c44e71231fa574ff87a2d1d816e8f4",
+      "tiles": 406,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/bulgaria-latest.osm.pbf",
+        "md5": "8815904101b4b6540ed7e224ff680d35",
+        "sha256": "f2e179fc995c34d7a7a5db630cae947691123c4f2300c5d8d900c4210bd7cde2",
+        "bytes": 174424209,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 233850880,
+      "tar_sha256": "4a1d3a0be558add88893b2c10b0605dd5e6d876caf9652d57eb07b99a6ab6f54",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "bg-2026-09-27.frontier",
+        "bytes": 13060,
+        "sha256": "fca845ae98438a6ecacbdd23ff906809d8072c9f6675a90a45032b17ef2dfd41",
+        "entries": 290,
+        "osm_resolved": 290,
+        "source_md5": "8815904101b4b6540ed7e224ff680d35",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/bg-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "bg-2026-09-27.features",
+        "bytes": 487184,
+        "sha256": "73faf24cad15148e6d7ae3b29be83461b6336c17ada424fec127c496ce05778c",
+        "entries": 6340,
+        "counts": {
+          "camera_speed": 74,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 1912,
+          "tram_level_crossing": 1047,
+          "traffic_signals": 3307
+        },
+        "source_md5": "8815904101b4b6540ed7e224ff680d35",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/bg-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "bg.pmtiles",
+        "bytes": 200979658,
+        "sha256": "16546c11b2868bb2896d50e74a3920101d8ab7be89f2a775481519a827486a16",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          22.35,
+          41.23,
+          29.19,
+          44.22
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/bg.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "bg.search.sqlite",
+        "bytes": 24678400,
+        "sha256": "6b11a1b81b6ba459a7d764d0fefc2b95b75e7afd5f6e1f0afefe9b32465d1f14",
+        "counts": {
+          "places": 5710,
+          "streets": 53834,
+          "pois": 101830
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 12429,
+          "houses": 123967,
+          "source_md5": "8815904101b4b6540ed7e224ff680d35"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/bg.search.sqlite"
+      },
+      "portals": []
+    },
+    "BY": {
+      "region_id": 11,
+      "title": "Belarus",
+      "graph_version": "2026-09-27",
+      "package": "by-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/by-2026-09-27.tar.gz",
+      "bytes": 139959290,
+      "sha256": "189e199888e37c535914efb4449e802c18d5194ea22d1a39d46998e35cb158c0",
+      "tiles": 596,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/belarus-latest.osm.pbf",
+        "md5": "a70a90a601a811df56f51fef554f0d09",
+        "sha256": "4e8384966d0ecab070db6ae9ef2d3ccf207384a7818fcdc961b0d8ae7e47742b",
+        "bytes": 349539078,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 382863360,
+      "tar_sha256": "372d7eb218c126c525e5d37c365fc58e4549c67a7df023d8742af14804ecc445",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "by-2026-09-27.frontier",
+        "bytes": 22199,
+        "sha256": "0f31399c9abe7c0144cda37ba72fdcd33e6ac80c79ba3ffe3cdcbcf18c307295",
+        "entries": 496,
+        "osm_resolved": 496,
+        "source_md5": "a70a90a601a811df56f51fef554f0d09",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/by-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "by-2026-09-27.features",
+        "bytes": 859989,
+        "sha256": "90a3bc022afc9e77320d6f35a0f07d40df47a8fb0a3206d8abe497bc2b2b4dba",
+        "entries": 11794,
+        "counts": {
+          "camera_speed": 574,
+          "camera_red_light": 4,
+          "camera_section": 26,
+          "level_crossing": 6076,
+          "tram_level_crossing": 272,
+          "traffic_signals": 4842
+        },
+        "source_md5": "a70a90a601a811df56f51fef554f0d09",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/by-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "by.pmtiles",
+        "bytes": 429546305,
+        "sha256": "459c150c8948ef3bb225c9cccbd237a726e87705cda69d0f32b8f0c07c3510c3",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          23.17,
+          51.23,
+          32.77,
+          56.17
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/by.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "by.search.sqlite",
+        "bytes": 86175744,
+        "sha256": "c65a0848dbad006272c503a0e494d9e985cf320ea897c9636493d753027778b2",
+        "counts": {
+          "places": 5458,
+          "streets": 92332,
+          "pois": 193025
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 49375,
+          "houses": 1089106,
+          "source_md5": "a70a90a601a811df56f51fef554f0d09"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/by.search.sqlite"
+      },
+      "portals": []
+    },
+    "CH": {
+      "region_id": 12,
+      "title": "Switzerland",
+      "graph_version": "2026-09-27",
+      "package": "ch-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ch-2026-09-27.tar.gz",
+      "bytes": 243583205,
+      "sha256": "d62ed440d02367016e7cca6e514cbe9b66f86b5df947a283086346e19fb40851",
+      "tiles": 135,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/switzerland-latest.osm.pbf",
+        "md5": "f31a2b16ce74da74b1948393969ec91f",
+        "sha256": "5a2a1af74ff41361ef8e5b744c526dadb543313256782a7cc2687983e76180d2",
+        "bytes": 547168294,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4923"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 638720000,
+      "tar_sha256": "4fe11db19a4f5a80958d60d8cc0745fcd6ab0ed66c75a775f0492be028431a07",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "ch-2026-09-27.frontier",
+        "bytes": 79776,
+        "sha256": "32aa1afab5f9097f18867826671cddcbaac08fbabb17f96301f4480777490a1a",
+        "entries": 1782,
+        "osm_resolved": 1782,
+        "source_md5": "f31a2b16ce74da74b1948393969ec91f",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ch-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "ch-2026-09-27.features",
+        "bytes": 1310209,
+        "sha256": "83a3b10df1d10eb8add0e3091cb00a3db77e780eae06f0a7f8f112b930cb572d",
+        "entries": 18483,
+        "counts": {
+          "camera_speed": 548,
+          "camera_red_light": 163,
+          "camera_section": 2,
+          "level_crossing": 6705,
+          "tram_level_crossing": 2098,
+          "traffic_signals": 8967
+        },
+        "source_md5": "f31a2b16ce74da74b1948393969ec91f",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ch-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "ch.pmtiles",
+        "bytes": 295133430,
+        "sha256": "d6d18e96e36259edca1c28749c07ff90099496b296a21435c9b7bd59a87bbffb",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          5.95,
+          45.82,
+          10.5,
+          47.81
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ch.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "ch.search.sqlite",
+        "bytes": 129724416,
+        "sha256": "c35159d071e849f256218b8485bee913d78a3fb12eb4eb6cb474709db0a6fe25",
+        "counts": {
+          "places": 3840,
+          "streets": 181803,
+          "pois": 323016
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 179568,
+          "houses": 2183361,
+          "source_md5": "f31a2b16ce74da74b1948393969ec91f"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ch.search.sqlite"
+      },
+      "portals": []
+    },
+    "CY": {
+      "region_id": 13,
+      "title": "Cyprus",
+      "graph_version": "2026-09-27",
+      "package": "cy-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cy-2026-09-27.tar.gz",
+      "bytes": 26736108,
+      "sha256": "291de54b7ea46a6a3f6f2c93384df6e170c3c59db07f8de4eb142f0ddec1b9e0",
+      "tiles": 107,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/cyprus-latest.osm.pbf",
+        "md5": "280b8c462996e47b5e155c4036842bba",
+        "sha256": "3951dd21bec88e2db3323285b37b23714a9161fa830f8e7960ee39ea72f632db",
+        "bytes": 37474569,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 69468160,
+      "tar_sha256": "cd6cd04d2310f66ac04a077842cbeffbed4d80a77614b1ae144ca471d6c8eee7",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "cy-2026-09-27.frontier",
+        "bytes": 34266,
+        "sha256": "bbaab8b8caf801097bc47e2f4ca9f4e768d1267949da175be20c6f45b90c80e6",
+        "entries": 751,
+        "osm_resolved": 751,
+        "source_md5": "280b8c462996e47b5e155c4036842bba",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cy-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "cy-2026-09-27.features",
+        "bytes": 92285,
+        "sha256": "cbf7bbb3312317d815fbfa167beefc559229162f8d7cc49a59249a265435d9b0",
+        "entries": 1010,
+        "counts": {
+          "camera_speed": 228,
+          "camera_red_light": 6,
+          "camera_section": 0,
+          "level_crossing": 0,
+          "tram_level_crossing": 0,
+          "traffic_signals": 776
+        },
+        "source_md5": "280b8c462996e47b5e155c4036842bba",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cy-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "cy.pmtiles",
+        "bytes": 30098949,
+        "sha256": "bfe7348f3613e67eb20d9246c8dbd627650a62e828257f62f8ea712500ec7913",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          31.95,
+          34.23,
+          34.96,
+          36.0
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cy.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "cy.search.sqlite",
+        "bytes": 8519680,
+        "sha256": "457237c87821ea61c438506c93e4ba6863d3d9470714199e78228fcef00d7d59",
+        "counts": {
+          "places": 438,
+          "streets": 26315,
+          "pois": 37259
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 5315,
+          "houses": 27386,
+          "source_md5": "280b8c462996e47b5e155c4036842bba"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cy.search.sqlite"
+      },
+      "portals": []
+    },
+    "CZ": {
+      "region_id": 14,
+      "title": "Czechia",
+      "graph_version": "2026-09-27",
+      "package": "cz-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cz-2026-09-27.tar.gz",
+      "bytes": 238599305,
+      "sha256": "2962714a9d0062711eb8d597062318c08a702852d64a8439ec8eae1d375af449",
+      "tiles": 234,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/czech-republic-latest.osm.pbf",
+        "md5": "3ed407069f6dd6c87d43b4e8be6ef296",
+        "sha256": "e49ae8970d0dad429a0f041e7ca0017bb008fbca6a7ae11256fa1ac211f0a78f",
+        "bytes": 947727781,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4923"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 634265600,
+      "tar_sha256": "a68a2a6d6b879de959dbe286066ef32bdd313e145e60180c71eb0c3aa0241180",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "cz-2026-09-27.frontier",
+        "bytes": 95045,
+        "sha256": "63ebdc3c281c0c86e713e1182de2825892247b2ab0fb4248cc14b7f36cd3826a",
+        "entries": 2104,
+        "osm_resolved": 2104,
+        "source_md5": "3ed407069f6dd6c87d43b4e8be6ef296",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cz-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "cz-2026-09-27.features",
+        "bytes": 1797911,
+        "sha256": "9dcb6b564bd077aaf7718208137efa1b17bffe2e043bcb1d00405a10e074b1c9",
+        "entries": 26051,
+        "counts": {
+          "camera_speed": 1749,
+          "camera_red_light": 28,
+          "camera_section": 152,
+          "level_crossing": 15358,
+          "tram_level_crossing": 3692,
+          "traffic_signals": 5072
+        },
+        "source_md5": "3ed407069f6dd6c87d43b4e8be6ef296",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cz-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "cz.pmtiles",
+        "bytes": 563814920,
+        "sha256": "8a7712041e2698a93349c68e7f7ad91d8a7aab7cc701962db401c9919c434f41",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          12.08,
+          48.54,
+          18.86,
+          51.06
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cz.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "cz.search.sqlite",
+        "bytes": 157184000,
+        "sha256": "8ab6fac6669e656f0edd8843120eb0f9d5d9389b47571a0bd6c5e424399b9a48",
+        "counts": {
+          "places": 11087,
+          "streets": 105543,
+          "pois": 399635
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 109011,
+          "houses": 3067407,
+          "source_md5": "3ed407069f6dd6c87d43b4e8be6ef296"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/cz.search.sqlite"
+      },
+      "portals": []
+    },
+    "DK": {
+      "region_id": 15,
+      "title": "Denmark",
+      "graph_version": "2026-09-27",
+      "package": "dk-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/dk-2026-09-27.tar.gz",
+      "bytes": 182128042,
+      "sha256": "3053aae2ab235a8a8639eb2cda938d23d1ce4946888206e26a28c9c32deb62a9",
+      "tiles": 533,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/denmark-latest.osm.pbf",
+        "md5": "f736670c4c9e8a4edf8ae9ad0ca29fe8",
+        "sha256": "acb40143beaf24d2f43d0d72efdcd6e8634f2e62bbb4e3f52fa71e92876df400",
+        "bytes": 494927257,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 521216000,
+      "tar_sha256": "bad273f0ec91d5e0bdb717d9c23bb5bceee42c0a41954f6465ea1b7473cf8d11",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "dk-2026-09-27.frontier",
+        "bytes": 4016,
+        "sha256": "0862dcbe44cfddcf2f810eb0bd0446ba92741aa596505f49d69785e5d3417cb7",
+        "entries": 90,
+        "osm_resolved": 90,
+        "source_md5": "f736670c4c9e8a4edf8ae9ad0ca29fe8",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/dk-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "dk-2026-09-27.features",
+        "bytes": 1096054,
+        "sha256": "848475df909e848e39a6d6c88c5c1d063c933de5a9f1c56adeae8c2b3c8e7863",
+        "entries": 13573,
+        "counts": {
+          "camera_speed": 23,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 1762,
+          "tram_level_crossing": 321,
+          "traffic_signals": 11467
+        },
+        "source_md5": "f736670c4c9e8a4edf8ae9ad0ca29fe8",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/dk-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "dk.pmtiles",
+        "bytes": 293421336,
+        "sha256": "4caab671160951fae6bd5cbb9b960fd75fe52e7020809e85fbaeea931039c0a3",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          7.7,
+          54.44,
+          15.65,
+          58.06
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/dk.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "dk.search.sqlite",
+        "bytes": 118616064,
+        "sha256": "3bc8204bd82e640f1b429a116f793b0f6ed11e8b5441921e428c9cab898aa84a",
+        "counts": {
+          "places": 1984,
+          "streets": 200237,
+          "pois": 152691
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 112112,
+          "houses": 2615047,
+          "source_md5": "f736670c4c9e8a4edf8ae9ad0ca29fe8"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/dk.search.sqlite"
+      },
+      "portals": []
+    },
+    "EE": {
+      "region_id": 16,
+      "title": "Estonia",
+      "graph_version": "2026-09-27",
+      "package": "ee-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ee-2026-09-27.tar.gz",
+      "bytes": 48405064,
+      "sha256": "a1dd2c70d134a7ad8f851260cd5be403207ad7bd9159fe3d248aa99365301cf8",
+      "tiles": 281,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/estonia-latest.osm.pbf",
+        "md5": "302045db6f4baeb368de4602b330b688",
+        "sha256": "3c4e532f2c465dcb170a074b85e342fd4e02c700538367a22b548ed8e98a1464",
+        "bytes": 123151649,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 129413120,
+      "tar_sha256": "2a977feb478974f14ffcd31be5ca93ef252afb46b2c580ebbe9e2a5bc5621a2c",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "ee-2026-09-27.frontier",
+        "bytes": 4502,
+        "sha256": "95d62bdd75c145998d8e57ca1996c37e7520e06ab2ab682d48374de47eb5d894",
+        "entries": 99,
+        "osm_resolved": 99,
+        "source_md5": "302045db6f4baeb368de4602b330b688",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ee-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "ee-2026-09-27.features",
+        "bytes": 194231,
+        "sha256": "7e99ceea6a8c9191366d9c304d545f1b9fa4b63b0dd776ceb3a23b3a67de5242",
+        "entries": 2597,
+        "counts": {
+          "camera_speed": 101,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 793,
+          "tram_level_crossing": 307,
+          "traffic_signals": 1396
+        },
+        "source_md5": "302045db6f4baeb368de4602b330b688",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ee-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "ee.pmtiles",
+        "bytes": 122152046,
+        "sha256": "663878eb53bd137cb122f823f42ef5c052211391be3ca478c78f8ea1eff97a61",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          20.85,
+          57.5,
+          28.21,
+          60.0
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ee.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "ee.search.sqlite",
+        "bytes": 19890176,
+        "sha256": "8105c4318545967ebf7d4cbcae45922b894df58748bd53faa53f0194fc320444",
+        "counts": {
+          "places": 463,
+          "streets": 55204,
+          "pois": 57564
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 18196,
+          "houses": 260571,
+          "source_md5": "302045db6f4baeb368de4602b330b688"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ee.search.sqlite"
+      },
+      "portals": []
+    },
+    "ES": {
+      "region_id": 17,
+      "title": "Spain",
+      "graph_version": "2026-09-27",
+      "package": "es-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/es-2026-09-27.tar.gz",
+      "bytes": 845753040,
+      "sha256": "3e83673b2a36dd28012d57d9a01fa6786dd3b1932d98d06e43b5110dad050a8b",
+      "tiles": 1836,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/spain-latest.osm.pbf",
+        "md5": "81d092965a90993a4d4e918ebf923690",
+        "sha256": "8f1a0496c5be3fa5fd94b22409950263aa2c090d3e344bfb7c483e8127fd2995",
+        "bytes": 1486276447,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 2132357120,
+      "tar_sha256": "e54190d3cf29f0fde77fbf2bb454593d98850208b63514a54f9df65a5b8304f7",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "es-2026-09-27.frontier",
+        "bytes": 55874,
+        "sha256": "25e95cdbda751877f6d8c04e292f12591125e2db68eae5b0cfe55f2ff6c9922b",
+        "entries": 1246,
+        "osm_resolved": 1246,
+        "source_md5": "81d092965a90993a4d4e918ebf923690",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/es-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "es-2026-09-27.features",
+        "bytes": 3924358,
+        "sha256": "626a8abf90ea29a1c756a89655a1a75bc64e7d5a2572604d0e0c12f57e374293",
+        "entries": 51963,
+        "counts": {
+          "camera_speed": 2410,
+          "camera_red_light": 206,
+          "camera_section": 292,
+          "level_crossing": 4819,
+          "tram_level_crossing": 1000,
+          "traffic_signals": 43236
+        },
+        "source_md5": "81d092965a90993a4d4e918ebf923690",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/es-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "es.pmtiles",
+        "bytes": 1127898093,
+        "sha256": "a7c541e6f442a7fb05c504fd6f4419e8afb48232fbd546ca54f4d0d7536c7415",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -9.78,
+          35.26,
+          5.1,
+          44.15
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/es.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "es.search.sqlite",
+        "bytes": 273330176,
+        "sha256": "cee8cc7b3995318219d111e98522a6cbf77836851ca75f81a1efbf1cdd05cac2",
+        "counts": {
+          "places": 8689,
+          "streets": 782724,
+          "pois": 988356
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 180958,
+          "houses": 2106454,
+          "source_md5": "81d092965a90993a4d4e918ebf923690"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/es.search.sqlite"
+      },
+      "portals": []
+    },
+    "FI": {
+      "region_id": 18,
+      "title": "Finland",
+      "graph_version": "2026-09-27",
+      "package": "fi-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fi-2026-09-27.tar.gz",
+      "bytes": 318442913,
+      "sha256": "48a3c2312c3613602168561ede9ac7fabd538e4c8a96b2c9f040588b9a1c2126",
+      "tiles": 1421,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/finland-latest.osm.pbf",
+        "md5": "f409b828e5e67c2ac6e3f3b95f433761",
+        "sha256": "53a00d683be0face8362d21211bd343792992e932cc40e125279f84aafd13d29",
+        "bytes": 768215090,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 822876160,
+      "tar_sha256": "fae2808a5dc6d21d80a878e0ed69fa50d6014aaa7e89ddb7c9670b9a6aabec76",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "fi-2026-09-27.frontier",
+        "bytes": 6752,
+        "sha256": "c2cd0d60e94e5fb2739e21514cd6c088f16156008de298749bf2525a0b48d224",
+        "entries": 148,
+        "osm_resolved": 148,
+        "source_md5": "f409b828e5e67c2ac6e3f3b95f433761",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fi-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "fi-2026-09-27.features",
+        "bytes": 942030,
+        "sha256": "f79c4bb8015d2af0ce0eb702bf1349a50d2606cecf647f1bf317c62b138c3fa8",
+        "entries": 13291,
+        "counts": {
+          "camera_speed": 1054,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 3897,
+          "tram_level_crossing": 1260,
+          "traffic_signals": 7080
+        },
+        "source_md5": "f409b828e5e67c2ac6e3f3b95f433761",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fi-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "fi.pmtiles",
+        "bytes": 1003034420,
+        "sha256": "e90bef9b3cd225e0a5714f843d5a6d89fa1610c52b67afcf9125dc0bc66b5ee0",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          19.02,
+          59.29,
+          31.62,
+          70.1
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fi.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "fi.search.sqlite",
+        "bytes": 112340992,
+        "sha256": "de2882518ebe6d082c034bf656218650542fbca968643286d911a4994d794e5a",
+        "counts": {
+          "places": 4484,
+          "streets": 479174,
+          "pois": 329837
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 116437,
+          "houses": 876725,
+          "source_md5": "f409b828e5e67c2ac6e3f3b95f433761"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fi.search.sqlite"
+      },
+      "portals": []
+    },
+    "FO": {
+      "region_id": 19,
+      "title": "Faroe Islands",
+      "graph_version": "2026-09-27",
+      "package": "fo-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fo-2026-09-27.tar.gz",
+      "bytes": 3235446,
+      "sha256": "479aad918479369c07abafd922693aa9acddf8b0ac3d91bd92a6cb6bf1bfa216",
+      "tiles": 146,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/faroe-islands-latest.osm.pbf",
+        "md5": "9275f32c0fe2a9ae47065982902b2a87",
+        "sha256": "f42e06ae3f8c9dfac6af9a6b06954f5c85b8c1c10a39c427031c22f8ea5aef20",
+        "bytes": 7733090,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 8929280,
+      "tar_sha256": "b432fc184bc506c78cb0e54ec25da15dc4661bda82149cd00494b91f3199e75d",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "fo-2026-09-27.frontier",
+        "bytes": 244,
+        "sha256": "b833b05f70542ce28a7593db59a0f7c2c255d13f41283551db859be3d31f537d",
+        "entries": 3,
+        "osm_resolved": 3,
+        "source_md5": "9275f32c0fe2a9ae47065982902b2a87",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fo-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "fo-2026-09-27.features",
+        "bytes": 1266,
+        "sha256": "2a52e35249ac1a46ab4254212d064f46816a27c8f48b70d17438297c711d8da9",
+        "entries": 12,
+        "counts": {
+          "camera_speed": 0,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 0,
+          "tram_level_crossing": 0,
+          "traffic_signals": 12
+        },
+        "source_md5": "9275f32c0fe2a9ae47065982902b2a87",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fo-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "fo.pmtiles",
+        "bytes": 7772908,
+        "sha256": "37ee0680ff447a2dde3eea824f1bfd66cec32f0db026e2cfa858d25790adcd33",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -8.69,
+          60.87,
+          -5.52,
+          62.91
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fo.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "fo.search.sqlite",
+        "bytes": 1613824,
+        "sha256": "ef3718c0531e31d1ae0b735375c66817d37c36fe559b8c0631a63213d7e2876f",
+        "counts": {
+          "places": 108,
+          "streets": 2877,
+          "pois": 4006
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 1790,
+          "houses": 26361,
+          "source_md5": "9275f32c0fe2a9ae47065982902b2a87"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fo.search.sqlite"
+      },
+      "portals": []
+    },
+    "FR": {
+      "region_id": 20,
+      "title": "France",
+      "graph_version": "2026-09-27",
+      "package": "fr-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fr-2026-09-27.tar.gz",
+      "bytes": 1641295036,
+      "sha256": "c80b5270e2d49e589436a756a9e0d5d94b1acf7f4163988f61741dd1d261fe0c",
+      "tiles": 2047,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/france-latest.osm.pbf",
+        "md5": "870255e92b9b524102774eab91dc58c9",
+        "sha256": "543b797a833b82e08c4bf25cb4abf859f87cca4d4aab221a1927ac30411236ec",
+        "bytes": 5089804558,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 4282624000,
+      "tar_sha256": "6a7ef923d9acaf92255aa79b30666f77ac253955de7e03cfd070c19df3575da7",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "fr-2026-09-27.frontier",
+        "bytes": 180268,
+        "sha256": "18f5bd0c3b0d457dcee95991938b3e7cbdb4f183fb04e854408d836bd75e35c4",
+        "entries": 4052,
+        "osm_resolved": 4052,
+        "source_md5": "870255e92b9b524102774eab91dc58c9",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fr-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "fr-2026-09-27.features",
+        "bytes": 9579361,
+        "sha256": "8fdebe1121413bacd95861fe46d9ed675d3b01628e3d82c4126f0ab797385d3c",
+        "entries": 129065,
+        "counts": {
+          "camera_speed": 3500,
+          "camera_red_light": 692,
+          "camera_section": 40,
+          "level_crossing": 29219,
+          "tram_level_crossing": 8385,
+          "traffic_signals": 87229
+        },
+        "source_md5": "870255e92b9b524102774eab91dc58c9",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fr-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "fr.pmtiles",
+        "bytes": 2510578308,
+        "sha256": "bd1e653902a550ed5929dcebb0f9bffab6a8b3f51406627917326133edecdc86",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -6.94,
+          41.24,
+          9.9,
+          51.43
+        ],
+        "parts": [
+          {
+            "name": "fr.pmtiles.part001",
+            "bytes": 1900000000,
+            "sha256": "f27a5455bc58db42c95278da68cf7da1686e5b911b9e19bdf610502df7001cac"
+          },
+          {
+            "name": "fr.pmtiles.part002",
+            "bytes": 610578308,
+            "sha256": "d7cfe61c467e868d41111f523970bb40513a6f8b0f05356ca35d9124496e0a73"
+          }
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fr.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "fr.search.sqlite",
+        "bytes": 900042752,
+        "sha256": "0bcf398f992ff4725e80df56c023af2db64bffae12a72aabcea30f056620ae8e",
+        "counts": {
+          "places": 33688,
+          "streets": 2182760,
+          "pois": 1996194
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 965158,
+          "houses": 12013664,
+          "source_md5": "870255e92b9b524102774eab91dc58c9"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/fr.search.sqlite"
+      },
+      "portals": []
+    },
+    "GB": {
+      "region_id": 21,
+      "title": "Great Britain",
+      "graph_version": "2026-09-27",
+      "package": "gb-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gb-2026-09-27.tar.gz",
+      "bytes": 968265433,
+      "sha256": "3d8c576da3ab56688f299114e58628aaa356afd0598a6be205f020b0d9dba577",
+      "tiles": 1296,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/great-britain-latest.osm.pbf",
+        "md5": "709efcd1d30c354c9d7d012ce67da7a3",
+        "sha256": "992e2b30c9627c53ca7b9fcb82b1f6beaaeb5d0083bb464c4b0eef0bdf7df8fa",
+        "bytes": 2179166925,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4918"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 2651269120,
+      "tar_sha256": "02445f00ed28b8518803e52923106e74f130943339f2c9368cbd93e95b6d046b",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "gb-2026-09-27.frontier",
+        "bytes": 349,
+        "sha256": "5321b1911f92cde23efb7780f520adfa158b346646026068ec5d4bb0504cbd24",
+        "entries": 5,
+        "osm_resolved": 5,
+        "source_md5": "709efcd1d30c354c9d7d012ce67da7a3",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gb-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "gb-2026-09-27.features",
+        "bytes": 7278221,
+        "sha256": "5ef411b0763e09c0ed9ba36271d27926014c884c686a5120147e206f728bbe34",
+        "entries": 91330,
+        "counts": {
+          "camera_speed": 3477,
+          "camera_red_light": 40,
+          "camera_section": 38,
+          "level_crossing": 7674,
+          "tram_level_crossing": 1183,
+          "traffic_signals": 78918
+        },
+        "source_md5": "709efcd1d30c354c9d7d012ce67da7a3",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gb-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "gb.pmtiles",
+        "bytes": 1239740749,
+        "sha256": "b6aa7aa8ad950fa823d6b3d6353eaa5b602eb29b069b51b908965e40a4510bb1",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -14.99,
+          49.52,
+          2.51,
+          61.14
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gb.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "gb.search.sqlite",
+        "bytes": 426917888,
+        "sha256": "88823f26eb63708bc730d86953d7bb9507a146b2a0555e0d7e490b81f4902ecc",
+        "counts": {
+          "places": 14258,
+          "streets": 1079518,
+          "pois": 1449284
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 241060,
+          "houses": 5137214,
+          "source_md5": "709efcd1d30c354c9d7d012ce67da7a3"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gb.search.sqlite"
+      },
+      "portals": []
+    },
+    "GE": {
+      "region_id": 22,
+      "title": "Georgia",
+      "graph_version": "2026-09-27",
+      "package": "ge-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ge-2026-09-27.tar.gz",
+      "bytes": 49082061,
+      "sha256": "6b2d3e309877504df9a6e84a49556e17f926312262005b8d991af77396a78621",
+      "tiles": 375,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/georgia-latest.osm.pbf",
+        "md5": "b308141efe05c436c8eaa234ba5d850b",
+        "sha256": "d28b9dc56342dae2230416fa27a20984734e2e02155cfc4c3e11646501d9caa7",
+        "bytes": 101922254,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4544"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 125378560,
+      "tar_sha256": "cab17194613be9a6accf5b185a46752524456905d2cd47224994b4347b555d76",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "ge-2026-09-27.frontier",
+        "bytes": 7330,
+        "sha256": "ee90a43e8f926af1db4fa7bd129053e3fc51964ad61c9cf8244aa6172de70bf2",
+        "entries": 163,
+        "osm_resolved": 163,
+        "source_md5": "b308141efe05c436c8eaa234ba5d850b",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ge-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "ge-2026-09-27.features",
+        "bytes": 146363,
+        "sha256": "ee341bb85affb37e94b08aefadd495fc9d8ea7c9e53c0450660f8378cdc010b4",
+        "entries": 1946,
+        "counts": {
+          "camera_speed": 260,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 1045,
+          "tram_level_crossing": 0,
+          "traffic_signals": 641
+        },
+        "source_md5": "b308141efe05c436c8eaa234ba5d850b",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ge-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "ge.pmtiles",
+        "bytes": 108463654,
+        "sha256": "f199d8dbfdd8fd45e264c9e8a40e6e646d7b7a06ec6b2df091ad5e1552d67f5e",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          39.88,
+          41.05,
+          46.74,
+          43.59
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ge.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "ge.search.sqlite",
+        "bytes": 22388736,
+        "sha256": "e508b8e04ed8b7f66de49c66089e64af7be5903cbcbd901c633d3a25f2c9a861",
+        "counts": {
+          "places": 3170,
+          "streets": 27078,
+          "pois": 61203
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 9851,
+          "houses": 117112,
+          "source_md5": "b308141efe05c436c8eaa234ba5d850b"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ge.search.sqlite"
+      },
+      "portals": []
+    },
+    "GR": {
+      "region_id": 23,
+      "title": "Greece",
+      "graph_version": "2026-09-27",
+      "package": "gr-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gr-2026-09-27.tar.gz",
+      "bytes": 227575415,
+      "sha256": "691f15c6b80c2e21ca235dd727b34b0195b262575743091893392c6f66920328",
+      "tiles": 780,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/greece-latest.osm.pbf",
+        "md5": "2deba02b28dd5d864ed5bf745a4e60f0",
+        "sha256": "645b93d4aa7a069044a8767c3333bd1adfea4844d7d562c54ff442a2353a56a3",
+        "bytes": 341184295,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 550440960,
+      "tar_sha256": "3b03f612b09443a1abcc8ca518c582e59ad7849bef93a0b38e2869d180ed2afb",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "gr-2026-09-27.frontier",
+        "bytes": 15667,
+        "sha256": "f658e33de5612d4128a45175116f2b3df93ac36fba2c2afad97d65f571326efa",
+        "entries": 346,
+        "osm_resolved": 346,
+        "source_md5": "2deba02b28dd5d864ed5bf745a4e60f0",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gr-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "gr-2026-09-27.features",
+        "bytes": 907835,
+        "sha256": "a05290f42d584bbc58ab808c37d42f2310cfd0f309f5bfe79fb643a49e97987f",
+        "entries": 12287,
+        "counts": {
+          "camera_speed": 417,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 1564,
+          "tram_level_crossing": 366,
+          "traffic_signals": 9940
+        },
+        "source_md5": "2deba02b28dd5d864ed5bf745a4e60f0",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gr-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "gr.pmtiles",
+        "bytes": 271291717,
+        "sha256": "32a7e5cd4d1dd60e4ea4aac6cbe4ce8e787272311ffb85b0d12b0dec87cf84f4",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          18.97,
+          34.59,
+          29.66,
+          41.75
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gr.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "gr.search.sqlite",
+        "bytes": 48246784,
+        "sha256": "a6fdd8a3c0293b45500a8b4ea18686ec9eef57e732148d69c1546cf2f26c1047",
+        "counts": {
+          "places": 7641,
+          "streets": 128219,
+          "pois": 211244
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 19563,
+          "houses": 151722,
+          "source_md5": "2deba02b28dd5d864ed5bf745a4e60f0"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/gr.search.sqlite"
+      },
+      "portals": []
+    },
+    "HR": {
+      "region_id": 24,
+      "title": "Croatia",
+      "graph_version": "2026-09-27",
+      "package": "hr-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hr-2026-09-27.tar.gz",
+      "bytes": 83375449,
+      "sha256": "5dd668fcac66de93ca26c9582f14315b808d85f3088c16a58e076782298084de",
+      "tiles": 345,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/croatia-latest.osm.pbf",
+        "md5": "19bab88ae3839a35b51626cda3929df3",
+        "sha256": "ad8d5f3fa18b93ecdae8f89d7a86ac16ea13407c966771482fb4d01b10baccb0",
+        "bytes": 199975060,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 212090880,
+      "tar_sha256": "5eab6530669ce9ccd7669ebbdfcf8bac39e58f44be2522ccb891fd9d930aa718",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "hr-2026-09-27.frontier",
+        "bytes": 63442,
+        "sha256": "d5991b2fd724340208a4dbfb4f6021b3ccfcb15be49f3eef7aeb50edf031e74f",
+        "entries": 1398,
+        "osm_resolved": 1398,
+        "source_md5": "19bab88ae3839a35b51626cda3929df3",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hr-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "hr-2026-09-27.features",
+        "bytes": 541984,
+        "sha256": "2dab83455e4ca2e20b2a12ff2a0416aeb9a36bdecabdeb419274a7e7af039452",
+        "entries": 7351,
+        "counts": {
+          "camera_speed": 1064,
+          "camera_red_light": 0,
+          "camera_section": 1,
+          "level_crossing": 1899,
+          "tram_level_crossing": 977,
+          "traffic_signals": 3410
+        },
+        "source_md5": "19bab88ae3839a35b51626cda3929df3",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hr-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "hr.pmtiles",
+        "bytes": 221655272,
+        "sha256": "3e3a4599355583b1938f81f879405d7028e502f2883a6f04306b5d4d10ec6163",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          13.09,
+          42.16,
+          19.46,
+          46.56
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hr.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "hr.search.sqlite",
+        "bytes": 28164096,
+        "sha256": "274fb5feaed38473f62f72b4184b316d1a46fab6c6e39659435c65433cc1ab2c",
+        "counts": {
+          "places": 6899,
+          "streets": 48930,
+          "pois": 127472
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 20181,
+          "houses": 250137,
+          "source_md5": "19bab88ae3839a35b51626cda3929df3"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hr.search.sqlite"
+      },
+      "portals": []
+    },
+    "IE": {
+      "region_id": 25,
+      "title": "Ireland and Northern Ireland",
+      "graph_version": "2026-09-27",
+      "package": "ie-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ie-2026-09-27.tar.gz",
+      "bytes": 199675103,
+      "sha256": "61d75fa0580a9fb80bddd0eeaa06a57ab14ae653097ec9e452e9f0cbba4d76c0",
+      "tiles": 482,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/ireland-and-northern-ireland-latest.osm.pbf",
+        "md5": "a4fce8a1452d739407ab2799f67dfa62",
+        "sha256": "1929f991ade3fd1f866af34243072985555f3e206d9b477a6318ba376cb8855a",
+        "bytes": 413767333,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4918"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 552744960,
+      "tar_sha256": "de1dfa6219030f04c33afc0bb94ca1ea868312c048960566d22173bfbfee00dc",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "ie-2026-09-27.frontier",
+        "bytes": 33878,
+        "sha256": "cff964203e1ec7a63e01e1103b42808f5acaeba5796d21a32b2bc88c1f283681",
+        "entries": 737,
+        "osm_resolved": 737,
+        "source_md5": "a4fce8a1452d739407ab2799f67dfa62",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ie-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "ie-2026-09-27.features",
+        "bytes": 1124302,
+        "sha256": "74624e3e7e7e2b63d5443a3ad936bfd8c90a2d5f9ce40684128046ce784d1e45",
+        "entries": 13681,
+        "counts": {
+          "camera_speed": 26,
+          "camera_red_light": 0,
+          "camera_section": 5,
+          "level_crossing": 1679,
+          "tram_level_crossing": 384,
+          "traffic_signals": 11587
+        },
+        "source_md5": "a4fce8a1452d739407ab2799f67dfa62",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ie-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "ie.pmtiles",
+        "bytes": 274604702,
+        "sha256": "153bcc22760433acd78fa90a4cca0de0f7a69792a003eacbde4b43ae9caf5ba3",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -14.4,
+          49.6,
+          -5.06,
+          56.87
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ie.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "ie.search.sqlite",
+        "bytes": 54874112,
+        "sha256": "c98e49ddd5e261bbddfce5ae052c2541f7dec158d5587c02be24e8978541c47f",
+        "counts": {
+          "places": 1806,
+          "streets": 107290,
+          "pois": 269889
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 22753,
+          "houses": 459350,
+          "source_md5": "a4fce8a1452d739407ab2799f67dfa62"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ie.search.sqlite"
+      },
+      "portals": []
+    },
+    "IM": {
+      "region_id": 26,
+      "title": "Isle of Man",
+      "graph_version": "2026-09-27",
+      "package": "im-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/im-2026-09-27.tar.gz",
+      "bytes": 2730507,
+      "sha256": "2cef3c661120327bee0e3c2a40eb34205c18fe5f4946076f0f98c764d3e21fff",
+      "tiles": 52,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/isle-of-man-latest.osm.pbf",
+        "md5": "cf29477a0b0ea634a1fc4cda917b2984",
+        "sha256": "ce1079c6f9442770d0cb1af08b97063e08098f6bb28eb934374cdf591d1d5a56",
+        "bytes": 6076428,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4918"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 7424000,
+      "tar_sha256": "14e8b8c1cde00e8a58ac6fcff9dc69e56fb403e64622c52b962cb7fafecceb1e",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "im-2026-09-27.frontier",
+        "bytes": 375,
+        "sha256": "e5fbfee1ae44f1461749e06b77a1ee630688fb2a84cc7fb75a40cc843ad25c3c",
+        "entries": 6,
+        "osm_resolved": 6,
+        "source_md5": "cf29477a0b0ea634a1fc4cda917b2984",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/im-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "im-2026-09-27.features",
+        "bytes": 25471,
+        "sha256": "47fdf8a22f1cfc6cababadad513a79f82dab26db77210d1cd8c16a9ef043bf93",
+        "entries": 337,
+        "counts": {
+          "camera_speed": 0,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 154,
+          "tram_level_crossing": 32,
+          "traffic_signals": 151
+        },
+        "source_md5": "cf29477a0b0ea634a1fc4cda917b2984",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/im-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "im.pmtiles",
+        "bytes": 5834658,
+        "sha256": "15efc8de09ed272cf52acf8075596fa54ba9e343f8c85360dd6364c4a04a10c6",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -5.43,
+          53.73,
+          -3.69,
+          54.67
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/im.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "im.search.sqlite",
+        "bytes": 1024000,
+        "sha256": "3f146a7e9c4b2ba9635a064bb2b75715c210139526ddce0ac6231842e562c5ac",
+        "counts": {
+          "places": 41,
+          "streets": 2551,
+          "pois": 4352
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 552,
+          "houses": 6804,
+          "source_md5": "cf29477a0b0ea634a1fc4cda917b2984"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/im.search.sqlite"
+      },
+      "portals": []
+    },
+    "IS": {
+      "region_id": 27,
+      "title": "Iceland",
+      "graph_version": "2026-09-27",
+      "package": "is-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/is-2026-09-27.tar.gz",
+      "bytes": 18473777,
+      "sha256": "2fd96f6e5226628f4a2d3b4395072f9923aead84f73e5f2d721d8bd55005aa1a",
+      "tiles": 493,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/iceland-latest.osm.pbf",
+        "md5": "33f5c905a446dab4fdfe12ef771d7f00",
+        "sha256": "7cc84708cdf41315312ce01652b50ad688d3d579b042af59258c9f171c64a2c8",
+        "bytes": 64794101,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 45967360,
+      "tar_sha256": "9e05ca38a3e57cda379d99120ba9e90e8e54c3529f5a82c0266a3221224d645d",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "is-2026-09-27.frontier",
+        "bytes": 207,
+        "sha256": "4dcc70dc5d7918a3e2757a0dc70c010f03782f27a0ea41793ef74dfa3fceb15a",
+        "entries": 2,
+        "osm_resolved": 2,
+        "source_md5": "33f5c905a446dab4fdfe12ef771d7f00",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/is-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "is-2026-09-27.features",
+        "bytes": 57229,
+        "sha256": "2576a851638a3ce0a29acab482b1851c2958a79e783c3a462db867e22cb5676a",
+        "entries": 649,
+        "counts": {
+          "camera_speed": 20,
+          "camera_red_light": 4,
+          "camera_section": 6,
+          "level_crossing": 0,
+          "tram_level_crossing": 0,
+          "traffic_signals": 619
+        },
+        "source_md5": "33f5c905a446dab4fdfe12ef771d7f00",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/is-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "is.pmtiles",
+        "bytes": 152300314,
+        "sha256": "c83703b6b86393957c1a8b858a581e90d115a87ac3e91e9e6b2fc7a8b9f5a0d8",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -25.7,
+          62.85,
+          -12.42,
+          67.5
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/is.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "is.search.sqlite",
+        "bytes": 9105408,
+        "sha256": "4d5268a740b80e0d1431b23a383cf12963dfd3c42beb5abf06b4b844888a098b",
+        "counts": {
+          "places": 80,
+          "streets": 38229,
+          "pois": 21200
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 7812,
+          "houses": 100967,
+          "source_md5": "33f5c905a446dab4fdfe12ef771d7f00"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/is.search.sqlite"
+      },
+      "portals": []
+    },
+    "IT": {
+      "region_id": 28,
+      "title": "Italy",
+      "graph_version": "2026-09-27",
+      "package": "it-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/it-2026-09-27.tar.gz",
+      "bytes": 905066035,
+      "sha256": "12189cd37411290b0431b61d909aa54599a33be855ce845037b201b0f2548df5",
+      "tiles": 1591,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/italy-latest.osm.pbf",
+        "md5": "54a614c45f4721f6ea6000eb48d43cae",
+        "sha256": "595607309a0a501e2301214ca62f4bbe0ddaecaa80da65034431d9231490f611",
+        "bytes": 2234504431,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 2325760000,
+      "tar_sha256": "b8a2c208f45944f693e52bc1e1420fcf93181bf47a5cb4b05ce72e13c8ff1c61",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "it-2026-09-27.frontier",
+        "bytes": 43860,
+        "sha256": "20faf66f1985a756f79346c625e5124f027eee5033892cf55bbb8b0d254867ea",
+        "entries": 970,
+        "osm_resolved": 970,
+        "source_md5": "54a614c45f4721f6ea6000eb48d43cae",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/it-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "it-2026-09-27.features",
+        "bytes": 4185547,
+        "sha256": "9da675b63279881dab6bbd44895419eda74a0dfafa4c64e6afdabd62989fbec2",
+        "entries": 55114,
+        "counts": {
+          "camera_speed": 5313,
+          "camera_red_light": 434,
+          "camera_section": 60,
+          "level_crossing": 11532,
+          "tram_level_crossing": 5628,
+          "traffic_signals": 32147
+        },
+        "source_md5": "54a614c45f4721f6ea6000eb48d43cae",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/it-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "it.pmtiles",
+        "bytes": 1331409937,
+        "sha256": "9670260b4a433c699119a3a06b0f2e6c85ba5a5c332b25c7419391ab58d8a04e",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          6.6,
+          35.08,
+          19.12,
+          47.1
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/it.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "it.search.sqlite",
+        "bytes": 401207296,
+        "sha256": "d4a4537d4e9b13cf389a4f123b95271ad9e0231c27357c1db34cb5215aed4e4e",
+        "counts": {
+          "places": 11555,
+          "streets": 1039363,
+          "pois": 1201786
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 279717,
+          "houses": 4499926,
+          "source_md5": "54a614c45f4721f6ea6000eb48d43cae"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/it.search.sqlite"
+      },
+      "portals": []
+    },
+    "LI": {
+      "region_id": 29,
+      "title": "Liechtenstein",
+      "graph_version": "2026-09-27",
+      "package": "li-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/li-2026-09-27.tar.gz",
+      "bytes": 1692032,
+      "sha256": "46cc0b520f170f890dc552ef3472b37c038a6472d9a08663abeb2700c4010c0a",
+      "tiles": 5,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf",
+        "md5": "f8acff3c6a08096239debe4f36b0d857",
+        "sha256": "8aa2d78aa1671aec586b339eec0e40e1380861043a469ae2e3eda07e969b429b",
+        "bytes": 3458241,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 4556800,
+      "tar_sha256": "48b9fdefb843be5b6b70de8b191155fa75296cbcc0ec94679c85dff61149a894",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "li-2026-09-27.frontier",
+        "bytes": 2445,
+        "sha256": "dfde0e6592f1772734270740b8ce08bc6e17e2779922685610da6895f2b260bc",
+        "entries": 53,
+        "osm_resolved": 53,
+        "source_md5": "f8acff3c6a08096239debe4f36b0d857",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/li-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "li-2026-09-27.features",
+        "bytes": 4591,
+        "sha256": "521cf9b80cc3806cfe159ce392ac0417d1dd9345a2bbc98cd13ab94cdd1a44d9",
+        "entries": 58,
+        "counts": {
+          "camera_speed": 4,
+          "camera_red_light": 2,
+          "camera_section": 0,
+          "level_crossing": 11,
+          "tram_level_crossing": 0,
+          "traffic_signals": 41
+        },
+        "source_md5": "f8acff3c6a08096239debe4f36b0d857",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/li-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "li.pmtiles",
+        "bytes": 4646607,
+        "sha256": "1244d8dcb098d5150772781163e9351c1c84578db77ecde1690a30e94c891b4a",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          9.47,
+          47.05,
+          9.64,
+          47.27
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/li.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "li.search.sqlite",
+        "bytes": 839680,
+        "sha256": "e274fd902b35a9dc80feeedfc16bf9a3efb8317a3c74514d5d2fc0292b322f58",
+        "counts": {
+          "places": 108,
+          "streets": 1298,
+          "pois": 2066
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 958,
+          "houses": 12330,
+          "source_md5": "f8acff3c6a08096239debe4f36b0d857"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/li.search.sqlite"
+      },
+      "portals": []
+    },
+    "LT": {
+      "region_id": 30,
+      "title": "Lithuania",
+      "graph_version": "2026-09-27",
+      "package": "lt-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lt-2026-09-27.tar.gz",
+      "bytes": 75897205,
+      "sha256": "3507cf5a29f8ae830a8e3b1d6e6f77fdbbf4f5e7e04a1cea381fcfaa32a1dd61",
+      "tiles": 330,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/lithuania-latest.osm.pbf",
+        "md5": "d93d33de8df96ce72c73ba4f5d09fb83",
+        "sha256": "26bb004eb20571eb33f888a274bd6c0766173374f8cdda655545a73cf3a4da16",
+        "bytes": 222842613,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 204564480,
+      "tar_sha256": "01cd8c509cf92f738f87924665885dab802115fc57beaaabac80cb027121ee15",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "lt-2026-09-27.frontier",
+        "bytes": 8920,
+        "sha256": "31958ab47afd5032fe918f701c59f5b6ac40f41e8456b48b0d145d9c8c95c0bf",
+        "entries": 197,
+        "osm_resolved": 197,
+        "source_md5": "d93d33de8df96ce72c73ba4f5d09fb83",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lt-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "lt-2026-09-27.features",
+        "bytes": 289898,
+        "sha256": "f7e4abe40bafd425d0d10f652006f740376634cb8eadc584b4b8f5476026fc1b",
+        "entries": 3826,
+        "counts": {
+          "camera_speed": 374,
+          "camera_red_light": 0,
+          "camera_section": 180,
+          "level_crossing": 1736,
+          "tram_level_crossing": 0,
+          "traffic_signals": 1536
+        },
+        "source_md5": "d93d33de8df96ce72c73ba4f5d09fb83",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lt-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "lt.pmtiles",
+        "bytes": 231742830,
+        "sha256": "1e697722f7ae07dc0c4773a1b741da0179fce7da6bd3a358291ffaa8b34f1280",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          20.62,
+          53.89,
+          26.84,
+          56.45
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lt.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "lt.search.sqlite",
+        "bytes": 50921472,
+        "sha256": "a5c9b1ea010601573669eef21a0d9cf04d0b54f93e5f9de63be02d650f4027c2",
+        "counts": {
+          "places": 12106,
+          "streets": 76499,
+          "pois": 67941
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 64596,
+          "houses": 1053543,
+          "source_md5": "d93d33de8df96ce72c73ba4f5d09fb83"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lt.search.sqlite"
+      },
+      "portals": []
+    },
+    "LU": {
+      "region_id": 31,
+      "title": "Luxembourg",
+      "graph_version": "2026-09-27",
+      "package": "lu-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lu-2026-09-27.tar.gz",
+      "bytes": 16417768,
+      "sha256": "48e497e2700db0b4f8980d50081c44739ae503c1883be27aad2920a9354a5b50",
+      "tiles": 20,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/luxembourg-latest.osm.pbf",
+        "md5": "642f2d4f54c3e98662b8701c2f1936b9",
+        "sha256": "112f7da4da8d38d456e0db372e173701566d1a10deffcd3810da757a17631ebc",
+        "bytes": 47571798,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 42383360,
+      "tar_sha256": "dbeaee07d58623100c28c2e7b68c63d097f34f1bf6c0cb8b3004437e3794d883",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "lu-2026-09-27.frontier",
+        "bytes": 33307,
+        "sha256": "a13ecef72ff7640dece098430372108464ea5b4af66734844371bef86d2d803b",
+        "entries": 751,
+        "osm_resolved": 751,
+        "source_md5": "642f2d4f54c3e98662b8701c2f1936b9",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lu-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "lu-2026-09-27.features",
+        "bytes": 137048,
+        "sha256": "c07a361be00f1adf4852a832862c1135f3f7b0c51d909a158b912524c8867679",
+        "entries": 1915,
+        "counts": {
+          "camera_speed": 38,
+          "camera_red_light": 1,
+          "camera_section": 10,
+          "level_crossing": 434,
+          "tram_level_crossing": 190,
+          "traffic_signals": 1242
+        },
+        "source_md5": "642f2d4f54c3e98662b8701c2f1936b9",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lu-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "lu.pmtiles",
+        "bytes": 41350372,
+        "sha256": "327d25f698d5362b265273e31be7d30ee5379a6bc6b3de5240d347ac8d00d88f",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          5.73,
+          49.45,
+          6.53,
+          50.18
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lu.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "lu.search.sqlite",
+        "bytes": 9584640,
+        "sha256": "6f504f163fef53470ff8984579db453f1b7eac33a20dae611e5018312e249eb4",
+        "counts": {
+          "places": 996,
+          "streets": 11947,
+          "pois": 25431
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 8561,
+          "houses": 168352,
+          "source_md5": "642f2d4f54c3e98662b8701c2f1936b9"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lu.search.sqlite"
+      },
+      "portals": []
+    },
+    "LV": {
+      "region_id": 32,
+      "title": "Latvia",
+      "graph_version": "2026-09-27",
+      "package": "lv-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lv-2026-09-27.tar.gz",
+      "bytes": 66224282,
+      "sha256": "d923837dc35e53d7f6bfc68d07d026cf0b1f846cfa1d14b3d9e5b9efbf3de7e3",
+      "tiles": 375,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/latvia-latest.osm.pbf",
+        "md5": "11cb8d4cce210ff989e1e1cac7a643df",
+        "sha256": "b6097fe136d2600704352fff4d3d5619999ba5aa774eaa71fd7ed8f12822202e",
+        "bytes": 140647779,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 179578880,
+      "tar_sha256": "16a2791466f086334ca65c3463c62b98fccf3fbc5e84c3f59687fd17a45cdeb0",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "lv-2026-09-27.frontier",
+        "bytes": 8686,
+        "sha256": "fac99b9ef7e179f51bc57804b74deeb47fa86e5fc86cc616c1e6cb8055a3a5fe",
+        "entries": 191,
+        "osm_resolved": 191,
+        "source_md5": "11cb8d4cce210ff989e1e1cac7a643df",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lv-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "lv-2026-09-27.features",
+        "bytes": 240427,
+        "sha256": "e0b17c226fdef79d9ec291d8285af7797a28378d15d472fe3dc61710d5622fd2",
+        "entries": 3256,
+        "counts": {
+          "camera_speed": 166,
+          "camera_red_light": 0,
+          "camera_section": 17,
+          "level_crossing": 1461,
+          "tram_level_crossing": 509,
+          "traffic_signals": 1103
+        },
+        "source_md5": "11cb8d4cce210ff989e1e1cac7a643df",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lv-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "lv.pmtiles",
+        "bytes": 155975177,
+        "sha256": "55dfaa98d24e631d6d7296381ad236cee00d30cbc270c9c4a45593016790bccf",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          19.73,
+          55.66,
+          28.26,
+          58.09
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lv.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "lv.search.sqlite",
+        "bytes": 23941120,
+        "sha256": "309a5e0ba59a60a8957396e22b7d7130b0fc868c3e0c4c7d1ab8045ab12a839f",
+        "counts": {
+          "places": 3097,
+          "streets": 63442,
+          "pois": 56021
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 18522,
+          "houses": 329812,
+          "source_md5": "11cb8d4cce210ff989e1e1cac7a643df"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/lv.search.sqlite"
+      },
+      "portals": []
+    },
+    "MC": {
+      "region_id": 33,
+      "title": "Monaco",
+      "graph_version": "2026-09-27",
+      "package": "mc-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mc-2026-09-27.tar.gz",
+      "bytes": 398317,
+      "sha256": "d9a2bdbfaad6ed2321eac1b1f6c1c201f6ff8644d41819437ebe54b6e3106c42",
+      "tiles": 4,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/monaco-latest.osm.pbf",
+        "md5": "b86c6194f4768e4657a1c948fb41e105",
+        "sha256": "1258e0e5af3a1a516130cfcf0e7f1b85039971cb9cceab806dfe9df677c1eee2",
+        "bytes": 691393,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 1105920,
+      "tar_sha256": "1645c2808ef5adf2d25c78408b33049900c4cf34733f6eb649375d794131a447",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "mc-2026-09-27.frontier",
+        "bytes": 4176,
+        "sha256": "efa26513176e22353a56cbb234a8858d4d16c8427d3fc04ffea91919eeaffb8e",
+        "entries": 94,
+        "osm_resolved": 94,
+        "source_md5": "b86c6194f4768e4657a1c948fb41e105",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mc-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "mc-2026-09-27.features",
+        "bytes": 1866,
+        "sha256": "7400e096cfe7a664a64503d318910f8555e36a40d35a3a3e0f82bbda903bc7bb",
+        "entries": 23,
+        "counts": {
+          "camera_speed": 0,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 0,
+          "tram_level_crossing": 0,
+          "traffic_signals": 23
+        },
+        "source_md5": "b86c6194f4768e4657a1c948fb41e105",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mc-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "mc.pmtiles",
+        "bytes": 1547729,
+        "sha256": "4069b5a8c3fc0e474db9fcf5484e6231c38611c3aa957614b1ce2d220068c123",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          7.41,
+          43.48,
+          7.6,
+          43.75
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mc.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "mc.search.sqlite",
+        "bytes": 290816,
+        "sha256": "4781ae04b83f54e106e487f855deda546fe632851e79a88b4999d1298abf67bf",
+        "counts": {
+          "places": 42,
+          "streets": 317,
+          "pois": 1374
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 120,
+          "houses": 383,
+          "source_md5": "b86c6194f4768e4657a1c948fb41e105"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mc.search.sqlite"
+      },
+      "portals": []
+    },
+    "ME": {
+      "region_id": 34,
+      "title": "Montenegro",
+      "graph_version": "2026-09-27",
+      "package": "me-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/me-2026-09-27.tar.gz",
+      "bytes": 13983095,
+      "sha256": "c1ddf50f60014c59f9f763a17f205903699901fa86019de2d8df74fab2dcd980",
+      "tiles": 56,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/montenegro-latest.osm.pbf",
+        "md5": "81c02caf1981e86606dcf86c8e7c75df",
+        "sha256": "c26477e060fe7db1c7b3a2b671ee4f076d206a5f4a2f222e61fafa4e20373243",
+        "bytes": 34447289,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4909"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 32040960,
+      "tar_sha256": "157c2998e865f81d83654c9ca7f835cd982cb27eb0d6d9b552845bfcec24843d",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "me-2026-09-27.frontier",
+        "bytes": 12098,
+        "sha256": "8a2e1b219863c422c471066c54f24a5cf335b9f308c2f049c0075a60c09989ce",
+        "entries": 268,
+        "osm_resolved": 268,
+        "source_md5": "81c02caf1981e86606dcf86c8e7c75df",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/me-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "me-2026-09-27.features",
+        "bytes": 32500,
+        "sha256": "5de435b89463436bab4750877e65863ce15f2755659f7243036318d9241b5d8a",
+        "entries": 449,
+        "counts": {
+          "camera_speed": 13,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 140,
+          "tram_level_crossing": 0,
+          "traffic_signals": 296
+        },
+        "source_md5": "81c02caf1981e86606dcf86c8e7c75df",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/me-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "me.pmtiles",
+        "bytes": 41069672,
+        "sha256": "a4a0b52665d36c5e55c0b2f5a9c250f2b7215656d1dd34b76a028670f94478a9",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          18.17,
+          41.62,
+          20.36,
+          43.56
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/me.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "me.search.sqlite",
+        "bytes": 3006464,
+        "sha256": "90e1247d01a01848a915a89dd47987a907e870caa5cb6e1e88984fa9db45a084",
+        "counts": {
+          "places": 1540,
+          "streets": 4621,
+          "pois": 18830
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 1016,
+          "houses": 6640,
+          "source_md5": "81c02caf1981e86606dcf86c8e7c75df"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/me.search.sqlite"
+      },
+      "portals": []
+    },
+    "MK": {
+      "region_id": 35,
+      "title": "North Macedonia",
+      "graph_version": "2026-09-27",
+      "package": "mk-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mk-2026-09-27.tar.gz",
+      "bytes": 15508051,
+      "sha256": "386603f7fed226a522329d2119b265275a4ad973022dc00518e7471ae7ced1e9",
+      "tiles": 75,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/macedonia-latest.osm.pbf",
+        "md5": "8c1b9383bea660feca1d10409a16958f",
+        "sha256": "5f86e16736bfc3952f0e075e0bd56cd5c5a34a15e72b45914e6eb69dcc5a9e0b",
+        "bytes": 29755936,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 36976640,
+      "tar_sha256": "7eb0580aab6f323b113560379a5116788e7ae59adbd1876b104f169f6a590b8d",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "mk-2026-09-27.frontier",
+        "bytes": 10962,
+        "sha256": "80c23eea08b66331cb6e2a89252ded2d7eae3c6968e4e19ea5fe6eeca4ae825f",
+        "entries": 242,
+        "osm_resolved": 242,
+        "source_md5": "8c1b9383bea660feca1d10409a16958f",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mk-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "mk-2026-09-27.features",
+        "bytes": 77031,
+        "sha256": "fe4268129878da73236a10618b805100b2839396cad52496eadae640b10b583e",
+        "entries": 1051,
+        "counts": {
+          "camera_speed": 176,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 370,
+          "tram_level_crossing": 0,
+          "traffic_signals": 505
+        },
+        "source_md5": "8c1b9383bea660feca1d10409a16958f",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mk-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "mk.pmtiles",
+        "bytes": 40150833,
+        "sha256": "9080419d605e214de016a842d179816de0d7885cb4696f9ba731bf5d385374bc",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          20.45,
+          40.85,
+          23.04,
+          42.38
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mk.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "mk.search.sqlite",
+        "bytes": 3883008,
+        "sha256": "da38a765e13c71e1d54b8d009ef33d34507ab8ffd6f94d27234d99cb3ba0c4b2",
+        "counts": {
+          "places": 2410,
+          "streets": 6382,
+          "pois": 15869
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 1873,
+          "houses": 13739,
+          "source_md5": "8c1b9383bea660feca1d10409a16958f"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mk.search.sqlite"
+      },
+      "portals": []
+    },
+    "MT": {
+      "region_id": 36,
+      "title": "Malta",
+      "graph_version": "2026-09-27",
+      "package": "mt-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mt-2026-09-27.tar.gz",
+      "bytes": 4736968,
+      "sha256": "defc60e884de39e806c1d698f6a679bcb22ff791cb31a36a38ba706885ec86ab",
+      "tiles": 13,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/malta-latest.osm.pbf",
+        "md5": "6b51e12b9596ab55f6793ec090153749",
+        "sha256": "a30dae72643a62746f46327411f512a30ad9157e2ad2b2d453975ff24b12dbd9",
+        "bytes": 8922923,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 12871680,
+      "tar_sha256": "ea0afd4b87a0c0337e18b9d068759850a11692a8a2d868edf66f1b5bdcf20e60",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "mt-2026-09-27.frontier",
+        "bytes": 306,
+        "sha256": "de6d29721d1808d76c6e70c35f1a62173ec9a126fcae3902c263107d8433295f",
+        "entries": 4,
+        "osm_resolved": 4,
+        "source_md5": "6b51e12b9596ab55f6793ec090153749",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mt-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "mt-2026-09-27.features",
+        "bytes": 6302,
+        "sha256": "9f8f2963f3f1dd160641695a2b6451eaa2d384338fbb610f3ea5db0168373c0c",
+        "entries": 81,
+        "counts": {
+          "camera_speed": 21,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 0,
+          "tram_level_crossing": 0,
+          "traffic_signals": 60
+        },
+        "source_md5": "6b51e12b9596ab55f6793ec090153749",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mt-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "mt.pmtiles",
+        "bytes": 4295737,
+        "sha256": "f0206d8c977b5f12e29a19d463682eee584e7a9d75e2750a3df5c570980a09cf",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          14.0,
+          35.52,
+          14.86,
+          36.33
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mt.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "mt.search.sqlite",
+        "bytes": 2527232,
+        "sha256": "8305232d9c873bf5fce2e001bef7411fc291f91f2d85ab1a9943a2d554dd39d3",
+        "counts": {
+          "places": 27,
+          "streets": 8543,
+          "pois": 11385
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 792,
+          "houses": 4393,
+          "source_md5": "6b51e12b9596ab55f6793ec090153749"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/mt.search.sqlite"
+      },
+      "portals": []
+    },
+    "NL": {
+      "region_id": 37,
+      "title": "Netherlands",
+      "graph_version": "2026-09-27",
+      "package": "nl-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/nl-2026-09-27.tar.gz",
+      "bytes": 328468697,
+      "sha256": "586044a854ae43f2371e91fb53876047b6525930e7a3ae86a84f7f65765ce026",
+      "tiles": 228,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/netherlands-latest.osm.pbf",
+        "md5": "fea68f5cfd5db65743b9d6ffc709debf",
+        "sha256": "4096dd01fa15462acb01c8b013d64ab6b298dc656ea2547c52f050fbe0acfdc0",
+        "bytes": 1403440567,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 929320960,
+      "tar_sha256": "e0c8604484e55fb52a128de80459f2cb736c7de14e30b35574bebe407a4cff2f",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "nl-2026-09-27.frontier",
+        "bytes": 98945,
+        "sha256": "a8e08c9605557ff1de712d1d3a96c73d5f0b977a97a316f7a033b88a3b0e2e02",
+        "entries": 2248,
+        "osm_resolved": 2248,
+        "source_md5": "fea68f5cfd5db65743b9d6ffc709debf",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/nl-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "nl-2026-09-27.features",
+        "bytes": 2071228,
+        "sha256": "5cc05ecf7977f376aeb59027f1b8f9902d38509e9390cbf61feb548fd83f4907",
+        "entries": 30107,
+        "counts": {
+          "camera_speed": 788,
+          "camera_red_light": 159,
+          "camera_section": 78,
+          "level_crossing": 5279,
+          "tram_level_crossing": 1202,
+          "traffic_signals": 22601
+        },
+        "source_md5": "fea68f5cfd5db65743b9d6ffc709debf",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/nl-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "nl.pmtiles",
+        "bytes": 488856955,
+        "sha256": "b58822c150ab1b252cbe4d95faf3ab1d721ac9e578652da64b8056b909266221",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          2.94,
+          50.75,
+          7.23,
+          54.02
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/nl.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "nl.search.sqlite",
+        "bytes": 388087808,
+        "sha256": "94cde9eed7dd038dfff876e33a15e6ccc09599f84a32bb9d0aee16f37b8c20b9",
+        "counts": {
+          "places": 2864,
+          "streets": 326532,
+          "pois": 374578
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 246984,
+          "houses": 9906449,
+          "source_md5": "fea68f5cfd5db65743b9d6ffc709debf"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/nl.search.sqlite"
+      },
+      "portals": []
+    },
+    "NO": {
+      "region_id": 38,
+      "title": "Norway",
+      "graph_version": "2026-09-27",
+      "package": "no-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/no-2026-09-27.tar.gz",
+      "bytes": 282789860,
+      "sha256": "524d69bad5324bbdee71791a0d9cb2bfe878d6ae31c5940b02c132c1c0f614f7",
+      "tiles": 1761,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/norway-latest.osm.pbf",
+        "md5": "20b5302217faad7a1baa7eec8bfd741d",
+        "sha256": "8eccfac7da3c5c9a15031e7cc6753632d15cd5bad635fb9904be9932ea142ae5",
+        "bytes": 1376105345,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 698408960,
+      "tar_sha256": "1d0dcf3a4fedba89689dbea5bf7c043e6638adce5effaabb4c97a3e959b019dc",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "no-2026-09-27.frontier",
+        "bytes": 15631,
+        "sha256": "75f9af78e260a80ad625713a2b22426c6ebf38f147d0976feb771baea01ea4fa",
+        "entries": 351,
+        "osm_resolved": 351,
+        "source_md5": "20b5302217faad7a1baa7eec8bfd741d",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/no-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "no-2026-09-27.features",
+        "bytes": 370881,
+        "sha256": "a2fddf49398b95fabca0b9be73c139261f23b1b68a43ce2e9df77548475e4152",
+        "entries": 5178,
+        "counts": {
+          "camera_speed": 411,
+          "camera_red_light": 0,
+          "camera_section": 63,
+          "level_crossing": 1886,
+          "tram_level_crossing": 842,
+          "traffic_signals": 1976
+        },
+        "source_md5": "20b5302217faad7a1baa7eec8bfd741d",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/no-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "no.pmtiles",
+        "bytes": 1700007879,
+        "sha256": "87c919f9ea076dbac5356ff8a8965c0ff10b4b137912120ffdc6f3a713a8b3c8",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -11.37,
+          57.55,
+          35.53,
+          81.05
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/no.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "no.search.sqlite",
+        "bytes": 154464256,
+        "sha256": "0ccbc5c35f8282c024ecd3d1b4ed954f011be85e39d7ea09c164c21f4da75a79",
+        "counts": {
+          "places": 2772,
+          "streets": 263644,
+          "pois": 434008
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 110782,
+          "houses": 2569401,
+          "source_md5": "20b5302217faad7a1baa7eec8bfd741d"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/no.search.sqlite"
+      },
+      "portals": []
+    },
+    "PL": {
+      "region_id": 39,
+      "title": "Poland",
+      "graph_version": "2026-09-27",
+      "package": "pl-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pl-2026-09-27.tar.gz",
+      "bytes": 816286607,
+      "sha256": "9c0109042ae208991cd0015692ef613e0f4161a7f2198bca8427d6913de6c41f",
+      "tiles": 884,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/poland-latest.osm.pbf",
+        "md5": "53ccdf6a525b720eecb55a55c818e077",
+        "sha256": "19ca80a0a9c7f75688334f7f1a8cd104f78d9e064ba46b9aedce30ee2fcefdc7",
+        "bytes": 2101663594,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 2274324480,
+      "tar_sha256": "b5b607b97dbb06490550d5f71ddffd13c94c5b279e2440e745ba71208fa6fad1",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "pl-2026-09-27.frontier",
+        "bytes": 209,
+        "sha256": "e460d75abaa2ad8e078981178fd433eccce6b1f7afa67ef3831604695f7aaf5b",
+        "entries": 2,
+        "osm_resolved": 2,
+        "source_md5": "53ccdf6a525b720eecb55a55c818e077",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pl-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "pl-2026-09-27.features",
+        "bytes": 4887745,
+        "sha256": "d45db48a0f41b1115e8d64dd748f53e88277b6f1553999747800f835ea819da5",
+        "entries": 69241,
+        "counts": {
+          "camera_speed": 680,
+          "camera_red_light": 358,
+          "camera_section": 234,
+          "level_crossing": 33090,
+          "tram_level_crossing": 9593,
+          "traffic_signals": 25286
+        },
+        "source_md5": "53ccdf6a525b720eecb55a55c818e077",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pl-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "pl.pmtiles",
+        "bytes": 1427228114,
+        "sha256": "a60562f1514d6dab89daedf8b70103da9a4205548cff99d3e0aed098e7c4ddc4",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          13.99,
+          48.99,
+          24.16,
+          55.23
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pl.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "pl.search.sqlite",
+        "bytes": 408727552,
+        "sha256": "9f188c1d8777703f42ea9f948d3d71cd12c9aa287983e587083be7f9023d2a85",
+        "counts": {
+          "places": 39023,
+          "streets": 397039,
+          "pois": 849557
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 355792,
+          "houses": 8440230,
+          "source_md5": "53ccdf6a525b720eecb55a55c818e077"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pl.search.sqlite"
+      },
+      "portals": []
+    },
+    "PT": {
+      "region_id": 40,
+      "title": "Portugal",
+      "graph_version": "2026-09-27",
+      "package": "pt-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pt-2026-09-27.tar.gz",
+      "bytes": 224021218,
+      "sha256": "5d8e0b9cec2432623172e9212b26308b98055aeeeef32b039cfcc53959321b72",
+      "tiles": 276,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/portugal-latest.osm.pbf",
+        "md5": "37ba5ccdf653304247df0cfdf719c436",
+        "sha256": "d25df84baee14e9dc7058e6a27c9e2278ef7a0f287afe38340e497b0286fddf7",
+        "bytes": 424118073,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 565135360,
+      "tar_sha256": "006dee2962d66cd6204a964038bd8ddc430838cd5bfb7d7cac191b3320e1a08b",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "pt-2026-09-27.frontier",
+        "bytes": 32548,
+        "sha256": "1e1efb32f0dd1d4d92db4c5b134a06686bf2ca37e0ed3d3e511c2ae17d56c7e8",
+        "entries": 712,
+        "osm_resolved": 712,
+        "source_md5": "37ba5ccdf653304247df0cfdf719c436",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pt-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "pt-2026-09-27.features",
+        "bytes": 694794,
+        "sha256": "b7ddf0bcffb164688af43e317e2288b4672a5545b062426b720a1c5003a915a3",
+        "entries": 9316,
+        "counts": {
+          "camera_speed": 342,
+          "camera_red_light": 0,
+          "camera_section": 23,
+          "level_crossing": 1426,
+          "tram_level_crossing": 823,
+          "traffic_signals": 6702
+        },
+        "source_md5": "37ba5ccdf653304247df0cfdf719c436",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pt-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "pt.pmtiles",
+        "bytes": 301518704,
+        "sha256": "2bdba678a0c972f045d48755d5d30c5f6bff31af363278134fc42e240718a3b4",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -31.6,
+          29.7,
+          -6.18,
+          42.16
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pt.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "pt.search.sqlite",
+        "bytes": 81653760,
+        "sha256": "d8bc0fb2f646ec46f400bb22b8783531be829101cf1424134def933ee1d7413f",
+        "counts": {
+          "places": 3652,
+          "streets": 238753,
+          "pois": 292900
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 60509,
+          "houses": 554550,
+          "source_md5": "37ba5ccdf653304247df0cfdf719c436"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/pt.search.sqlite"
+      },
+      "portals": []
+    },
+    "RS": {
+      "region_id": 41,
+      "title": "Serbia",
+      "graph_version": "2026-09-27",
+      "package": "rs-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/rs-2026-09-27.tar.gz",
+      "bytes": 88477980,
+      "sha256": "9db416b1525e8660009b2be2a602ae17e8c0c4a34a44dfafb3c540e714804060",
+      "tiles": 211,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/serbia-latest.osm.pbf",
+        "md5": "fc86289170bf5b1ce18db622fff94502",
+        "sha256": "46c0601eb61afe76bff899ca9986575e02aa352e504d278050a72127ff4287df",
+        "bytes": 240356287,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 216125440,
+      "tar_sha256": "a81a8e9aed511370aee1c5d2c907ca8a887fd223f261a390baef572adbeedcd4",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "rs-2026-09-27.frontier",
+        "bytes": 40856,
+        "sha256": "a9b0c9fb6e48e4a537e7478d845a67ef082cd7d2b66fc2d119cda3e3d976cff0",
+        "entries": 906,
+        "osm_resolved": 906,
+        "source_md5": "fc86289170bf5b1ce18db622fff94502",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/rs-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "rs-2026-09-27.features",
+        "bytes": 519766,
+        "sha256": "328b03fb3f9bb956335e9288222767e66155ed4284aa4072700e427aff52e9f8",
+        "entries": 7215,
+        "counts": {
+          "camera_speed": 328,
+          "camera_red_light": 35,
+          "camera_section": 5,
+          "level_crossing": 2617,
+          "tram_level_crossing": 141,
+          "traffic_signals": 4089
+        },
+        "source_md5": "fc86289170bf5b1ce18db622fff94502",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/rs-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "rs.pmtiles",
+        "bytes": 178928111,
+        "sha256": "4826641ffb490d4eb3553effd98ce92a2f5310e7e22be9480ca9c311f11ce5ff",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          18.81,
+          42.23,
+          23.01,
+          46.19
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/rs.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "rs.search.sqlite",
+        "bytes": 106520576,
+        "sha256": "8d2a7385083c4b3961a22b912b26edd1f47f25ac3b71dbf967e24c7e912863ef",
+        "counts": {
+          "places": 5961,
+          "streets": 128822,
+          "pois": 83368
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 101864,
+          "houses": 2492580,
+          "source_md5": "fc86289170bf5b1ce18db622fff94502"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/rs.search.sqlite"
+      },
+      "portals": []
+    },
+    "RU": {
+      "region_id": 42,
+      "title": "Russia",
+      "graph_version": "2026-09-27",
+      "package": "ru-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ru-2026-09-27.tar.gz",
+      "bytes": 1387731840,
+      "sha256": "eaca4d971ff438593f22b51637fd78fb37b3122dd021d2445f770e502e2f8a29",
+      "tiles": 30184,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/russia-latest.osm.pbf",
+        "md5": "e7140a27c5ce9a34206087e917adb79f",
+        "sha256": "cdeef991139fc69a562845b1e5a9d722bddeb33b064f76b0714576dd518275d9",
+        "bytes": 4166759151,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "3961"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 3698227200,
+      "tar_sha256": "7ae9705447029d5669f340911167aaf163158f9f13fc5fc112f2a45b06d92651",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "ru-2026-09-27.frontier",
+        "bytes": 73306,
+        "sha256": "1b9dd0139640660c62a0daab3bbf7bd4eab82ded53e106e600ac1d555270fac8",
+        "entries": 1638,
+        "osm_resolved": 1638,
+        "source_md5": "e7140a27c5ce9a34206087e917adb79f",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ru-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "ru-2026-09-27.features",
+        "bytes": 8889712,
+        "sha256": "de1a2e02b7d343a19179ad2599f8873aa4fe238b38867ffefc554377be8ea63d",
+        "entries": 121527,
+        "counts": {
+          "camera_speed": 11571,
+          "camera_red_light": 70,
+          "camera_section": 2,
+          "level_crossing": 51441,
+          "tram_level_crossing": 11036,
+          "traffic_signals": 47407
+        },
+        "source_md5": "e7140a27c5ce9a34206087e917adb79f",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ru-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "ru.pmtiles",
+        "bytes": 6973324871,
+        "sha256": "317848a718f7e85e4be51e293501c1595ca7bf9e08ee5bbd1a652fa0097b2875",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -180.0,
+          35.61,
+          180.0,
+          83.83
+        ],
+        "parts": [
+          {
+            "name": "ru.pmtiles.part001",
+            "bytes": 1900000000,
+            "sha256": "de49692d02e0f9db236cb266915f9c343aeecc193ef3f49c3011d2287341744e"
+          },
+          {
+            "name": "ru.pmtiles.part002",
+            "bytes": 1900000000,
+            "sha256": "b01be5877e6fe4cf16b8297900632c897ed47807bb9da754aec2bb80b6668f93"
+          },
+          {
+            "name": "ru.pmtiles.part003",
+            "bytes": 1900000000,
+            "sha256": "deb7d0c2c7767f1aee760cabb74beef90a117c6af6fcf54eb0d3825c7063c480"
+          },
+          {
+            "name": "ru.pmtiles.part004",
+            "bytes": 1273324871,
+            "sha256": "2b1169713d9ba7402b8e7af03f0ed22d8c5c72787c78475fa36e32b4dbc42ac1"
+          }
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ru.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "ru.search.sqlite",
+        "bytes": 833855488,
+        "sha256": "44066963e04c3b89cef5a2e2866250d7796cf9a46308269f5c3832e76d0395fc",
+        "counts": {
+          "places": 42572,
+          "streets": 1367012,
+          "pois": 1718842
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 586590,
+          "houses": 11740660,
+          "source_md5": "e7140a27c5ce9a34206087e917adb79f"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ru.search.sqlite"
+      },
+      "portals": []
+    },
+    "SE": {
+      "region_id": 43,
+      "title": "Sweden",
+      "graph_version": "2026-09-27",
+      "package": "se-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/se-2026-09-27.tar.gz",
+      "bytes": 342041780,
+      "sha256": "3821e27308ffd3fe4f4e31c232b0e7d851d03dc9a77353528cce36e931af197d",
+      "tiles": 1922,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/sweden-latest.osm.pbf",
+        "md5": "51c8c15206bed396b1cff6b7b1337acb",
+        "sha256": "063db6757b13970b8156526a29a8be3276845f6bf508c7154d3f1f21b5aa888b",
+        "bytes": 824775951,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 865689600,
+      "tar_sha256": "77254c6487b594e44ef46154c62f9ea921c524c54c47d1195ae85ad63ce7f327",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "se-2026-09-27.frontier",
+        "bytes": 14090,
+        "sha256": "4a7cfb380e55b9d53e434a8fdcad6190df35332490f7514d38e0804ca6d3bf1e",
+        "entries": 315,
+        "osm_resolved": 315,
+        "source_md5": "51c8c15206bed396b1cff6b7b1337acb",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/se-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "se-2026-09-27.features",
+        "bytes": 1260788,
+        "sha256": "2497567a8ec60087c71082d6c83e8ad4287b42e8d5faaca732d6decaac842bad",
+        "entries": 18251,
+        "counts": {
+          "camera_speed": 2517,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 9112,
+          "tram_level_crossing": 75,
+          "traffic_signals": 6547
+        },
+        "source_md5": "51c8c15206bed396b1cff6b7b1337acb",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/se-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "se.pmtiles",
+        "bytes": 1133140454,
+        "sha256": "8489b4268fc1aa8e2a3c25ba8fc19046ca16c9ff0c784d53398a4dfd098017fc",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          10.54,
+          55.03,
+          24.22,
+          69.07
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/se.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "se.search.sqlite",
+        "bytes": 100847616,
+        "sha256": "89fdfa506908c9b1acec9cd174845be500dde2e60bae8e04ae16f76cd8634c8b",
+        "counts": {
+          "places": 3028,
+          "streets": 307914,
+          "pois": 373239
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 74247,
+          "houses": 973741,
+          "source_md5": "51c8c15206bed396b1cff6b7b1337acb"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/se.search.sqlite"
+      },
+      "portals": []
+    },
+    "SI": {
+      "region_id": 44,
+      "title": "Slovenia",
+      "graph_version": "2026-09-27",
+      "package": "si-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/si-2026-09-27.tar.gz",
+      "bytes": 69064809,
+      "sha256": "f6d7ede72477999870f7d3cea588a30dcd1cfeb18ea035db8e21c62f77fc9810",
+      "tiles": 124,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/slovenia-latest.osm.pbf",
+        "md5": "2b26afead81eca725ddc95d37fab011c",
+        "sha256": "ea2a2cca263c0e4b66b3ce763aacacab81f9c3a06e1fc0b4694d98719804b2eb",
+        "bytes": 313295473,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 172062720,
+      "tar_sha256": "a77fd9ea88c8256c8dd9312831bc532d7832c01e8f4215f71910f0f233206b6e",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "si-2026-09-27.frontier",
+        "bytes": 67627,
+        "sha256": "2d041667e1a4b45a20c3b32ce4b05c3015ee2d4c19e530c20b4a442b285818c3",
+        "entries": 1490,
+        "osm_resolved": 1490,
+        "source_md5": "2b26afead81eca725ddc95d37fab011c",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/si-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "si-2026-09-27.features",
+        "bytes": 238569,
+        "sha256": "6c6f469429904d5b25133681860758678b62ef80283bbd25636c4706b645b067",
+        "entries": 3150,
+        "counts": {
+          "camera_speed": 277,
+          "camera_red_light": 0,
+          "camera_section": 3,
+          "level_crossing": 1200,
+          "tram_level_crossing": 0,
+          "traffic_signals": 1670
+        },
+        "source_md5": "2b26afead81eca725ddc95d37fab011c",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/si-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "si.pmtiles",
+        "bytes": 248638191,
+        "sha256": "96f99a22e0642d7ce0287d6820cc06b1e50d70a28f160f56ce7e4df9f36611d9",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          13.31,
+          45.42,
+          16.6,
+          46.88
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/si.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "si.search.sqlite",
+        "bytes": 24248320,
+        "sha256": "a0e1ae4029f69acfa6053097c6e3f4c3f9f2f47fee6aa1af29d3856a86c5c9a2",
+        "counts": {
+          "places": 3810,
+          "streets": 27411,
+          "pois": 68273
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 15714,
+          "houses": 437130,
+          "source_md5": "2b26afead81eca725ddc95d37fab011c"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/si.search.sqlite"
+      },
+      "portals": []
+    },
+    "SK": {
+      "region_id": 45,
+      "title": "Slovakia",
+      "graph_version": "2026-09-27",
+      "package": "sk-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/sk-2026-09-27.tar.gz",
+      "bytes": 127331596,
+      "sha256": "a8c1025fb9ba06a075d0930ffe607ed59c963bfa90fe3434f1cbc9caec73108f",
+      "tiles": 155,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/slovakia-latest.osm.pbf",
+        "md5": "045dc1c2fca9e29c950c0e08a5b42f25",
+        "sha256": "2da618882659668bb0fad9b5de5970bf5b219eb6410447cb0131c1ca52fe9d10",
+        "bytes": 344927272,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 336640000,
+      "tar_sha256": "6edf98867db9be7bb0a0eb2a98c6715dffcc87f1a5390080e152c5652e47ebb2",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "sk-2026-09-27.frontier",
+        "bytes": 66593,
+        "sha256": "72ddfa0e102d6b9557340846e1b36afd5d65f951447dc9157da912251a861d58",
+        "entries": 1469,
+        "osm_resolved": 1469,
+        "source_md5": "045dc1c2fca9e29c950c0e08a5b42f25",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/sk-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "sk-2026-09-27.features",
+        "bytes": 537615,
+        "sha256": "6148a72186d4394cc3ae4e39594da55b48b0c42e25305baccf52b3383f7a3065",
+        "entries": 7893,
+        "counts": {
+          "camera_speed": 70,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 5317,
+          "tram_level_crossing": 629,
+          "traffic_signals": 1877
+        },
+        "source_md5": "045dc1c2fca9e29c950c0e08a5b42f25",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/sk-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "sk.pmtiles",
+        "bytes": 224555980,
+        "sha256": "599159b068c98a8c8b72581f4e994abdec1136954e5a18fa1ba997420d682659",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          16.83,
+          47.73,
+          22.57,
+          49.62
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/sk.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "sk.search.sqlite",
+        "bytes": 74076160,
+        "sha256": "4a5f298fd62d011f190cfcc3d5d03a5515885beac348f956d9656141bf706a9e",
+        "counts": {
+          "places": 4095,
+          "streets": 39308,
+          "pois": 181406
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 31748,
+          "houses": 1617899,
+          "source_md5": "045dc1c2fca9e29c950c0e08a5b42f25"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/sk.search.sqlite"
+      },
+      "portals": []
+    },
+    "TR": {
+      "region_id": 46,
+      "title": "Turkey",
+      "graph_version": "2026-09-27",
+      "package": "tr-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/tr-2026-09-27.tar.gz",
+      "bytes": 442077587,
+      "sha256": "2bcd55ddeb3b202b1717fe40781b25645a213e220c477b25b19b26ac46975230",
+      "tiles": 1825,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/turkey-latest.osm.pbf",
+        "md5": "d32093a7b9e660f87039bd360e0dd064",
+        "sha256": "d0e0116cf403dc817bd5990a6ea0967f3942ca72f2a6b8c40d2407bdde0f5c16",
+        "bytes": 648136020,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4924"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 1122099200,
+      "tar_sha256": "a04825636acd3737ecca19fbb5210e095948500323ec733270d693c2fa70e69a",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "tr-2026-09-27.frontier",
+        "bytes": 22194,
+        "sha256": "ff232245ec8a402d550f560a5b8c7468fd03338fceb5eca6994a022f530225c1",
+        "entries": 491,
+        "osm_resolved": 491,
+        "source_md5": "d32093a7b9e660f87039bd360e0dd064",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/tr-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "tr-2026-09-27.features",
+        "bytes": 1559724,
+        "sha256": "a315899be7dfd2166a018e4e9e247bb8d6d3a2eb3d482541dee4a960c19de057",
+        "entries": 19607,
+        "counts": {
+          "camera_speed": 734,
+          "camera_red_light": 1,
+          "camera_section": 8,
+          "level_crossing": 3852,
+          "tram_level_crossing": 1964,
+          "traffic_signals": 13048
+        },
+        "source_md5": "d32093a7b9e660f87039bd360e0dd064",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/tr-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "tr.pmtiles",
+        "bytes": 688625342,
+        "sha256": "daa25d27ca838fcfad570421b142b04b55f31d0b11ac6447f89d398c2dfaa813",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          25.52,
+          35.72,
+          44.86,
+          43.07
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/tr.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "tr.search.sqlite",
+        "bytes": 87416832,
+        "sha256": "faf7aa24660d080a7376080d03d3ebad1a5bbcff8d107c2103fe5424c90173d9",
+        "counts": {
+          "places": 35506,
+          "streets": 338023,
+          "pois": 379320
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 27410,
+          "houses": 193630,
+          "source_md5": "d32093a7b9e660f87039bd360e0dd064"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/tr.search.sqlite"
+      },
+      "portals": []
+    },
+    "XA": {
+      "region_id": 48,
+      "title": "Azores",
+      "graph_version": "2026-09-27",
+      "package": "xa-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xa-2026-09-27.tar.gz",
+      "bytes": 5787718,
+      "sha256": "9cee78d2d5f84f361f930f0960de082b34cc5b20fe528b266138c61c2466a94d",
+      "tiles": 41,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/azores-latest.osm.pbf",
+        "md5": "9c343928b8bce6c2b2a44a927a842eda",
+        "sha256": "636442ed0609fa3693ae06ab897f21a39bfd79cd5976270a64f0d447787919eb",
+        "bytes": 17694541,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4921"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 13987840,
+      "tar_sha256": "96c90adcdfe99f24d9f95e3175519233a70ef258233feec0ee53704e521f1954",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "xa-2026-09-27.frontier",
+        "bytes": 121,
+        "sha256": "c2b0d03f90b6c8960fb2739fa420fd3bdf734024b149a08e7063ba6ea0d14908",
+        "entries": 0,
+        "osm_resolved": 0,
+        "source_md5": "9c343928b8bce6c2b2a44a927a842eda",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xa-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "xa-2026-09-27.features",
+        "bytes": 3624,
+        "sha256": "c3a2770cecf7bb97cf3ffe2f9d42b10183c47e003f33ebe76feccf8c6c19e290",
+        "entries": 39,
+        "counts": {
+          "camera_speed": 5,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 0,
+          "tram_level_crossing": 0,
+          "traffic_signals": 34
+        },
+        "source_md5": "9c343928b8bce6c2b2a44a927a842eda",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xa-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "xa.pmtiles",
+        "bytes": 12230731,
+        "sha256": "33f235812cade7e6dd251d06ae9172fc259b4acc781c6209d521793af10b1f9b",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -31.57,
+          35.68,
+          -23.72,
+          40.08
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xa.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "xa.search.sqlite",
+        "bytes": 2199552,
+        "sha256": "17eedf239190c4fd8c1de30fbfb854c546cf118455e5af52630d91be013441a6",
+        "counts": {
+          "places": 129,
+          "streets": 5322,
+          "pois": 10021
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 1259,
+          "houses": 9373,
+          "source_md5": "9c343928b8bce6c2b2a44a927a842eda"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xa.search.sqlite"
+      },
+      "portals": []
+    },
+    "XG": {
+      "region_id": 49,
+      "title": "Guernsey and Jersey",
+      "graph_version": "2026-09-27",
+      "package": "xg-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xg-2026-09-27.tar.gz",
+      "bytes": 2266570,
+      "sha256": "c30a1cc76ae102dfb015028cc102a91c5ef8191708ab1fd0dd3d22143c51eafe",
+      "tiles": 38,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/guernsey-jersey-latest.osm.pbf",
+        "md5": "4d6303451396a11ed27bd47c91405502",
+        "sha256": "1336cf1ea390352b7245182b1620c6e9726ab6a2bed22838e911d475c35d9949",
+        "bytes": 3890857,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "2227"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 6154240,
+      "tar_sha256": "5fcd6a8162cf2e28edc7b9542152d67a9cd4bc0de68e6a4309e47b7cb782d31b",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "xg-2026-09-27.frontier",
+        "bytes": 553,
+        "sha256": "65ef8596c3b6f7fa8032d8a707c1340e206d26cb893cb3e98ccdab82a87d3c46",
+        "entries": 10,
+        "osm_resolved": 10,
+        "source_md5": "4d6303451396a11ed27bd47c91405502",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xg-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "xg-2026-09-27.features",
+        "bytes": 8208,
+        "sha256": "2204948d6b738bd6b6f383f5af0bfb100c2f72283e4894b2b7fc1c98b644fd57",
+        "entries": 88,
+        "counts": {
+          "camera_speed": 0,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 10,
+          "tram_level_crossing": 0,
+          "traffic_signals": 78
+        },
+        "source_md5": "4d6303451396a11ed27bd47c91405502",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xg-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "xg.pmtiles",
+        "bytes": 3742936,
+        "sha256": "a14777e9576d53503609c641c7cf611d51ee28a57dbb18753f9d5be72982cae4",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          -3.57,
+          49.0,
+          -1.79,
+          50.07
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xg.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "xg.search.sqlite",
+        "bytes": 1191936,
+        "sha256": "f3bb40658834b5c73b1fe4f7c3f227f0ffa87cf4ae8f4c3f9ba7f967f909e1c9",
+        "counts": {
+          "places": 71,
+          "streets": 3351,
+          "pois": 6176
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 307,
+          "houses": 3445,
+          "source_md5": "4d6303451396a11ed27bd47c91405502"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xg.search.sqlite"
+      },
+      "portals": []
+    },
+    "XK": {
+      "region_id": 50,
+      "title": "Kosovo",
+      "graph_version": "2026-09-27",
+      "package": "xk-2026-09-27.tar.gz",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xk-2026-09-27.tar.gz",
+      "bytes": 16662077,
+      "sha256": "4826dd2e2b656682c4d9d0ad3c083ff7888c5a96b0cd45f96cd324d101e7f3ad",
+      "tiles": 42,
+      "engine": "multi-region-runtime-v5",
+      "release": "regional-2026-09-28-22",
+      "engine_sha": "c9f008848b6f97efd1404b31b60eb6b166adceea",
+      "source": {
+        "url": "https://download.geofabrik.de/europe/kosovo-latest.osm.pbf",
+        "md5": "a0b12fda47fc38ae142c15278bef60f3",
+        "sha256": "1f30e8aeb1753ed543bacff68bfa7a6f699e5864a0c4b2e0a6798e6eafeca666",
+        "bytes": 30768551,
+        "replication": "2026-09-27T20:23:36Z",
+        "sequence": "4922"
+      },
+      "timezones": {
+        "sha256": "5027ecd793c88036acae9d400daeb9be7b43627fe2430e19cf9b9d08e29907e4"
+      },
+      "tar_bytes": 41492480,
+      "tar_sha256": "a826f33648cd66e4a2b35963106d6ff34c9e93edb0a47369949dcd959aa0b155",
+      "engine_digest": "sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb",
+      "frontier": {
+        "format": "wedrive-frontier/1",
+        "file": "xk-2026-09-27.frontier",
+        "bytes": 26195,
+        "sha256": "fb381232ab41a966f49741a689e1ff9407ad7b82b908b8039b6198c27b3308ca",
+        "entries": 578,
+        "osm_resolved": 578,
+        "source_md5": "a0b12fda47fc38ae142c15278bef60f3",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xk-2026-09-27.frontier"
+      },
+      "features": {
+        "format": "wedrive-features/1",
+        "file": "xk-2026-09-27.features",
+        "bytes": 38175,
+        "sha256": "7f20cf5959e6897d7b7a869780c1ea571eff0fb32d77c3413b8f7384ff90250b",
+        "entries": 532,
+        "counts": {
+          "camera_speed": 0,
+          "camera_red_light": 0,
+          "camera_section": 0,
+          "level_crossing": 346,
+          "tram_level_crossing": 0,
+          "traffic_signals": 186
+        },
+        "source_md5": "a0b12fda47fc38ae142c15278bef60f3",
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xk-2026-09-27.features"
+      },
+      "map": {
+        "format": "pmtiles",
+        "file": "xk.pmtiles",
+        "bytes": 28568938,
+        "sha256": "9e1151b87f71cccf2cda496de1931ef28777e1dabcd24356dc272db66abee9a7",
+        "schema": "protomaps-v4",
+        "build": "20260927.pmtiles",
+        "dataDate": "2026-09-27",
+        "maxzoom": 14,
+        "bbox": [
+          20.01,
+          41.85,
+          21.79,
+          43.28
+        ],
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xk.pmtiles"
+      },
+      "search": {
+        "format": "wedrive-search/sqlite-fts4",
+        "file": "xk.search.sqlite",
+        "bytes": 14438400,
+        "sha256": "408d841bc4258a47c46646f49acd994fb99c1bc2965f0247a28031eedb0fb4c4",
+        "counts": {
+          "places": 1870,
+          "streets": 32749,
+          "pois": 17681
+        },
+        "addresses": {
+          "format": "wedrive-address/1",
+          "streets": 16437,
+          "houses": 275729,
+          "source_md5": "a0b12fda47fc38ae142c15278bef60f3"
+        },
+        "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/xk.search.sqlite"
+      },
+      "portals": []
     }
   },
   "portals": {
     "MD-RO": {
       "versions": [
-        "MD-2026-09-25",
-        "RO-2026-09-25"
+        "MD-2026-09-27",
+        "RO-2026-09-27"
       ],
       "file": "md-ro.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/md-ro.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/md-ro.portals",
       "bytes": 1856,
-      "sha256": "4997d35a94da396c5b74894675ce4ec41e61e411d33fcfed5cba276c1181924a",
+      "sha256": "11b58c95150a1e9eb70d65a1b190348673f0ef63fc516a1d230e579ce4d4ed88",
       "rows": 32
     },
     "RO-HU": {
       "versions": [
-        "RO-2026-09-25",
-        "HU-2026-09-25"
+        "RO-2026-09-27",
+        "HU-2026-09-27"
       ],
       "file": "ro-hu.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/ro-hu.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/ro-hu.portals",
       "bytes": 15222,
       "sha256": "caf0bdeb5d3cf93ce3ed3ddd7784adae52bd960704a909f814455fbd44a74320",
       "rows": 258
     },
     "HU-AT": {
       "versions": [
-        "HU-2026-09-25",
-        "AT-2026-09-25"
+        "HU-2026-09-27",
+        "AT-2026-09-27"
       ],
       "file": "hu-at.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/hu-at.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/hu-at.portals",
       "bytes": 32332,
-      "sha256": "20271a9f4788a7c1e5c3968ef349893dafc7ba5c2ff56548e1e686bc36ddd0ed",
+      "sha256": "3964be93a9d2569cbbcfaf4660d6eaabede1d5c6bdc9081ee27beaac5c592f98",
       "rows": 548
     },
     "AT-DE": {
       "versions": [
-        "AT-2026-09-25",
+        "AT-2026-09-27",
         "DE-2026-09-25"
       ],
       "file": "at-de.portals",
-      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-27-20/at-de.portals",
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/regional-2026-09-28-22/at-de.portals",
       "bytes": 57492,
-      "sha256": "edcca4da4093ba75c7afead3418beffef060f75399cd3d6e95e4e7f74fca8950",
+      "sha256": "7b63892b52fce764ffe87aeee46531abc6e2b45bf8d1054ca979c7f4fd6c77f1",
       "rows": 976
     }
   },
-  "repairs": [
-    {
-      "restored_from": "regional-2026-09-26-19",
-      "blocks": [
-        "RO.map",
-        "RO.search",
-        "HU.map",
-        "HU.search",
-        "AT.map",
-        "AT.search",
-        "DE.map",
-        "DE.search"
-      ],
-      "why": "run 36279166763 carried RO/HU/AT/DE from a stale manifest (fixed in d351255)"
-    }
-  ]
+  "absent": {
+    "AL": "map/search job failed",
+    "UA": "graph job failed"
+  }
 }
