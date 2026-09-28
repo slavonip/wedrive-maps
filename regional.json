@@ -17,7 +17,7 @@
   ],
   "engine": {
     "repo": "slavonip/wedrive-valhalla",
-    "ref": "multi-region-runtime-v5",
+    "ref": "multi-region-runtime-v6",
     "image": "ghcr.io/slavonip/wedrive-engine"
   },
   "countries": {

@@ -17,9 +17,13 @@
 #             38253de0 = engine-image run 36365739930 (2026-09-28), tag multi-region-runtime-v5: v4 +
 #             patch 69 (an admin relation missing members keeps its closing rings: NL had no country
 #             polygon). Controls on v5: LU frontier 751 (as v4), NL 0 -> 2248.
-engine_ref = multi-region-runtime-v5
-engine_sha = c9f008848b6f97efd1404b31b60eb6b166adceea
-image      = ghcr.io/slavonip/wedrive-engine@sha256:38253de09ec7e342b997d090214e81d562d23718733b7193d95f5d7d46d126fb
+#             69d41f5c = engine-image run 36372463966 (2026-09-28), tag multi-region-runtime-v6: v5 +
+#             patch 70 (an admin ring bridges a gap <= 500 m by one logged chord: OSM Ukraine r60199
+#             has a 150 m hole at the PL border, so UA had no country polygon and an empty frontier).
+#             Checked from this image: UA admins level 2 = Україна, 32 regions, 8 logged joins.
+engine_ref = multi-region-runtime-v6
+engine_sha = d7eb9bca75783ea5be398210b61984fab65c42e1
+image      = ghcr.io/slavonip/wedrive-engine@sha256:69d41f5cf8ef4b4e5c19a8b9776a514975305822656c0dda8c95191da1ceaa57
 
 # Timezone database for every country graph: the promoted dataset of the maps-vendor release,
 # the same file Europe Lite uses. Checked by sha before any build; a mismatch fails the run.
