@@ -464,5 +464,35 @@ class SourceIdentity(unittest.TestCase):
         self.assertEqual(problems, [])
 
 
+class DatedSource(unittest.TestCase):
+    """The run is pinned to the dated file -latest redirects to, checked against ITS OWN .md5
+    (run 36367106205: germany-latest -> 260927 while -latest.md5 still named 260926 for hours)."""
+
+    def test_the_md5_must_name_the_dated_file(self):
+        self.assertEqual(precheck.md5_of("70426a92f49b77b2c44aaed0527cf9c3  germany-260927.osm.pbf\n",
+                                         "germany-260927.osm.pbf"), "70426a92f49b77b2c44aaed0527cf9c3")
+
+    def test_a_stale_md5_is_refused_not_trusted(self):
+        with self.assertRaises(SystemExit):
+            precheck.md5_of("a04c24b1bc302122cc82976de42a3e1f  germany-260926.osm.pbf",
+                            "germany-260927.osm.pbf")
+
+    def test_a_malformed_md5_is_refused(self):
+        with self.assertRaises(SystemExit):
+            precheck.md5_of("<html>not found</html>", "germany-260927.osm.pbf")
+
+    def test_the_redirect_names_a_dated_file_of_that_country(self):
+        self.assertEqual(precheck.dated_name(
+            "https://download.geofabrik.de/europe/germany-260927.osm.pbf", "europe/germany"),
+            "germany-260927.osm.pbf")
+        self.assertEqual(precheck.dated_name(
+            "https://download.geofabrik.de/russia-260927.osm.pbf", "russia"), "russia-260927.osm.pbf")
+        for bad in ("https://download.geofabrik.de/europe/germany-latest.osm.pbf",
+                    "https://download.geofabrik.de/europe/austria-260927.osm.pbf",
+                    "https://download.geofabrik.de/europe/germany-260927.osm.pbf.md5"):
+            with self.assertRaises(SystemExit):
+                precheck.dated_name(bad, "europe/germany")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

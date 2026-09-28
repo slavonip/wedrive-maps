@@ -73,6 +73,7 @@ jobs:
       engine_sha: ${{ steps.plan.outputs.engine_sha }}
       timezones_url: ${{ steps.plan.outputs.timezones_url }}
       timezones_sha256: ${{ steps.plan.outputs.timezones_sha256 }}
+      sources_json: ${{ steps.plan.outputs.sources_json }}
     steps:
       - uses: actions/checkout@v4
       - name: the live manifest (not the one frozen when this run was dispatched)
@@ -147,6 +148,8 @@ jobs:
       - name: map and search index
         env:
           CODE: ${{ matrix.code }}
+          SRC_URL: ${{ fromJSON(needs.precheck.outputs.sources_json)[matrix.code].url }}
+          SRC_MD5: ${{ fromJSON(needs.precheck.outputs.sources_json)[matrix.code].md5 }}
         run: |
           set -euo pipefail
           low=$(echo "$CODE" | tr '[:upper:]' '[:lower:]')
@@ -220,6 +223,8 @@ jobs:
       TZ_URL: ${{ needs.precheck.outputs.timezones_url }}
       TIMEZONES_SHA256: ${{ needs.precheck.outputs.timezones_sha256 }}
       CODE: ${{ matrix.code }}
+      SRC_URL: ${{ fromJSON(needs.precheck.outputs.sources_json)[matrix.code].url }}
+      SRC_MD5: ${{ fromJSON(needs.precheck.outputs.sources_json)[matrix.code].md5 }}
     steps:
       - uses: actions/checkout@v4
       - name: the engine is the one in regional-engine.lock

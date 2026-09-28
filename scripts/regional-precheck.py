@@ -6,7 +6,7 @@
 
 A country is rebuilt when (auto):
     - it is not in the current manifest;
-    - its Geofabrik extract changed: the MD5 Geofabrik publishes beside <path>-latest.osm.pbf
+    - its Geofabrik extract changed: the MD5 of the DATED file <path>-latest.osm.pbf redirects to
       differs from the one recorded in the manifest (or none is recorded);
     - the engine changed: the manifest records another engine_sha than regional-engine.lock;
     - the timezone database changed: another timezones sha than the lock.
@@ -17,8 +17,15 @@ Nothing to rebuild -> go=false, and the run ends without a release.
 
 --countries restricts the set (control runs: MD, then MD,RO). --rebuild all forces a full build;
 a list forces exactly those. --md5-json replaces the Geofabrik lookup ({"MD": "<md5>"}) for tests.
+
+THE RUN IS PINNED TO DATED FILES. `-latest` and `-latest.osm.pbf.md5` are updated separately and can
+disagree for hours (run 36367106205: germany-latest -> germany-260927 while its .md5 still named
+germany-260926; the graph and map jobs waited 7 x 10 min and failed). So the precheck resolves each
+country ONCE — the file `-latest` redirects to, checked against that file's OWN .md5 — and hands
+{url, md5} to the graph and map jobs (output sources_json), which download exactly that file. A
+dated file never changes, so the two jobs of one country can no longer read different extracts.
 """
-import argparse, json, os, sys, urllib.request
+import argparse, json, os, sys, urllib.error, urllib.request
 
 
 def keyvals(path):
@@ -31,10 +38,47 @@ def keyvals(path):
     return out
 
 
-def geofabrik_md5(path):
-    url = "https://download.geofabrik.de/%s-latest.osm.pbf.md5" % path
-    with urllib.request.urlopen(url, timeout=60) as r:
-        return r.read().decode().split()[0]
+GEOFABRIK = "https://download.geofabrik.de/"
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def md5_of(md5_text, name):
+    """The md5 in a Geofabrik .md5 file, which must name exactly `name`."""
+    parts = md5_text.split()
+    if len(parts) < 2 or len(parts[0]) != 32 or parts[1].lstrip("*") != name:
+        raise SystemExit("Geofabrik .md5 does not describe %s: %r" % (name, md5_text[:120]))
+    return parts[0]
+
+
+def dated_name(location, path):
+    """The dated file a -latest redirect points to (europe/germany -> germany-260927.osm.pbf)."""
+    name = location.rstrip("/").rsplit("/", 1)[-1]
+    base = path.rsplit("/", 1)[-1]
+    if not (name.startswith(base + "-") and name.endswith(".osm.pbf") and "latest" not in name):
+        raise SystemExit("%s-latest redirects to an unexpected file: %s" % (path, location))
+    return name
+
+
+def geofabrik_source(path):
+    """{url, md5} of the dated file behind <path>-latest.osm.pbf."""
+    latest = GEOFABRIK + path + "-latest.osm.pbf"
+    opener = urllib.request.build_opener(_NoRedirect)
+    try:
+        opener.open(urllib.request.Request(latest, method="HEAD"), timeout=60)
+        raise SystemExit("%s did not redirect to a dated file" % latest)
+    except urllib.error.HTTPError as e:
+        if e.code not in (301, 302, 303, 307, 308) or not e.headers.get("Location"):
+            raise SystemExit("%s: HTTP %s" % (latest, e.code))
+        loc = e.headers["Location"]
+    name = dated_name(loc, path)
+    url = GEOFABRIK + path.rsplit("/", 1)[0] + "/" + name if "/" in path else GEOFABRIK + name
+    with urllib.request.urlopen(url + ".md5", timeout=60) as r:
+        md5 = md5_of(r.read().decode(), name)
+    return {"url": url, "md5": md5}
 
 
 def decide(cfg, lock, manifest, countries, rebuild_arg, md5s):
@@ -104,8 +148,12 @@ def main():
 
     if a.md5_json:
         md5s = json.load(open(a.md5_json, encoding="utf-8"))
+        sources = {c: {"url": "", "md5": m} for c, m in md5s.items()}
     else:
-        md5s = {c: geofabrik_md5(cfg["countries"][c]["geofabrik"]) for c in countries}
+        sources = {c: geofabrik_source(cfg["countries"][c]["geofabrik"]) for c in countries}
+        md5s = {c: s["md5"] for c, s in sources.items()}
+        for c in countries:
+            print("%-3s source %s  %s" % (c, sources[c]["md5"], sources[c]["url"]))
 
     rebuild, carry, reasons = decide(cfg, lock, manifest, countries, a.rebuild, md5s)
     for c in countries:
@@ -121,6 +169,8 @@ def main():
         "engine_sha": lock["engine_sha"],
         "timezones_url": lock["timezones_url"],
         "timezones_sha256": lock["timezones_sha256"],
+        "sources_json": json.dumps({c: sources[c] for c in rebuild if c in sources},
+                                   separators=(",", ":")),
     }
     if a.github_output:
         with open(a.github_output, "a", encoding="utf-8") as f:

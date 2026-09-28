@@ -8,6 +8,21 @@ set -euo pipefail
 GEO="$1"; OUT="$2"
 URL="https://download.geofabrik.de/${GEO}-latest.osm.pbf"
 MD5_ATTEMPTS="${MD5_ATTEMPTS:-7}"; MD5_WAIT="${MD5_WAIT:-600}"
+# PINNED BY THE PRECHECK (SRC_URL + SRC_MD5): the same dated file the graph of this country is
+# built from. A dated file never changes, so a mismatch is a broken download, retried, not waited.
+if [ -n "${SRC_URL:-}" ] && [ -n "${SRC_MD5:-}" ]; then
+  for attempt in 1 2 3; do
+    echo "==> $SRC_URL (md5 $SRC_MD5)"
+    rm -f "$OUT.part"
+    if curl -fsSL --retry 3 -o "$OUT.part" "$SRC_URL" \
+       && [ "$(md5sum "$OUT.part" | cut -d' ' -f1)" = "$SRC_MD5" ]; then
+      mv "$OUT.part" "$OUT"; echo "$SRC_MD5" > "$OUT.md5"; exit 0
+    fi
+    echo "$SRC_URL did not match its md5 (attempt $attempt of 3)" >&2
+    [ "$attempt" = 3 ] || sleep 30
+  done
+  echo "$SRC_URL never matched $SRC_MD5" >&2; exit 1
+fi
 for attempt in $(seq 1 "$MD5_ATTEMPTS"); do
   MD5_WANT="$(curl -fsSL "$URL.md5" | awk '{print $1}')"
   [ "${#MD5_WANT}" = 32 ] || { echo "no MD5 published at $URL.md5" >&2; exit 1; }
