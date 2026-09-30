@@ -150,7 +150,15 @@ class Build2(unittest.TestCase):
         L.append("w2 v1 Nn11,n12,n13,n14,n11")
         L.append("r1 v1 " + tags(type="boundary", boundary="administrative", admin_level="2", name="Moldova",
                                   **{"ISO3166-1": "MD"}) + " Mw1@outer")
-        L.append("r2 v1 " + tags(type="boundary", boundary="administrative", admin_level="4", name="Raion Vest") + " Mw2@outer")
+        # the district lists a commune (admin_level=8) as a subarea: tags-filter pulls the member relation in
+        # with it, and a commune must never be read as the district (r10 sorts before r2 on purpose)
+        L.append("r2 v1 " + tags(type="boundary", boundary="administrative", admin_level="4", name="Raion Vest")
+                 + " Mw2@outer,r10@subarea")
+        for i, x, y in [(71, 27.8, 46.7), (72, 28.0, 46.7), (73, 28.0, 46.9), (74, 27.8, 46.9)]:
+            L.append("n%d v1 x%.7f y%.7f" % (i, x, y))
+        L.append("w7 v1 Nn71,n72,n73,n74,n71")
+        L.append("r10 v1 " + tags(type="boundary", boundary="administrative", admin_level="8", name="Comuna Hîncești")
+                 + " Mw7@outer")
         # places: two villages named Hîncești (west and east), a city Бендеры (ro Bender), a village with its
         # own area (Bubuieci, no node name clash), a village Chițcani, and a FOREIGN town beyond the border
         L += [

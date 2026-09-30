@@ -194,7 +194,9 @@ def load_districts(pbf, work, country):
     names = {}
     for f in export(pbf, work, "district", ["r/admin_level=" + level], "polygon"):
         p = f["properties"]
-        if p.get("boundary") == "administrative" and p.get("name"):
+        # tags-filter also brings in the MEMBER relations of what it matched: a county lists its
+        # communes as subareas, so a commune (admin_level=8) arrives here too and must not be the district
+        if p.get("boundary") == "administrative" and p.get("admin_level") == level and p.get("name"):
             pid = "%s%s" % (p["@type"][0], p["@id"])
             shapes.add(pid, rings_of(f["geometry"]))
             names[pid] = p["name"]
