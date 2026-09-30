@@ -74,6 +74,11 @@ BASEMAP="$OUT_DIR/$PACKAGE.pmtiles"
 echo "==> extract ${REGION:-$W,$S,$E,$N} at z0-$MAXZOOM"
 extract "$BASEMAP" "${CUT[@]}" --maxzoom="$MAXZOOM" --download-threads=8
 
+# ── the PMTiles contract of the app's reader, BEFORE anything is described or published ─────
+# PMTiles v3, MVT, gzip/none directories and tiles, sane zooms and bounds (scripts/pmtiles_contract.py).
+# A new upstream encoding would otherwise ship and read as a blank country in the car.
+python3 "$(dirname "$0")/pmtiles_contract.py" "$BASEMAP" --maxzoom "$MAXZOOM"
+
 # ── what it is, stamped beside it ───────────────────────────────────────────────────────────
 # `pmtiles show` reads the header and the metadata the archive carries about itself, including
 # the vector_layers a style has to match. SCHEMA IS LOAD-BEARING: a style pointed at the wrong

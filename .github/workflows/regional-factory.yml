@@ -85,6 +85,7 @@ jobs:
           python3 tests/test_regional.py
           python3 tests/test_frontier.py
           python3 tests/test_features.py
+          python3 tests/test_pmtiles_contract.py
       - name: tests of the address index (builds a tiny PBF, so osmium)
         run: |
           sudo apt-get -qq update && sudo apt-get -qq install -y osmium-tool >/dev/null

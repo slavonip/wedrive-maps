@@ -50,6 +50,8 @@ jobs:
           [ -n "${BUILD:-}" ] || unset BUILD
           WORK="$RUNNER_TEMP/work" bash scripts/world-basemap.sh "$RUNNER_TEMP/out"
           cat "$RUNNER_TEMP/out/world.json"
+          # the PMTiles contract the app holds every archive to, before the publish step
+          python3 scripts/pmtiles_contract.py "$RUNNER_TEMP/out/world.pmtiles" --maxzoom 6
       - name: publish (release world-<build>) and write the manifest
         env:
           GH_TOKEN: ${{ github.token }}
