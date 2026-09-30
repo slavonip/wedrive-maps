@@ -57,6 +57,8 @@ def main(argv):
         am = dict(c.execute("SELECT k, v FROM addr_meta"))
         s["addresses"] = {"format": am.get("format"), "streets": int(am.get("streets", 0)),
                           "houses": int(am.get("houses", 0)), "source_md5": am.get("source_md5")}
+        if am.get("localities"):     # format /2: localities with ids, streets tied to them by geography
+            s["addresses"]["localities"] = int(am["localities"])
     c.close()
     desc = {"code": code, "map": m, "search": s}
     path = os.path.join(out, "%s.basemap-desc.json" % low)

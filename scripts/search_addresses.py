@@ -44,10 +44,10 @@ import tempfile
 import time
 import unicodedata
 
-FORMAT = "wedrive-address/1"
+import search_localities
+
+FORMAT = "wedrive-address/2"
 DEDUP_M = 50.0
-NEAR_CITY_KM = 15.0        # an address with no addr:city takes the nearest settlement within this
-JOIN_TAGGED_KM = 3.0       # ...unless a same-named street WITH a city lies this close: then that one
 ALIAS_KEYS = ("name:ru", "name:ro", "name:en", "name:uk")
 
 LOOKALIKE = str.maketrans("авекмнорстух", "abekmhopctyx")
@@ -197,38 +197,35 @@ def address_objects(pbf, work):
 # ---------------------------------------------------------------- building
 
 
-class Places:
-    """Settlements from the search index itself (place kind 0), for addresses with no addr:city."""
-
-    def __init__(self, db):
-        self.cells = collections.defaultdict(list)
-        for name, lat, lon in db.execute("SELECT name, lat, lon FROM place WHERE kind = 0"):
-            self.cells[(int(lat * 10), int(lon * 10))].append((name, lat, lon))
-
-    def nearest(self, lat, lon):
-        best, best_d = "", NEAR_CITY_KM * 1000
-        cy, cx = int(lat * 10), int(lon * 10)
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                for name, plat, plon in self.cells.get((cy + dy, cx + dx), ()):
-                    d = meters(lat, lon, plat, plon)
-                    if d < best_d:
-                        best, best_d = name, d
-        return best
-
-
 SCHEMA = """
 DROP TABLE IF EXISTS addr_street; DROP TABLE IF EXISTS addr_street_fts;
 DROP TABLE IF EXISTS addr; DROP TABLE IF EXISTS addr_meta;
+DROP TABLE IF EXISTS addr_locality; DROP TABLE IF EXISTS addr_locality_fts;
+-- /2: every locality of the country, cut to its own border (search_localities.py)
+CREATE TABLE addr_locality(
+    id       INTEGER PRIMARY KEY,
+    name     TEXT NOT NULL,    -- OSM name
+    aliases  TEXT,             -- JSON array: name:ro/ru/en/uk/..., alt/old/official names, addr:city spellings
+    kind     TEXT NOT NULL,    -- city / town / village / hamlet
+    district TEXT NOT NULL,    -- raion / judet / megye / Bezirk: tells same-named localities apart
+    lat      REAL NOT NULL, lon REAL NOT NULL,
+    pop      INTEGER NOT NULL,
+    houses   INTEGER NOT NULL
+);
+CREATE VIRTUAL TABLE addr_locality_fts USING fts4(name, aliases, tokenize=unicode61, content='addr_locality');
+-- /1 columns first and unchanged (a /1 app reads them by name); /2 adds locality and city_alt
 CREATE TABLE addr_street(
     id      INTEGER PRIMARY KEY,
     name    TEXT NOT NULL,     -- canonical spelling: the most frequent addr:street of this group
     aliases TEXT,              -- JSON array: name:ru/ro/en/uk of the street, NULL when none
-    city    TEXT NOT NULL,     -- locality: addr:city, else the nearest settlement; '' when neither
+    city    TEXT NOT NULL,     -- the locality's name (display); '' when unresolved
     lat     REAL NOT NULL, lon REAL NOT NULL,   -- median of its houses: "drive to the street"
-    houses  INTEGER NOT NULL
+    houses  INTEGER NOT NULL,
+    locality INTEGER,          -- addr_locality.id; NULL when unresolved
+    city_alt TEXT              -- the locality's aliases (JSON), so "Bender Leningradskaya 52" matches too
 );
-CREATE VIRTUAL TABLE addr_street_fts USING fts4(name, aliases, city, tokenize=unicode61, content='addr_street');
+CREATE INDEX addr_street_locality ON addr_street(locality);
+CREATE VIRTUAL TABLE addr_street_fts USING fts4(name, aliases, city, city_alt, tokenize=unicode61, content='addr_street');
 CREATE TABLE addr(
     street INTEGER NOT NULL,
     key    TEXT NOT NULL,      -- house_keys(): "10a", "10/1", "200/5"
@@ -241,11 +238,12 @@ CREATE TABLE addr_meta(k TEXT PRIMARY KEY, v TEXT) WITHOUT ROWID;
 """
 
 
-def build(pbf, db_path, work, source_md5=None):
+def build(pbf, db_path, work, source_md5=None, country=None, polygon=None):
     """Streams through an on-disk scratch table: Germany has ~20 M addresses, far too many for lists."""
     t0 = time.time()
     db = sqlite3.connect(db_path)
-    places = Places(db)
+    fallback = [(n, la, lo, p) for n, la, lo, p in db.execute("SELECT name, lat, lon, pop FROM place WHERE kind = 0")]
+    locs = search_localities.load(pbf, work, country, polygon, fallback)
     assoc = associated_streets(pbf, work)
     aliases = street_aliases(pbf, work)
     scratch = os.path.join(work, "raw.sqlite")
@@ -253,14 +251,18 @@ def build(pbf, db_path, work, source_md5=None):
         os.remove(scratch)      # a leftover from an earlier run in the same work dir
     tmp = sqlite3.connect(scratch)
     tmp.executescript("PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF;"
-                      "CREATE TABLE raw(skey TEXT, street TEXT, city TEXT, ck TEXT, kind INTEGER, oid INTEGER,"
-                      " num TEXT, key TEXT, lat REAL, lon REAL);")
+                      "CREATE TABLE raw(skey TEXT, street TEXT, loc INTEGER, method TEXT, city TEXT, kind INTEGER,"
+                      " oid INTEGER, num TEXT, key TEXT, lat REAL, lon REAL);")
 
-    # 1. every (object, key) with its street and (maybe) its addr:city
-    stats = collections.Counter()
+    # 1. every (object, key) with its street and its locality by name or by area (search_localities)
+    stats = collections.Counter(locs.stats)
     batch = []
+    learned = collections.Counter()      # (locality id, addr:city as written) seen via area/anchor/nearest
     for kind, oid, t, lat, lon in address_objects(pbf, work):
         stats["objects"] += 1
+        if not locs.in_country(lat, lon):
+            stats["foreign_objects_dropped"] += 1
+            continue
         street = t.get("addr:street") or assoc.get((kind, oid)) or t.get("addr:place")
         if not street:
             stats["no_street"] += 1
@@ -269,71 +271,86 @@ def build(pbf, db_path, work, source_md5=None):
             stats["via_associatedStreet" if (kind, oid) in assoc else "via_addr_place"] += 1
         hn = t["addr:housenumber"]
         city = t.get("addr:city")
+        loc, method = (locs.by_city(city, lat, lon), "name") if city else (None, None)
+        if loc is None:
+            loc, method = locs.by_area(lat, lon), "area"
+            if loc is not None and city:
+                learned[(loc.id, city.strip())] += 1
         for key in house_keys(hn):
-            batch.append((street_key(street), street, city, street_key(city) if city else None,
+            batch.append((street_key(street), street, loc.id if loc else None, method if loc else None, city,
                           {"n": 0, "w": 1, "r": 2}[kind], oid, house_display(hn, key), key, lat, lon))
         if len(batch) >= 50_000:
-            tmp.executemany("INSERT INTO raw VALUES(?,?,?,?,?,?,?,?,?,?)", batch); batch = []
-    tmp.executemany("INSERT INTO raw VALUES(?,?,?,?,?,?,?,?,?,?)", batch)
+            tmp.executemany("INSERT INTO raw VALUES(?,?,?,?,?,?,?,?,?,?,?)", batch); batch = []
+    tmp.executemany("INSERT INTO raw VALUES(?,?,?,?,?,?,?,?,?,?,?)", batch)
     stats["keys"] = tmp.execute("SELECT count(*) FROM raw").fetchone()[0]
 
-    # 2. locality for rows with no addr:city: a same-named street WITH a city within
-    #    JOIN_TAGGED_KM (its houses' mean), else the nearest settlement of the index
+    # 2. rows with no locality yet: a same-named street resolved by name/area within ANCHOR_KM (the
+    #    mean of its houses), else the nearest locality point within NEAR_KM, else unresolved.
+    #    Written to a second on-disk table in batches, then applied in one statement.
+    by_id = {l.id: l for l in locs.items}
     anchors = collections.defaultdict(list)
-    for skey, city, lat, lon in tmp.execute(
-            "SELECT skey, city, avg(lat), avg(lon) FROM raw WHERE city IS NOT NULL GROUP BY skey, ck"):
-        anchors[skey].append((city, lat, lon))
-    # written to a second on-disk table in batches, then applied in one statement: no list of
-    # every city-less address in RAM (Germany), and no update of the table being read
+    for skey, loc, lat, lon in tmp.execute(
+            "SELECT skey, loc, avg(lat), avg(lon) FROM raw WHERE loc IS NOT NULL GROUP BY skey, loc"):
+        anchors[skey].append((loc, lat, lon))
     inferred = os.path.join(work, "inferred.sqlite")
     if os.path.exists(inferred):
         os.remove(inferred)
     writer = sqlite3.connect(inferred)     # its own file: the open reader below locks raw.sqlite
     writer.executescript("PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF;"
-                         "CREATE TABLE inferred(id INTEGER PRIMARY KEY, city TEXT, ck TEXT)")
-    reader = tmp.execute("SELECT rowid, skey, lat, lon FROM raw WHERE city IS NULL")
+                         "CREATE TABLE inferred(id INTEGER PRIMARY KEY, loc INTEGER, method TEXT)")
+    reader = tmp.execute("SELECT rowid, skey, lat, lon, city FROM raw WHERE loc IS NULL")
     while True:
         chunk = reader.fetchmany(100_000)
         if not chunk:
             break
         out = []
-        for rowid, skey, lat, lon in chunk:
-            best, best_d = None, JOIN_TAGGED_KM * 1000
-            for c, alat, alon in anchors.get(skey, ()):
-                d = meters(lat, lon, alat, alon)
+        for rowid, skey, lat, lon, city in chunk:
+            best, best_d = None, search_localities.ANCHOR_KM
+            for loc, alat, alon in anchors.get(skey, ()):
+                d = search_localities.km(lat, lon, alat, alon)
                 if d < best_d:
-                    best, best_d = c, d
-            city = best if best is not None else places.nearest(lat, lon)
-            out.append((rowid, city, street_key(city)))
+                    best, best_d = loc, d
+            if best is not None:
+                out.append((rowid, best, "anchor"))
+            else:
+                near = locs.nearest(lat, lon)
+                out.append((rowid, near.id if near else None, "nearest" if near else None))
+            if out[-1][1] is not None and city:
+                learned[(out[-1][1], city.strip())] += 1
         writer.executemany("INSERT INTO inferred VALUES(?,?,?)", out)
         writer.commit()
-        stats["city_inferred"] += len(out)
     writer.close()
     del anchors
     tmp.execute("ATTACH DATABASE ? AS inf", (inferred,))
-    tmp.execute("UPDATE raw SET city = (SELECT city FROM inf.inferred WHERE id = raw.rowid),"
-                " ck = (SELECT ck FROM inf.inferred WHERE id = raw.rowid) WHERE city IS NULL")
+    tmp.execute("UPDATE raw SET loc = (SELECT loc FROM inf.inferred WHERE id = raw.rowid),"
+                " method = (SELECT method FROM inf.inferred WHERE id = raw.rowid) WHERE loc IS NULL")
     tmp.commit()
     tmp.execute("DETACH DATABASE inf")
-    tmp.execute("CREATE INDEX raw_order ON raw(skey, ck, key, kind, oid)")
-    # one spelling per locality: the most frequent, ties to the alphabetically first
-    spell = {}
-    for ck, city, n in tmp.execute("SELECT ck, city, count(*) FROM raw GROUP BY ck, city"):
-        if ck not in spell or (-n, city) < (-spell[ck][1], spell[ck][0]):
-            spell[ck] = (city, n)
+    tmp.execute("CREATE INDEX raw_order ON raw(skey, loc, key, kind, oid)")
+    # an addr:city spelling seen on >= 3 houses of a locality it did not name ("Кицканы") becomes an alias
+    for (lid, spelled), n in sorted(learned.items()):
+        loc = by_id.get(lid)
+        known = {search_localities.name_key(x) for x in ([loc.name] + loc.aliases)} if loc else set()
+        if loc and n >= 3 and search_localities.name_key(spelled) not in known and len(loc.aliases) < 12:
+            loc.aliases.append(spelled)
+            stats["aliases_learned"] += 1
 
     # 3. streets + deduplicated houses, streamed in a deterministic order
     db.executescript(SCHEMA)
     sid = 0
     groups = itertools.groupby(
-        tmp.execute("SELECT skey, ck, key, kind, oid, street, num, lat, lon FROM raw ORDER BY skey, ck, key, kind, oid"),
+        tmp.execute("SELECT skey, loc, key, kind, oid, street, num, lat, lon, method FROM raw"
+                    " ORDER BY skey, loc, key, kind, oid"),
         key=lambda r: (r[0], r[1]))
-    for (skey, ck), rows in groups:
+    for (skey, lid), rows in groups:
         rows = list(rows)
         sid += 1
         names = collections.Counter(r[5] for r in rows)
         name = sorted(names.items(), key=lambda x: (-x[1], x[0]))[0][0]
-        city = spell[ck][0] if ck else ""
+        loc = by_id.get(lid)
+        city = loc.name if loc else ""
+        methods = collections.Counter(r[9] or "unresolved" for r in rows)
+        stats["streets_by_" + sorted(methods.items(), key=lambda x: (-x[1], x[0]))[0][0]] += 1
         lats = sorted(r[7] for r in rows)
         lons = sorted(r[8] for r in rows)
         kept = 0
@@ -348,15 +365,23 @@ def build(pbf, db_path, work, source_md5=None):
                            (sid, key, r[4] * 4 + r[3], None if r[6] == key else r[6], round(r[7] * 1e7), round(r[8] * 1e7)))
             kept += len(accepted)
         al = aliases.get(skey)
-        db.execute("INSERT INTO addr_street VALUES(?,?,?,?,?,?,?)",
+        db.execute("INSERT INTO addr_street VALUES(?,?,?,?,?,?,?,?,?)",
                    (sid, name, json.dumps(al, ensure_ascii=False) if al else None, city,
-                    lats[len(lats) // 2], lons[len(lons) // 2], kept))
+                    lats[len(lats) // 2], lons[len(lons) // 2], kept, lid,
+                    json.dumps(loc.aliases, ensure_ascii=False) if loc and loc.aliases else None))
+        if loc:
+            loc.houses += kept
         stats["houses"] += kept
     tmp.close()
     stats["streets"] = sid
+    db.executemany("INSERT INTO addr_locality VALUES(?,?,?,?,?,?,?,?,?)",
+                   [(l.id, l.name, json.dumps(l.aliases, ensure_ascii=False) if l.aliases else None, l.kind,
+                     l.district, l.lat, l.lon, l.pop, l.houses) for l in locs.items])
+    db.execute("INSERT INTO addr_locality_fts(addr_locality_fts) VALUES('rebuild')")
     db.execute("INSERT INTO addr_street_fts(addr_street_fts) VALUES('rebuild')")
     meta = {"format": FORMAT, "streets": stats["streets"], "houses": stats["houses"],
-            "objects": stats["objects"], "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+            "objects": stats["objects"], "localities": stats["localities"],
+            "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if source_md5:
         meta["source_md5"] = source_md5
     db.executemany("INSERT INTO addr_meta VALUES(?,?)", [(k, str(v)) for k, v in meta.items()])
@@ -373,10 +398,12 @@ def main():
     ap.add_argument("db")
     ap.add_argument("--work")
     ap.add_argument("--source-md5")
+    ap.add_argument("--country", help="ISO code: localities and houses are cut to its admin_level=2 border")
+    ap.add_argument("--polygon", help="fallback border (regional.json polygon) when the PBF has none")
     a = ap.parse_args()
     before = os.path.getsize(a.db)
     with tempfile.TemporaryDirectory(dir=a.work) as work:
-        stats = build(a.pbf, a.db, work, a.source_md5)
+        stats = build(a.pbf, a.db, work, a.source_md5, a.country, a.polygon)
     after = os.path.getsize(a.db)
     stats["db_bytes_before"], stats["db_bytes_after"] = before, after
     print(json.dumps(stats, indent=1, sort_keys=True))

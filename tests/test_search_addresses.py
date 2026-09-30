@@ -133,5 +133,115 @@ class Build(unittest.TestCase):
         self.assertEqual(sqlite3.connect(again).execute(q).fetchall(), self.c.execute(q).fetchall())
 
 
+@unittest.skipUnless(shutil.which("osmium"), "needs osmium")
+class Build2(unittest.TestCase):
+    """Format /2: localities from the PBF, cut to the country border, streets tied by geography."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        L = []
+        # the country: a square 27.0-30.0 x 45.5-48.5 (admin_level=2, ISO MD), and a district
+        # (admin_level=4) covering only its western half
+        sq = [(1, 27.0, 45.5), (2, 30.0, 45.5), (3, 30.0, 48.5), (4, 27.0, 48.5)]
+        dist = [(11, 27.0, 45.5), (12, 28.5, 45.5), (13, 28.5, 48.5), (14, 27.0, 48.5)]
+        for i, x, y in sq + dist:
+            L.append("n%d v1 x%.7f y%.7f" % (i, x, y))
+        L.append("w1 v1 Nn1,n2,n3,n4,n1")
+        L.append("w2 v1 Nn11,n12,n13,n14,n11")
+        L.append("r1 v1 " + tags(type="boundary", boundary="administrative", admin_level="2", name="Moldova",
+                                  **{"ISO3166-1": "MD"}) + " Mw1@outer")
+        L.append("r2 v1 " + tags(type="boundary", boundary="administrative", admin_level="4", name="Raion Vest") + " Mw2@outer")
+        # places: two villages named Hîncești (west and east), a city Бендеры (ro Bender), a village with its
+        # own area (Bubuieci, no node name clash), a village Chițcani, and a FOREIGN town beyond the border
+        L += [
+            "n20 v1 x27.9000000 y46.8000000 " + tags(place="village", name="Hîncești"),
+            "n21 v1 x29.8000000 y46.2000000 " + tags(place="village", name="Hîncești"),
+            "n22 v1 x29.4800000 y46.8200000 " + tags(place="city", name="Бендеры", name__ro="Bender", population="97027"),
+            "n23 v1 x28.9500000 y47.0000000 " + tags(place="village", name="Bubuieci"),
+            "n24 v1 x29.3000000 y46.6000000 " + tags(place="village", name="Chițcani"),
+            "n25 v1 x30.5000000 y46.5000000 " + tags(place="town", name="Foreignville"),
+        ]
+        # Bubuieci's own area: 28.93-28.97 x 46.98-47.02
+        for i, x, y in [(31, 28.93, 46.98), (32, 28.97, 46.98), (33, 28.97, 47.02), (34, 28.93, 47.02)]:
+            L.append("n%d v1 x%.7f y%.7f" % (i, x, y))
+        L.append("w3 v1 " + tags(place="village", name="Bubuieci") + " Nn31,n32,n33,n34,n31")
+        # houses
+        L += [
+            # addr:city Hîncești near each village: two different localities
+            "n40 v1 x27.9010000 y46.8010000 " + tags(addr__street="Strada Mare", addr__housenumber="1", addr__city="Hîncești"),
+            "n41 v1 x29.8010000 y46.2010000 " + tags(addr__street="Strada Mare", addr__housenumber="1", addr__city="Hîncești"),
+            # Bender, Cyrillic addr:city; the street way carries name:en
+            "n42 v1 x29.4810000 y46.8210000 " + tags(addr__street="Ленинградская улица", addr__housenumber="52", addr__city="Бендеры"),
+            "n50 v1 x29.4800000 y46.8200000", "n51 v1 x29.4830000 y46.8230000",
+            "w4 v1 " + tags(highway="residential", name="Ленинградская улица", name__en="Leningradskaya Street") + " Nn50,n51",
+            # no addr:city, inside Bubuieci's area (nearer to nothing else named)
+            "n43 v1 x28.9600000 y46.9900000 " + tags(addr__street="Strada Florilor", addr__housenumber="7"),
+            # Chițcani written in Cyrillic on three houses: not a name of it -> learned alias
+            "n44 v1 x29.3010000 y46.6010000 " + tags(addr__street="Strada Nouă", addr__housenumber="1", addr__city="Кицканы"),
+            "n45 v1 x29.3020000 y46.6010000 " + tags(addr__street="Strada Nouă", addr__housenumber="2", addr__city="Кицканы"),
+            "n46 v1 x29.3030000 y46.6010000 " + tags(addr__street="Strada Nouă", addr__housenumber="3", addr__city="Кицканы"),
+            # a house beyond the border
+            "n47 v1 x30.5010000 y46.5010000 " + tags(addr__street="Foreign Street", addr__housenumber="9", addr__city="Foreignville"),
+        ]
+        opl = os.path.join(self.d, "t.opl")
+        with open(opl, "w", encoding="utf-8") as f:
+            f.write("\n".join(L) + "\n")
+        self.pbf = os.path.join(self.d, "t.osm.pbf")
+        subprocess.run(["osmium", "sort", "-O", "-o", self.pbf, opl], check=True)
+        self.db = os.path.join(self.d, "md.sqlite")
+        c = sqlite3.connect(self.db)
+        c.executescript(search_db.SCHEMA)
+        c.commit(); c.close()
+        self.stats = sa.build(self.pbf, self.db, self.d, country="MD")
+        self.c = sqlite3.connect(self.db)
+
+    def tearDown(self):
+        self.c.close()
+        shutil.rmtree(self.d)
+
+    def street(self, name, locality_name):
+        return self.c.execute("SELECT s.id, s.city, l.district FROM addr_street s JOIN addr_locality l ON l.id = s.locality "
+                              "WHERE s.name = ? AND l.name = ?", (name, locality_name)).fetchall()
+
+    def test_the_border_cuts_localities_and_houses(self):
+        names = [r[0] for r in self.c.execute("SELECT name FROM addr_locality")]
+        self.assertNotIn("Foreignville", names)
+        self.assertEqual(self.stats["foreign_localities_dropped"], 1)
+        self.assertEqual(self.stats["foreign_objects_dropped"], 1)
+        self.assertFalse(self.c.execute("SELECT count(*) FROM addr_street WHERE name = 'Foreign Street'").fetchone()[0])
+
+    def test_same_named_localities_are_told_apart_by_geography(self):
+        rows = self.c.execute("SELECT s.locality, l.lon, l.district FROM addr_street s JOIN addr_locality l "
+                              "ON l.id = s.locality WHERE s.name = 'Strada Mare' ORDER BY l.lon").fetchall()
+        self.assertEqual(len(rows), 2)
+        self.assertNotEqual(rows[0][0], rows[1][0])
+        self.assertEqual(rows[0][2], "Raion Vest")      # the western Hîncești has the district
+        self.assertEqual(rows[1][2], "")
+
+    def test_a_house_inside_a_locality_area_belongs_to_it(self):
+        self.assertEqual(len(self.street("Strada Florilor", "Bubuieci")), 1)
+        self.assertGreaterEqual(self.stats["streets_by_area"], 1)
+
+    def test_latin_city_alias_finds_the_street(self):
+        q = ("SELECT s.name, s.city FROM addr_street_fts f JOIN addr_street s ON s.id = f.docid "
+             "WHERE addr_street_fts MATCH ?")
+        self.assertEqual(self.c.execute(q, ("bender* leningradskaya*",)).fetchall(), [("Ленинградская улица", "Бендеры")])
+        self.assertEqual(self.c.execute(q, ("бендеры* ленинградская*",)).fetchall(), [("Ленинградская улица", "Бендеры")])
+
+    def test_a_consistent_addr_city_spelling_becomes_an_alias(self):
+        aliases = json.loads(self.c.execute("SELECT aliases FROM addr_locality WHERE name = 'Chițcani'").fetchone()[0])
+        self.assertIn("Кицканы", aliases)
+        self.assertEqual(self.c.execute("SELECT count(*) FROM addr_locality_fts WHERE addr_locality_fts MATCH 'кицканы'")
+                         .fetchone()[0], 1)
+
+    def test_format_and_the_v1_columns_stay(self):
+        meta = dict(self.c.execute("SELECT k, v FROM addr_meta"))
+        self.assertEqual(meta["format"], "wedrive-address/2")
+        self.assertEqual(int(meta["localities"]), 5)   # two Hîncești, Бендеры, Bubuieci, Chițcani
+        # a /1 app reads exactly these, by name
+        self.c.execute("SELECT id, name, aliases, city, lat, lon, houses FROM addr_street LIMIT 1").fetchall()
+        self.assertFalse(self.c.execute("SELECT count(*) FROM addr_street WHERE locality IS NULL").fetchone()[0])
+
+
 if __name__ == "__main__":
     unittest.main()

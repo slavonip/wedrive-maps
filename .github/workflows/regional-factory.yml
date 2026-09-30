@@ -170,7 +170,8 @@ jobs:
           bash scripts/fetch-pbf.sh "$geo" "$RUNNER_TEMP/src.osm.pbf"
           /usr/bin/time -v python3 scripts/search_addresses.py "$RUNNER_TEMP/src.osm.pbf" \
             "$RUNNER_TEMP/out/$low-index.sqlite" --work "$RUNNER_TEMP" \
-            --source-md5 "$(cat "$RUNNER_TEMP/src.osm.pbf.md5")" 2> "$RUNNER_TEMP/addr-time.txt"
+            --source-md5 "$(cat "$RUNNER_TEMP/src.osm.pbf.md5")" \
+            --country "$CODE" ${poly:+--polygon "$GITHUB_WORKSPACE/$poly"} 2> "$RUNNER_TEMP/addr-time.txt"
           grep -E 'Maximum resident|Elapsed' "$RUNNER_TEMP/addr-time.txt" || true
           rm -f "$RUNNER_TEMP/src.osm.pbf"
           mv "$RUNNER_TEMP/out/$low-index.sqlite" "$RUNNER_TEMP/out/$low.search.sqlite"
