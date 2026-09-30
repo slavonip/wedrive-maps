@@ -201,6 +201,17 @@ def load_districts(pbf, work, country):
     return shapes, names
 
 
+def yo_variants(names):
+    """Russian writes ё as е more often than not ("Кишинев"), and SQLite's unicode61 does not fold
+    Cyrillic: a name with ё gets its е spelling as one more alias, or "кишинев" never finds it."""
+    out = []
+    for n in names:
+        v = n.replace("ё", "е").replace("Ё", "Е")
+        if v != n and v not in names and v not in out:
+            out.append(v)
+    return out
+
+
 def aliases_of(tags, name):
     out = []
     for k in ALIAS_KEYS:
@@ -208,7 +219,7 @@ def aliases_of(tags, name):
             v = v.strip()
             if v and name_key(v) != name_key(name) and v not in out and len(v) <= 80:
                 out.append(v)
-    return out
+    return out + yo_variants([name] + out)
 
 
 def population(tags):
@@ -300,6 +311,10 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
         items.append(loc)
         by_key[name_key(name)].append(loc)
 
+    node_cells = collections.defaultdict(list)
+    for loc in items:
+        node_cells[(int(math.floor(loc.lat * 10)), int(math.floor(loc.lon * 10)))].append(loc)
+
     area_shapes = Shapes(0.005)
     area_owner = {}
     for pid, name, p, rings in sorted(areas, key=lambda a: a[0]):
@@ -307,10 +322,20 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
         owner = None
         tmp = Shapes(1.0)
         tmp.add("a", rings)
-        for loc in by_key.get(k, ()):
-            if tmp.find(loc.lon, loc.lat):
-                owner = loc
-                break
+        # the place points inside the area: an area is the territory of the place it contains
+        bx0, by0, bx1, by1 = tmp.polys["a"][1]
+        inside = [loc for cy in range(int(math.floor(by0 * 10)), int(math.floor(by1 * 10)) + 1)
+                  for cx in range(int(math.floor(bx0 * 10)), int(math.floor(bx1 * 10)) + 1)
+                  for loc in node_cells.get((cy, cx), ())
+                  if bx0 <= loc.lon <= bx1 and by0 <= loc.lat <= by1 and tmp.find(loc.lon, loc.lat)]
+        area_names = {name_key(n) for n in [name] + aliases_of(p, name)}
+        # 1. the same name; 2. the same name in any language (Rîbnița's point, Рыбница's area);
+        # 3. the only place inside it (a "городской совет" is the territory of the town it holds)
+        owner = next((l for l in inside if name_key(l.name) == k), None) \
+            or next((l for l in inside if area_names & {name_key(n) for n in [l.name] + l.aliases}), None) \
+            or (inside[0] if len(inside) == 1 else None)
+        if owner is not None and name_key(owner.name) != k and name not in owner.aliases:
+            owner.aliases.append(name)          # the area's own name finds the place too
         if owner is None:
             xs = [pt[0] for pt in rings[0]]
             ys = [pt[1] for pt in rings[0]]

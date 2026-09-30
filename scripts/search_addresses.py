@@ -364,7 +364,8 @@ def build(pbf, db_path, work, source_md5=None, country=None, polygon=None):
                 db.execute("INSERT OR IGNORE INTO addr VALUES(?,?,?,?,?,?)",
                            (sid, key, r[4] * 4 + r[3], None if r[6] == key else r[6], round(r[7] * 1e7), round(r[8] * 1e7)))
             kept += len(accepted)
-        al = aliases.get(skey)
+        al = list(aliases.get(skey) or [])
+        al += search_localities.yo_variants([name] + al)     # "Семёновская" also as "Семеновская"
         db.execute("INSERT INTO addr_street VALUES(?,?,?,?,?,?,?,?,?)",
                    (sid, name, json.dumps(al, ensure_ascii=False) if al else None, city,
                     lats[len(lats) // 2], lons[len(lons) // 2], kept, lid,

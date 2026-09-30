@@ -160,7 +160,13 @@ class Build2(unittest.TestCase):
             "n23 v1 x28.9500000 y47.0000000 " + tags(place="village", name="Bubuieci"),
             "n24 v1 x29.3000000 y46.6000000 " + tags(place="village", name="Chițcani"),
             "n25 v1 x30.5000000 y46.5000000 " + tags(place="town", name="Foreignville"),
+            # a town whose point is Romanian and whose area is Russian (Transnistria), and a city with ё
+            "n26 v1 x29.0000000 y47.7600000 " + tags(place="town", name="Rîbnița", name__ru="Рыбница"),
+            "n27 v1 x28.8300000 y47.0200000 " + tags(place="city", name="Кишинёв"),
         ]
+        for i, x, y in [(61, 28.98, 47.74), (62, 29.02, 47.74), (63, 29.02, 47.78), (64, 28.98, 47.78)]:
+            L.append("n%d v1 x%.7f y%.7f" % (i, x, y))
+        L.append("w5 v1 " + tags(place="town", name="Рыбница") + " Nn61,n62,n63,n64,n61")
         # Bubuieci's own area: 28.93-28.97 x 46.98-47.02
         for i, x, y in [(31, 28.93, 46.98), (32, 28.97, 46.98), (33, 28.97, 47.02), (34, 28.93, 47.02)]:
             L.append("n%d v1 x%.7f y%.7f" % (i, x, y))
@@ -234,10 +240,21 @@ class Build2(unittest.TestCase):
         self.assertEqual(self.c.execute("SELECT count(*) FROM addr_locality_fts WHERE addr_locality_fts MATCH 'кицканы'")
                          .fetchone()[0], 1)
 
+    def test_an_area_named_in_another_language_is_the_same_place(self):
+        rows = self.c.execute("SELECT name, aliases FROM addr_locality WHERE name IN ('Rîbnița', 'Рыбница')").fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], "Rîbnița")
+        self.assertIn("Рыбница", json.loads(rows[0][1]))
+
+    def test_yo_is_also_found_as_ye(self):
+        self.assertIn("Кишинев", json.loads(self.c.execute("SELECT aliases FROM addr_locality WHERE name = 'Кишинёв'").fetchone()[0]))
+        self.assertEqual(self.c.execute("SELECT count(*) FROM addr_locality_fts WHERE addr_locality_fts MATCH 'кишинев*'")
+                         .fetchone()[0], 1)
+
     def test_format_and_the_v1_columns_stay(self):
         meta = dict(self.c.execute("SELECT k, v FROM addr_meta"))
         self.assertEqual(meta["format"], "wedrive-address/2")
-        self.assertEqual(int(meta["localities"]), 5)   # two Hîncești, Бендеры, Bubuieci, Chițcani
+        self.assertEqual(int(meta["localities"]), 7)   # two Hîncești, Бендеры, Bubuieci, Chițcani, Rîbnița, Кишинёв
         # a /1 app reads exactly these, by name
         self.c.execute("SELECT id, name, aliases, city, lat, lon, houses FROM addr_street LIMIT 1").fetchall()
         self.assertFalse(self.c.execute("SELECT count(*) FROM addr_street WHERE locality IS NULL").fetchone()[0])
