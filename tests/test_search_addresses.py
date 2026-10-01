@@ -301,8 +301,9 @@ class Build2Commune(unittest.TestCase):
             "n42 v1 x27.3010000 y46.7010000 " + tags(addr__street="Strada Școlii", addr__housenumber="2", addr__city="Rădeni"),
             # the real duplicate cases, all in Comuna Albești unless said otherwise (owner, 2026-10-01):
             # Pietrăria - the same wikidata twice, 3 km apart: one place
-            "n50 v1 x27.1000000 y46.1000000 " + tags(place="village", name="Pietrăria", wikidata="Q12137206", population="463"),
-            "n51 v1 x27.1000000 y46.1270000 " + tags(place="village", name="Pietrăria", wikidata="Q12137206"),
+            "n50 v1 x27.1000000 y46.1000000 " + tags(place="village", name="Pietrăria", wikidata="Q12137206", population="463",
+                                                     is_in="Albești;Vaslui;România"),
+            "n51 v1 x27.1000000 y46.1270000 " + tags(place="village", name="Pietrăria", wikidata="Q12137206", is_in="Vaslui"),
             # Salcea - an informative point and a bare one 0.5 km away (carrying a Russian name)
             "n52 v1 x27.2000000 y46.2000000 " + tags(place="village", name="Salcea", population="9513"),
             "n53 v1 x27.2000000 y46.2045000 " + tags(place="village", name="Salcea", name__ru="Сэлча"),
@@ -319,6 +320,10 @@ class Build2Commune(unittest.TestCase):
                                                      is_in="Albești;Vaslui;România"),
             "n63 v1 x27.4000000 y46.8100000 " + tags(place="village", name="Valea Ștefanului", is_in="Cozieni;Vaslui;România"),
             # houses: one at the bare Salcea point, one inside the Câmpulung area with no addr:city
+            # Vecina sits nearer to the bare Salcea copy than the real Salcea does: a street that was
+            # nearest to the copy must follow it to Salcea, not drift to Vecina
+            "n64 v1 x27.2000000 y46.2120000 " + tags(place="village", name="Vecina"),
+            "n65 v1 x27.2000000 y46.2075000 " + tags(addr__street="Strada Morii", addr__housenumber="3"),
             "n60 v1 x27.2001000 y46.2046000 " + tags(addr__street="Strada Gării", addr__housenumber="1", addr__city="Salcea"),
             "n61 v1 x27.2001000 y46.2001000 " + tags(addr__street="Strada Gării", addr__housenumber="2", addr__city="Salcea"),
             "n62 v1 x27.1500000 y46.6400000 " + tags(addr__street="Strada Mare", addr__housenumber="5"),
@@ -392,13 +397,20 @@ class Build2Commune(unittest.TestCase):
         lid = self.c.execute("SELECT id FROM addr_locality WHERE name = 'Câmpulung'").fetchone()[0]
         self.assertEqual(self.c.execute("SELECT locality FROM addr_street WHERE name = 'Strada Mare'").fetchone()[0], lid)
 
+    def test_a_street_nearest_to_the_removed_copy_follows_it_to_the_survivor(self):
+        self.assertEqual(self.c.execute("SELECT l.name FROM addr_street s JOIN addr_locality l ON l.id = s.locality "
+                                        "WHERE s.name = 'Strada Morii'").fetchone()[0], "Salcea")
+
     def test_conflicting_is_in_is_merged_and_reported(self):
+        # Valea Ștefanului (Albești vs Cozieni) is a conflict; Pietrăria ("Vaslui" inside
+        # "Albești;Vaslui;România") is only coarser and is not
+
         self.assertEqual(self.count("Valea Ștefanului"), 1)
         self.assertEqual(self.stats["merged_with_conflicting_is_in"], 1)
 
     def test_the_locality_count_moves_exactly_by_the_merges(self):
-        # Albești 2, Rădeni, Pietrăria, Salcea, Poiu 2, Dealu 2, Câmpulung, Valea Ștefanului = 11
-        self.assertEqual(self.c.execute("SELECT count(*) FROM addr_locality").fetchone()[0], 11)
+        # Albești 2, Rădeni, Pietrăria, Salcea, Vecina, Poiu 2, Dealu 2, Câmpulung, Valea Ștefanului = 12
+        self.assertEqual(self.c.execute("SELECT count(*) FROM addr_locality").fetchone()[0], 12)
         self.assertEqual((self.stats["duplicates_merged_wikidata"], self.stats["duplicates_merged_near"],
                           self.stats["duplicates_merged_area"]), (1, 2, 1))
 

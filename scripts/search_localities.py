@@ -277,7 +277,7 @@ class Locality:
 class Localities:
     """Every locality of the country, with lookups by name, by containing area and by distance."""
 
-    def __init__(self, items, area_shapes, area_owner, stats):
+    def __init__(self, items, area_shapes, area_owner, stats, ghosts=()):
         self.items = items
         self.area_shapes = area_shapes
         self.area_owner = area_owner               # area pid -> (Locality, area size)
@@ -288,9 +288,12 @@ class Localities:
                 k = name_key(n)
                 if loc not in self.by_name[k]:
                     self.by_name[k].append(loc)
+        # (lat, lon, locality): every locality at its own point, plus the points of the duplicates
+        # merged into it (merge_duplicates), so a house that was nearest to the removed copy still
+        # lands on the surviving locality instead of on the next village over
         self.cells = collections.defaultdict(list)
-        for loc in items:
-            self.cells[(int(loc.lat * 10), int(loc.lon * 10))].append(loc)
+        for lat, lon, loc in [(l.lat, l.lon, l) for l in items] + list(ghosts):
+            self.cells[(int(lat * 10), int(lon * 10))].append((lat, lon, loc))
 
     def by_city(self, raw, lat, lon):
         best, best_d = None, PLAUSIBLE_KM
@@ -311,8 +314,8 @@ class Localities:
         r = int(limit_km / 11) + 1
         for dy in range(-r, r + 1):
             for dx in range(-r, r + 1):
-                for loc in self.cells.get((cy + dy, cx + dx), ()):
-                    d = km(lat, lon, loc.lat, loc.lon)
+                for plat, plon, loc in self.cells.get((cy + dy, cx + dx), ()):
+                    d = km(lat, lon, plat, plon)
                     if d < best_d or (d == best_d and best is not None and KIND_RANK[loc.kind] < KIND_RANK[best.kind]):
                         best, best_d = loc, d
         return best
@@ -337,7 +340,7 @@ def merge_duplicates(kept, area_owner, stats):
     for loc in kept:
         if loc.commune is not None:
             groups[(loc.commune.id if loc.commune.id else id(loc.commune), name_key(loc.name))].append(loc)
-    gone = {}
+    gone, ghosts = {}, []
     for _, members in sorted(groups.items(), key=lambda kv: (str(kv[0][0]), kv[0][1])):
         if len(members) < 2:
             continue
@@ -358,17 +361,24 @@ def merge_duplicates(kept, area_owner, stats):
                     survivor.aliases.append(a)
             survivor.pop = max(survivor.pop, m.pop)
             survivor.wikidata = survivor.wikidata or m.wikidata
-            if m.is_in and survivor.is_in and name_key(m.is_in) != name_key(survivor.is_in):
+            # "Iași" and "Bârnova;Iași;România" agree (one is coarser); "Cozieni;…" and "Odăile;…" do not
+            a, b = is_in_parts(m.is_in), is_in_parts(survivor.is_in)
+            if a and b and not (a <= b or b <= a):
                 stats["merged_with_conflicting_is_in"] += 1
                 print("diagnostic: merged %s %s into %s %s although is_in differs: %r vs %r"
                       % (m.name, m.osm, survivor.name, survivor.osm, m.is_in, survivor.is_in), file=sys.stderr)
             survivor.is_in = survivor.is_in or m.is_in
             gone[id(m)] = survivor
+            ghosts.append((m.lat, m.lon, survivor))
             stats["duplicates_merged_" + why] += 1
     if not gone:
-        return kept, area_owner
+        return kept, area_owner, ghosts
     area_owner = {pid: ((gone.get(id(o), o)), size) for pid, (o, size) in area_owner.items()}
-    return [l for l in kept if id(l) not in gone], area_owner
+    return [l for l in kept if id(l) not in gone], area_owner, ghosts
+
+
+def is_in_parts(raw):
+    return {name_key(p) for p in re.split(r"[;,]", raw or "") if name_key(p)}
 
 
 def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
@@ -468,7 +478,7 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
     for loc in kept:
         hits = districts.find(loc.lon, loc.lat)
         loc.district = dnames[min(hits)] if hits else ""
-    communes = []
+    communes, ghosts = [], []
     if (country or "") in COMMUNE_LEVEL:
         cshapes, ctags = load_admin(pbf, work, "commune", COMMUNE_LEVEL[country])
         by_pid = {}
@@ -485,13 +495,13 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
         for i, c in enumerate(communes, 1):
             c.id = i
         stats["communes"] = len(communes)
-        kept, area_owner = merge_duplicates(kept, area_owner, stats)
+        kept, area_owner, ghosts = merge_duplicates(kept, area_owner, stats)
     kept.sort(key=lambda l: (KIND_RANK[l.kind], -l.pop, l.name, l.osm))
     for i, loc in enumerate(kept, 1):
         loc.id = i
     stats["localities"] = len(kept)
     stats["localities_with_area"] = len({id(v[0]) for v in area_owner.values()})
-    result = Localities(kept, area_shapes if area_owner else None, area_owner, stats)
+    result = Localities(kept, area_shapes if area_owner else None, area_owner, stats, ghosts)
     result.in_country = in_country
     result.communes = communes
     return result
