@@ -175,6 +175,8 @@ jobs:
           grep -E 'Maximum resident|Elapsed' "$RUNNER_TEMP/addr-time.txt" || true
           rm -f "$RUNNER_TEMP/src.osm.pbf"
           mv "$RUNNER_TEMP/out/$low-index.sqlite" "$RUNNER_TEMP/out/$low.search.sqlite"
+          # format /2 gate (docs/address-format.md): schema, counts, references, FTS, unresolved streets
+          python3 scripts/address_validate.py "$RUNNER_TEMP/out/$low.search.sqlite"
           rm -f "$RUNNER_TEMP/out/$low-index.json"
           python3 scripts/split-map.py "$RUNNER_TEMP/out" "$low"
           python3 scripts/regional-basemap-desc.py "$RUNNER_TEMP/out" "$CODE"

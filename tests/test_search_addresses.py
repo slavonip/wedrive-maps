@@ -500,6 +500,14 @@ class Build2Commune(unittest.TestCase):
         self.assertEqual((self.stats["duplicates_merged_wikidata"], self.stats["duplicates_merged_near"],
                           self.stats["duplicates_merged_area"]), (1, 2, 1))
 
+    def test_the_built_file_passes_the_format_gate(self):
+        import address_validate
+        self.assertEqual(address_validate.main([self.db]), 0)
+        # and the gate refuses a broken file: a street pointing at a locality that does not exist
+        self.c.execute("UPDATE addr_street SET locality = 999999 WHERE id = (SELECT min(id) FROM addr_street)")
+        self.c.commit()
+        self.assertEqual(address_validate.main([self.db]), 1)
+
     def test_no_commune_level_outside_romania_and_v25_columns_stay(self):
         meta = dict(self.c.execute("SELECT k, v FROM addr_meta"))
         self.assertEqual(int(meta["communes"]), 2)
