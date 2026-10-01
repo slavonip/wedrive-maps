@@ -86,7 +86,28 @@ def rings_of(geom):
     return []
 
 
-BAND =0.002   # degrees of latitude per band (~220 m)
+def segment_meets_box(x0, y0, x1, y1, bx0, by0, bx1, by1):
+    """Does the segment touch the closed box? Liang-Barsky clipping of t in [0, 1]."""
+    t0, t1 = 0.0, 1.0
+    dx, dy = x1 - x0, y1 - y0
+    for p, q in ((-dx, x0 - bx0), (dx, bx1 - x0), (-dy, y0 - by0), (dy, by1 - y0)):
+        if p == 0:
+            if q < 0:
+                return False
+        else:
+            t = q / p
+            if p < 0:
+                if t > t1:
+                    return False
+                t0 = max(t0, t)
+            else:
+                if t < t0:
+                    return False
+                t1 = min(t1, t)
+    return t0 <= t1
+
+
+BAND = 0.002   # degrees of latitude per band (~220 m)
 
 
 class Bands:
@@ -148,14 +169,22 @@ class Shapes:
         ys = [p[1] for r in rings for p in r]
         bands = Bands(rings)
         self.polys[pid] = (rings, (min(xs), min(ys), max(xs), max(ys)), bands)
+        # A cell is an edge cell when ANY segment touches it, decided exactly (segment against the
+        # closed cell rectangle). The first version sampled each segment every cell/8 and missed a
+        # segment clipping a cell corner: that cell was then classified by its centre, and the clipped
+        # piece answered wrong (found by the geometry test, 2026-10-01). An extra edge cell only
+        # costs an exact test; a missing one costs a wrong answer.
         edge = set()
-        step = self.cell / 8
+        c = self.cell
         for ring in rings:
-            for i in range(len(ring) - 1):
-                (x0, y0), (x1, y1) = ring[i], ring[i + 1]
-                n = max(1, int(max(abs(x1 - x0), abs(y1 - y0)) / step))
-                for k in range(n + 1):
-                    edge.add(self._c(x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n))
+            for i in range(len(ring)):
+                (x0, y0), (x1, y1) = ring[i - 1], ring[i]
+                ax, ay = self._c(min(x0, x1), min(y0, y1))
+                bx, by = self._c(max(x0, x1), max(y0, y1))
+                for cx in range(ax, bx + 1):
+                    for cy in range(ay, by + 1):
+                        if (cx, cy) not in edge and segment_meets_box(x0, y0, x1, y1, cx * c, cy * c, (cx + 1) * c, (cy + 1) * c):
+                            edge.add((cx, cy))
         for c in edge:
             self.edge[c].append(pid)
         cx0, cy0 = self._c(min(xs), min(ys))

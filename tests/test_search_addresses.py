@@ -95,6 +95,17 @@ class Geometry(unittest.TestCase):
         self.assertFalse(sl.Bands(self.shapes()["holes"]).contains(0.5, 0.5))
 
 
+    def test_shapes_find_agrees_with_the_reference(self):
+        for cell in (0.005, 0.05, 1.0):
+            shapes = sl.Shapes(cell)
+            all_shapes = self.shapes()
+            for name, rings in all_shapes.items():
+                shapes.add(name, rings)
+            for name, rings in all_shapes.items():
+                for p in self.points(rings)[::5]:
+                    self.assertEqual(name in shapes.find(*p), reference_contains(rings, *p), (cell, name, p))
+
+
 def esc(v):
     return "".join(c if c.isalnum() or c in "-_.:/" else "%%%x%%" % ord(c) for c in v)
 
