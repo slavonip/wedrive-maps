@@ -40,9 +40,12 @@ ALIAS_KEYS = ("name:ro", "name:ru", "name:en", "name:uk", "name:hu", "name:de",
 # the admin level whose name tells two same-named localities apart (raion / judeţ / megye / Bezirk)
 DISTRICT_LEVEL = {"MD": "4", "RO": "4", "HU": "6", "AT": "6"}
 # a level BELOW the district that names the administrative unit a locality belongs to, only where
-# the country has one that tells same-named villages apart: Romania's comună / oraș / municipiu
-# (401 same-name pairs inside one județ). Not forced on countries where it does not exist or help.
-COMMUNE_LEVEL = {"RO": "8"}
+# the country has one that tells same-named villages apart. One generic "commune", labelled by the
+# country in the UI: Romania's comună / oraș / municipiu (401 same-name pairs inside one județ),
+# Austria's Gemeinde (955 inside one Bezirk -> 71 inside one Gemeinde). Not forced on countries
+# where it does not exist or help. Austria's statutory cities (Graz, St. Pölten, ...) and Wien have
+# no level 8 at all: their localities carry no commune, which is the data, not a gap to fill.
+COMMUNE_LEVEL = {"RO": "8", "AT": "8"}
 PLAUSIBLE_KM = 25.0
 ANCHOR_KM = 3.0
 NEAR_KM = 15.0
