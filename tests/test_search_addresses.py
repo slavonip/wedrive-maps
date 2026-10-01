@@ -18,6 +18,81 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
 import search_addresses as sa  # noqa: E402
 import search_db  # noqa: E402
+import search_localities as sl  # noqa: E402
+
+
+def reference_contains(rings, x, y):
+    """The pre-2026-10-01 point-in-polygon: even-odd over EVERY segment of every ring. Kept here only
+    as the reference the banded index must agree with, never as a production fallback."""
+    inside = False
+    for ring in rings:
+        n = len(ring)
+        j = n - 1
+        for i in range(n):
+            xi, yi = ring[i]
+            xj, yj = ring[j]
+            if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+                inside = not inside
+            j = i
+    return inside
+
+
+class Geometry(unittest.TestCase):
+    """Bands (the latitude-band segment index) against the reference, on the shapes that broke
+    point-in-polygon code before: a winding border, holes, multipolygons, and points on and next to
+    the boundary, on vertices and on band edges."""
+
+    @staticmethod
+    def closed(pts):
+        return [tuple(p) for p in pts] + [tuple(pts[0])]
+
+    def shapes(self):
+        import math
+        # a winding "border": 400 vertices of a wobbly circle, many crossings of every band
+        wind = self.closed([(10 + (1 + 0.35 * math.sin(9 * a) + 0.1 * math.sin(41 * a)) * math.cos(a),
+                             45 + (1 + 0.35 * math.sin(9 * a) + 0.1 * math.sin(41 * a)) * math.sin(a))
+                            for a in [2 * math.pi * k / 400 for k in range(400)]])
+        square = lambda x0, y0, s: self.closed([(x0, y0), (x0 + s, y0), (x0 + s, y0 + s), (x0, y0 + s)])
+        holed = [square(0, 0, 1), square(0.25, 0.25, 0.5)]
+        # a multipolygon: two parts, the second with a hole holding an island; a tall thin sliver
+        # crossing hundreds of bands and an exactly horizontal edge
+        multi = [square(2, 2, 1), square(4, 2, 1), square(4.2, 2.2, 0.6), square(4.4, 2.4, 0.2),
+                 self.closed([(6, 0), (6.001, 0), (6.001, 3), (6, 3)])]
+        return {"winding": [wind], "holes": holed, "multipolygon": multi}
+
+    def points(self, rings):
+        import random
+        rnd = random.Random(7)
+        xs = [p[0] for r in rings for p in r]
+        ys = [p[1] for r in rings for p in r]
+        pts = [(rnd.uniform(min(xs) - 0.1, max(xs) + 0.1), rnd.uniform(min(ys) - 0.1, max(ys) + 0.1))
+               for _ in range(20000)]
+        for r in rings:
+            for (x0, y0), (x1, y1) in zip(r, r[1:]):
+                mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+                pts += [(x0, y0), (mx, my), (mx + 1e-12, my), (mx - 1e-12, my), (mx, my + 1e-12), (x0, y0 - 1e-12)]
+        # points exactly on band edges, where a point's band and a segment's bands meet
+        pts += [(x, round(k * sl.BAND, 10)) for x in (min(xs), (min(xs) + max(xs)) / 2, max(xs))
+                for k in range(int(min(ys) / sl.BAND) - 1, int(max(ys) / sl.BAND) + 2, 7)]
+        return pts
+
+    def test_bands_agree_with_the_reference_everywhere(self):
+        for name, rings in self.shapes().items():
+            bands = sl.Bands(rings)
+            pts = self.points(rings)
+            wrong = [p for p in pts if bands.contains(*p) != reference_contains(rings, *p)]
+            self.assertEqual(wrong, [], name)
+            self.assertTrue(any(bands.contains(*p) for p in pts) and not all(bands.contains(*p) for p in pts), name)
+
+    def test_holes_and_islands_come_out_right(self):
+        rings = self.shapes()["multipolygon"]
+        b = sl.Bands(rings)
+        self.assertTrue(b.contains(2.5, 2.5))       # first part
+        self.assertTrue(b.contains(4.1, 2.5))       # second part, outside its hole
+        self.assertFalse(b.contains(4.3, 2.3))      # in the hole
+        self.assertTrue(b.contains(4.5, 2.5))       # on the island inside the hole
+        self.assertFalse(b.contains(3.5, 2.5))      # between the parts
+        self.assertFalse(sl.Bands(self.shapes()["holes"]).contains(0.5, 0.5))
 
 
 def esc(v):

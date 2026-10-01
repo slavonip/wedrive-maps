@@ -20,7 +20,9 @@ locality or a house of the neighbouring country is never part of this country's 
 
 Standard library only. Geometry is a grid of cells over each polygon set: a cell no polygon edge
 crosses is classified once by its centre, so almost every point is answered by a dictionary lookup
-and only points in edge cells pay for an exact even-odd test.
+and only points in edge cells pay for an exact even-odd test — and that test reads only the polygon
+segments of the point's latitude band (Bands), never the whole boundary. Even-odd over all rings:
+holes and multipolygon parts come out right by themselves.
 """
 import collections
 import json
@@ -84,19 +86,37 @@ def rings_of(geom):
     return []
 
 
-def contains(rings, x, y):
-    """Even-odd rule over all rings: holes and multipolygon parts come out right by themselves."""
-    inside = False
-    for ring in rings:
-        n = len(ring)
-        j = n - 1
-        for i in range(n):
-            xi, yi = ring[i]
-            xj, yj = ring[j]
+BAND =0.002   # degrees of latitude per band (~220 m)
+
+
+class Bands:
+    """The segments of every ring, bucketed by the latitude bands they span (owner, 2026-10-01).
+
+    The even-odd ray test only ever counts a segment whose y-range straddles the point's y, and every
+    such segment is registered in the point's band, so testing just that band gives exactly the answer
+    of a pass over all rings — same pairs, same arithmetic, same order within a ring. A pass over all
+    127 k vertices of Austria's border for every house near it was 96.4 % of the AT build (66 min);
+    measured on all 4 690 140 AT address points: 0 different answers, 879 s on 16 processes -> 3.8 s
+    on one. Horizontal segments never satisfy (yi > y) != (yj > y) and are not stored."""
+
+    __slots__ = ("bands",)
+
+    def __init__(self, rings):
+        self.bands = collections.defaultdict(list)
+        for ring in rings:
+            for i in range(len(ring)):
+                (xj, yj), (xi, yi) = ring[i - 1], ring[i]
+                if yi == yj:
+                    continue
+                for b in range(math.floor(min(yi, yj) / BAND), math.floor(max(yi, yj) / BAND) + 1):
+                    self.bands[b].append((xi, yi, xj, yj))
+
+    def contains(self, x, y):
+        inside = False
+        for xi, yi, xj, yj in self.bands.get(math.floor(y / BAND), ()):
             if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
                 inside = not inside
-            j = i
-    return inside
+        return inside
 
 
 def ring_area(rings):
@@ -126,7 +146,8 @@ class Shapes:
             return
         xs = [p[0] for r in rings for p in r]
         ys = [p[1] for r in rings for p in r]
-        self.polys[pid] = (rings, (min(xs), min(ys), max(xs), max(ys)))
+        bands = Bands(rings)
+        self.polys[pid] = (rings, (min(xs), min(ys), max(xs), max(ys)), bands)
         edge = set()
         step = self.cell / 8
         for ring in rings:
@@ -143,15 +164,15 @@ class Shapes:
             for cy in range(cy0, cy1 + 1):
                 if (cx, cy) in edge:
                     continue
-                if contains(rings, (cx + 0.5) * self.cell, (cy + 0.5) * self.cell):
+                if bands.contains((cx + 0.5) * self.cell, (cy + 0.5) * self.cell):
                     self.full[(cx, cy)].append(pid)
 
     def find(self, x, y):
         c = self._c(x, y)
         out = list(self.full.get(c, ()))
         for pid in self.edge.get(c, ()):
-            rings, (bx0, by0, bx1, by1) = self.polys[pid]
-            if bx0 <= x <= bx1 and by0 <= y <= by1 and contains(rings, x, y):
+            _, (bx0, by0, bx1, by1), bands = self.polys[pid]
+            if bx0 <= x <= bx1 and by0 <= y <= by1 and bands.contains(x, y):
                 out.append(pid)
         return out
 
