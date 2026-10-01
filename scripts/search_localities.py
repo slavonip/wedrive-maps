@@ -36,6 +36,10 @@ ALIAS_KEYS = ("name:ro", "name:ru", "name:en", "name:uk", "name:hu", "name:de",
               "alt_name", "old_name", "official_name", "short_name", "int_name")
 # the admin level whose name tells two same-named localities apart (raion / judeţ / megye / Bezirk)
 DISTRICT_LEVEL = {"MD": "4", "RO": "4", "HU": "6", "AT": "6"}
+# a level BELOW the district that names the administrative unit a locality belongs to, only where
+# the country has one that tells same-named villages apart: Romania's comună / oraș / municipiu
+# (401 same-name pairs inside one județ). Not forced on countries where it does not exist or help.
+COMMUNE_LEVEL = {"RO": "8"}
 PLAUSIBLE_KM = 25.0
 ANCHOR_KM = 3.0
 NEAR_KM = 15.0
@@ -189,18 +193,42 @@ def load_country_shape(pbf, work, country, polygon_path):
 
 
 def load_districts(pbf, work, country):
-    level = DISTRICT_LEVEL.get(country or "", "6")
+    return load_admin(pbf, work, "district", DISTRICT_LEVEL.get(country or "", "6"))
+
+
+def load_admin(pbf, work, what, level):
+    """Areas of one admin level: shapes by pid, and the tags of each (name, official_name, ...)."""
     shapes = Shapes(0.02)
     names = {}
-    for f in export(pbf, work, "district", ["r/admin_level=" + level], "polygon"):
+    for f in export(pbf, work, what, ["r/admin_level=" + level], "polygon"):
         p = f["properties"]
         # tags-filter also brings in the MEMBER relations of what it matched: a county lists its
         # communes as subareas, so a commune (admin_level=8) arrives here too and must not be the district
         if p.get("boundary") == "administrative" and p.get("admin_level") == level and p.get("name"):
             pid = "%s%s" % (p["@type"][0], p["@id"])
             shapes.add(pid, rings_of(f["geometry"]))
-            names[pid] = p["name"]
+            names[pid] = p["name"] if what == "district" else p
     return shapes, names
+
+
+def commune_display(tags):
+    """"Comuna Albești", "Municipiul Iași", "Oraș Băile Tușnad": official_name, else prefix + name."""
+    name = tags["name"]
+    full = (tags.get("official_name") or "").strip()
+    if not full and tags.get("name:prefix"):
+        full = "%s %s" % (tags["name:prefix"].strip(), name)
+    full = full or name
+    return full[:1].upper() + full[1:]
+
+
+class Commune:
+    __slots__ = ("id", "name", "display", "aliases", "district", "pid")
+
+    def __init__(self, pid, tags, district):
+        self.id = 0
+        self.pid, self.name, self.district = pid, tags["name"], district
+        self.display = commune_display(tags)
+        self.aliases = [a for a in aliases_of(tags, self.name) if a != self.display]
 
 
 def yo_variants(names):
@@ -230,13 +258,14 @@ def population(tags):
 
 
 class Locality:
-    __slots__ = ("id", "name", "aliases", "kind", "district", "lat", "lon", "pop", "houses", "osm")
+    __slots__ = ("id", "name", "aliases", "kind", "district", "commune", "lat", "lon", "pop", "houses", "osm")
 
     def __init__(self, name, aliases, kind, lat, lon, pop, osm):
         self.id = 0
         self.name, self.aliases, self.kind = name, aliases, kind
         self.lat, self.lon, self.pop, self.osm = lat, lon, pop, osm
         self.district = ""
+        self.commune = None        # Commune, where the country has that level (COMMUNE_LEVEL)
         self.houses = 0
 
 
@@ -379,6 +408,23 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
     for loc in kept:
         hits = districts.find(loc.lon, loc.lat)
         loc.district = dnames[min(hits)] if hits else ""
+    communes = []
+    if (country or "") in COMMUNE_LEVEL:
+        cshapes, ctags = load_admin(pbf, work, "commune", COMMUNE_LEVEL[country])
+        by_pid = {}
+        for loc in kept:
+            hits = cshapes.find(loc.lon, loc.lat)
+            if hits:
+                pid = min(hits)
+                if pid not in by_pid:
+                    by_pid[pid] = Commune(pid, ctags[pid], loc.district)
+                loc.commune = by_pid[pid]
+            else:
+                stats["localities_without_commune"] += 1
+        communes = sorted(by_pid.values(), key=lambda c: (c.district, c.name, c.pid))
+        for i, c in enumerate(communes, 1):
+            c.id = i
+        stats["communes"] = len(communes)
     kept.sort(key=lambda l: (KIND_RANK[l.kind], -l.pop, l.name, l.osm))
     for i, loc in enumerate(kept, 1):
         loc.id = i
@@ -386,4 +432,5 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
     stats["localities_with_area"] = len({id(v[0]) for v in area_owner.values()})
     result = Localities(kept, area_shapes if area_owner else None, area_owner, stats)
     result.in_country = in_country
+    result.communes = communes
     return result

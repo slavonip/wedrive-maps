@@ -201,6 +201,7 @@ SCHEMA = """
 DROP TABLE IF EXISTS addr_street; DROP TABLE IF EXISTS addr_street_fts;
 DROP TABLE IF EXISTS addr; DROP TABLE IF EXISTS addr_meta;
 DROP TABLE IF EXISTS addr_locality; DROP TABLE IF EXISTS addr_locality_fts;
+DROP TABLE IF EXISTS addr_commune; DROP TABLE IF EXISTS addr_commune_fts;
 -- /2: every locality of the country, cut to its own border (search_localities.py)
 CREATE TABLE addr_locality(
     id       INTEGER PRIMARY KEY,
@@ -210,9 +211,22 @@ CREATE TABLE addr_locality(
     district TEXT NOT NULL,    -- raion / judet / megye / Bezirk: tells same-named localities apart
     lat      REAL NOT NULL, lon REAL NOT NULL,
     pop      INTEGER NOT NULL,
-    houses   INTEGER NOT NULL
+    houses   INTEGER NOT NULL,
+    commune  INTEGER           -- addr_commune.id; NULL where the country has no such level (RO only today)
 );
 CREATE VIRTUAL TABLE addr_locality_fts USING fts4(name, aliases, tokenize=unicode61, content='addr_locality');
+-- the unit between district and locality (Romania: comună / oraș / municipiu). Context and
+-- disambiguation only, never a search step. Its own FTS on purpose: v25 matches addr_locality_fts
+-- and addr_street_fts on every column, so a commune name added there would pull every village of
+-- "Comuna X" into a search for X and crowd the real answer out of its candidate limit.
+CREATE TABLE addr_commune(
+    id       INTEGER PRIMARY KEY,
+    name     TEXT NOT NULL,    -- OSM name: "Albești"
+    display  TEXT NOT NULL,    -- "Comuna Albești" / "Municipiul Iași": what the context line shows
+    aliases  TEXT,             -- JSON array, NULL when none
+    district TEXT NOT NULL
+);
+CREATE VIRTUAL TABLE addr_commune_fts USING fts4(name, aliases, tokenize=unicode61, content='addr_commune');
 -- /1 columns first and unchanged (a /1 app reads them by name); /2 adds locality and city_alt
 CREATE TABLE addr_street(
     id      INTEGER PRIMARY KEY,
@@ -375,13 +389,19 @@ def build(pbf, db_path, work, source_md5=None, country=None, polygon=None):
         stats["houses"] += kept
     tmp.close()
     stats["streets"] = sid
-    db.executemany("INSERT INTO addr_locality VALUES(?,?,?,?,?,?,?,?,?)",
+    db.executemany("INSERT INTO addr_locality VALUES(?,?,?,?,?,?,?,?,?,?)",
                    [(l.id, l.name, json.dumps(l.aliases, ensure_ascii=False) if l.aliases else None, l.kind,
-                     l.district, l.lat, l.lon, l.pop, l.houses) for l in locs.items])
+                     l.district, l.lat, l.lon, l.pop, l.houses, l.commune.id if l.commune else None)
+                    for l in locs.items])
     db.execute("INSERT INTO addr_locality_fts(addr_locality_fts) VALUES('rebuild')")
+    communes = getattr(locs, "communes", [])
+    db.executemany("INSERT INTO addr_commune VALUES(?,?,?,?,?)",
+                   [(c.id, c.name, c.display, json.dumps(c.aliases, ensure_ascii=False) if c.aliases else None,
+                     c.district) for c in communes])
+    db.execute("INSERT INTO addr_commune_fts(addr_commune_fts) VALUES('rebuild')")
     db.execute("INSERT INTO addr_street_fts(addr_street_fts) VALUES('rebuild')")
     meta = {"format": FORMAT, "streets": stats["streets"], "houses": stats["houses"],
-            "objects": stats["objects"], "localities": stats["localities"],
+            "objects": stats["objects"], "localities": stats["localities"], "communes": len(communes),
             "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if source_md5:
         meta["source_md5"] = source_md5

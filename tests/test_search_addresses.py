@@ -268,5 +268,80 @@ class Build2(unittest.TestCase):
         self.assertFalse(self.c.execute("SELECT count(*) FROM addr_street WHERE locality IS NULL").fetchone()[0])
 
 
+class Build2Commune(unittest.TestCase):
+    """Romania's commune level (owner, 2026-10-01): the real Vaslui case "Albești" — one village in
+    Comuna Albești, another in Comuna Delești, same județ — told apart by commune, which is context
+    only and stays out of the two FTS tables v25 already reads."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        L = []
+        box = lambda base, x0, y0, x1, y1: [(base + 1, x0, y0), (base + 2, x1, y0), (base + 3, x1, y1), (base + 4, x0, y1)]
+        shapes = {"country": box(100, 27.0, 46.0, 28.0, 47.0), "judet": box(110, 27.0, 46.0, 28.0, 47.0),
+                  "albesti": box(120, 27.0, 46.0, 27.5, 47.0), "delesti": box(130, 27.5, 46.0, 28.0, 47.0)}
+        for i, (name, pts) in enumerate(shapes.items(), 1):
+            for n, x, y in pts:
+                L.append("n%d v1 x%.7f y%.7f" % (n, x, y))
+            L.append("w%d v1 N%s" % (i, ",".join("n%d" % n for n, _, _ in pts + pts[:1])))
+        L.append("r1 v1 " + tags(type="boundary", boundary="administrative", admin_level="2", name="România",
+                                  **{"ISO3166-1": "RO"}) + " Mw1@outer")
+        # the județ lists its communes as subareas: they must become communes, never the district
+        L.append("r2 v1 " + tags(type="boundary", boundary="administrative", admin_level="4", name="Vaslui")
+                 + " Mw2@outer,r3@subarea,r4@subarea")
+        L.append("r3 v1 " + tags(type="boundary", boundary="administrative", admin_level="8", name="Albești",
+                                  official_name="Comuna Albești") + " Mw3@outer")
+        L.append("r4 v1 " + tags(type="boundary", boundary="administrative", admin_level="8", name="Delești",
+                                  name__prefix="Comuna") + " Mw4@outer")      # no official_name: prefix + name
+        L += [
+            "n20 v1 x27.2000000 y46.5000000 " + tags(place="village", name="Albești"),
+            "n21 v1 x27.8000000 y46.5000000 " + tags(place="village", name="Albești"),
+            "n22 v1 x27.3000000 y46.7000000 " + tags(place="village", name="Rădeni"),
+            "n40 v1 x27.2010000 y46.5010000 " + tags(addr__street="Strada Principală", addr__housenumber="1", addr__city="Albești"),
+            "n41 v1 x27.8010000 y46.5010000 " + tags(addr__street="Strada Principală", addr__housenumber="1", addr__city="Albești"),
+            "n42 v1 x27.3010000 y46.7010000 " + tags(addr__street="Strada Școlii", addr__housenumber="2", addr__city="Rădeni"),
+        ]
+        opl = os.path.join(self.d, "t.opl")
+        with open(opl, "w", encoding="utf-8") as f:
+            f.write("\n".join(L) + "\n")
+        self.pbf = os.path.join(self.d, "t.osm.pbf")
+        subprocess.run(["osmium", "sort", "-O", "-o", self.pbf, opl], check=True)
+        self.db = os.path.join(self.d, "ro.sqlite")
+        c = sqlite3.connect(self.db)
+        c.executescript(search_db.SCHEMA)
+        c.commit(); c.close()
+        self.stats = sa.build(self.pbf, self.db, self.d, country="RO")
+        self.c = sqlite3.connect(self.db)
+
+    def tearDown(self):
+        self.c.close()
+        shutil.rmtree(self.d)
+
+    def test_same_name_same_district_told_apart_by_commune(self):
+        rows = self.c.execute("SELECT l.district, c.display FROM addr_locality l JOIN addr_commune c ON c.id = l.commune "
+                              "WHERE l.name = 'Albești' ORDER BY l.lon").fetchall()
+        self.assertEqual(rows, [("Vaslui", "Comuna Albești"), ("Vaslui", "Comuna Delești")])
+
+    def test_each_street_belongs_to_its_own_albesti(self):
+        rows = self.c.execute("SELECT c.display FROM addr_street s JOIN addr_locality l ON l.id = s.locality "
+                              "JOIN addr_commune c ON c.id = l.commune WHERE s.name = 'Strada Principală' "
+                              "ORDER BY s.lon").fetchall()
+        self.assertEqual(rows, [("Comuna Albești",), ("Comuna Delești",)])
+
+    def test_commune_is_findable_but_stays_out_of_the_v25_fts(self):
+        self.assertEqual(self.c.execute("SELECT name FROM addr_commune_fts WHERE addr_commune_fts MATCH 'deles*'")
+                         .fetchall(), [("Delești",)])
+        # Rădeni lies in Comuna Albești: searching "Albești" must not drag it in (v25 matches every column)
+        names = {r[0] for r in self.c.execute("SELECT l.name FROM addr_locality_fts f JOIN addr_locality l "
+                                              "ON l.id = f.docid WHERE addr_locality_fts MATCH 'albesti*'")}
+        self.assertEqual(names, {"Albești"})
+        self.assertFalse(self.c.execute("SELECT count(*) FROM addr_street_fts WHERE addr_street_fts MATCH 'deles*'")
+                         .fetchone()[0])
+
+    def test_no_commune_level_outside_romania_and_v25_columns_stay(self):
+        meta = dict(self.c.execute("SELECT k, v FROM addr_meta"))
+        self.assertEqual(int(meta["communes"]), 2)
+        self.c.execute("SELECT id, name, aliases, kind, district, lat, lon, pop, houses FROM addr_locality").fetchall()
+
+
 if __name__ == "__main__":
     unittest.main()
