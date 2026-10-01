@@ -28,6 +28,7 @@ import math
 import os
 import re
 import subprocess
+import sys
 import unicodedata
 
 KINDS = ("city", "town", "village", "hamlet")
@@ -258,15 +259,19 @@ def population(tags):
 
 
 class Locality:
-    __slots__ = ("id", "name", "aliases", "kind", "district", "commune", "lat", "lon", "pop", "houses", "osm")
+    __slots__ = ("id", "name", "aliases", "kind", "district", "commune", "lat", "lon", "pop", "houses", "osm",
+                 "wikidata", "is_in", "area_only")
 
-    def __init__(self, name, aliases, kind, lat, lon, pop, osm):
+    def __init__(self, name, aliases, kind, lat, lon, pop, osm, tags=None):
         self.id = 0
         self.name, self.aliases, self.kind = name, aliases, kind
         self.lat, self.lon, self.pop, self.osm = lat, lon, pop, osm
         self.district = ""
         self.commune = None        # Commune, where the country has that level (COMMUNE_LEVEL)
         self.houses = 0
+        self.wikidata = (tags or {}).get("wikidata") or ""
+        self.is_in = (tags or {}).get("is_in") or ""
+        self.area_only = False     # made from a place area that held no place point of its own
 
 
 class Localities:
@@ -313,6 +318,59 @@ class Localities:
         return best
 
 
+DUPLICATE_KM = 2.0
+
+
+def merge_duplicates(kept, area_owner, stats):
+    """One village mapped twice in OSM is one locality (owner, 2026-10-01). Conservative, and only
+    INSIDE one commune (by id, never by its display name): two same-named villages of different
+    communes are two places by definition. Within a commune, a same-named locality merges into the
+    most informative one (wikidata, then population, then a point over an area) when
+      1. both carry the same wikidata;
+      2. it has neither wikidata nor population and lies within DUPLICATE_KM;
+      3. it is an area-only locality (an area that held no place point of its own) with neither
+         wikidata nor population: the area is the territory of the named place, however far its
+         centroid sits. An area WITH its own wikidata or population is a place of its own.
+    Anything else stays apart, however close (Poiu, 5 km, no evidence either way). Conflicting
+    is_in tags on a merge are reported on stderr and counted, never decided silently."""
+    groups = collections.defaultdict(list)
+    for loc in kept:
+        if loc.commune is not None:
+            groups[(loc.commune.id if loc.commune.id else id(loc.commune), name_key(loc.name))].append(loc)
+    gone = {}
+    for _, members in sorted(groups.items(), key=lambda kv: (str(kv[0][0]), kv[0][1])):
+        if len(members) < 2:
+            continue
+        members.sort(key=lambda l: (not l.wikidata, -l.pop, l.area_only, l.osm))
+        survivor = members[0]
+        for m in members[1:]:
+            bare = not m.wikidata and not m.pop
+            if m.wikidata and m.wikidata == survivor.wikidata:
+                why = "wikidata"
+            elif bare and m.area_only:
+                why = "area"
+            elif bare and (survivor.wikidata or survivor.pop) and km(m.lat, m.lon, survivor.lat, survivor.lon) <= DUPLICATE_KM:
+                why = "near"
+            else:
+                continue
+            for a in [m.name] + m.aliases:
+                if name_key(a) != name_key(survivor.name) and a not in survivor.aliases:
+                    survivor.aliases.append(a)
+            survivor.pop = max(survivor.pop, m.pop)
+            survivor.wikidata = survivor.wikidata or m.wikidata
+            if m.is_in and survivor.is_in and name_key(m.is_in) != name_key(survivor.is_in):
+                stats["merged_with_conflicting_is_in"] += 1
+                print("diagnostic: merged %s %s into %s %s although is_in differs: %r vs %r"
+                      % (m.name, m.osm, survivor.name, survivor.osm, m.is_in, survivor.is_in), file=sys.stderr)
+            survivor.is_in = survivor.is_in or m.is_in
+            gone[id(m)] = survivor
+            stats["duplicates_merged_" + why] += 1
+    if not gone:
+        return kept, area_owner
+    area_owner = {pid: ((gone.get(id(o), o)), size) for pid, (o, size) in area_owner.items()}
+    return [l for l in kept if id(l) not in gone], area_owner
+
+
 def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
     """Localities of the country. `fallback_places` (name, lat, lon, pop) are used only when the PBF
     carries no place at all (a synthetic test file)."""
@@ -338,7 +396,7 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
     items = []
     by_key = collections.defaultdict(list)
     for pid, name, p, lat, lon in sorted(nodes, key=lambda n: n[0]):
-        loc = Locality(name, aliases_of(p, name), p["place"], lat, lon, population(p), pid)
+        loc = Locality(name, aliases_of(p, name), p["place"], lat, lon, population(p), pid, p)
         items.append(loc)
         by_key[name_key(name)].append(loc)
 
@@ -378,7 +436,8 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
                     owner = loc
                     break
             if owner is None:
-                owner = Locality(name, aliases_of(p, name), p["place"], cy, cx, population(p), pid)
+                owner = Locality(name, aliases_of(p, name), p["place"], cy, cx, population(p), pid, p)
+                owner.area_only = True
                 items.append(owner)
                 by_key[k].append(owner)
                 stats["area_only_localities"] += 1
@@ -387,6 +446,7 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
                 if a not in owner.aliases:
                     owner.aliases.append(a)
             owner.pop = owner.pop or population(p)
+            owner.wikidata = owner.wikidata or p.get("wikidata") or ""
         area_shapes.add(pid, rings)
         area_owner[pid] = (owner, ring_area(rings))
 
@@ -425,6 +485,7 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
         for i, c in enumerate(communes, 1):
             c.id = i
         stats["communes"] = len(communes)
+        kept, area_owner = merge_duplicates(kept, area_owner, stats)
     kept.sort(key=lambda l: (KIND_RANK[l.kind], -l.pop, l.name, l.osm))
     for i, loc in enumerate(kept, 1):
         loc.id = i

@@ -299,7 +299,33 @@ class Build2Commune(unittest.TestCase):
             "n40 v1 x27.2010000 y46.5010000 " + tags(addr__street="Strada Principală", addr__housenumber="1", addr__city="Albești"),
             "n41 v1 x27.8010000 y46.5010000 " + tags(addr__street="Strada Principală", addr__housenumber="1", addr__city="Albești"),
             "n42 v1 x27.3010000 y46.7010000 " + tags(addr__street="Strada Școlii", addr__housenumber="2", addr__city="Rădeni"),
+            # the real duplicate cases, all in Comuna Albești unless said otherwise (owner, 2026-10-01):
+            # Pietrăria - the same wikidata twice, 3 km apart: one place
+            "n50 v1 x27.1000000 y46.1000000 " + tags(place="village", name="Pietrăria", wikidata="Q12137206", population="463"),
+            "n51 v1 x27.1000000 y46.1270000 " + tags(place="village", name="Pietrăria", wikidata="Q12137206"),
+            # Salcea - an informative point and a bare one 0.5 km away (carrying a Russian name)
+            "n52 v1 x27.2000000 y46.2000000 " + tags(place="village", name="Salcea", population="9513"),
+            "n53 v1 x27.2000000 y46.2045000 " + tags(place="village", name="Salcea", name__ru="Сэлча"),
+            # Poiu - a bare point 5 km from the real hamlet: no evidence either way, stays apart
+            "n54 v1 x27.3000000 y46.3000000 " + tags(place="hamlet", name="Poiu", wikidata="Q10816090", population="63"),
+            "n55 v1 x27.3000000 y46.3450000 " + tags(place="hamlet", name="Poiu"),
+            # Dealu - 1.5 km apart but across the commune border: two places, never merged
+            "n56 v1 x27.4900000 y46.4000000 " + tags(place="village", name="Dealu", population="100"),
+            "n57 v1 x27.5100000 y46.4000000 " + tags(place="village", name="Dealu"),
+            # Câmpulung - the city's point and a bare area of its name whose centroid is 5.8 km off
+            "n58 v1 x27.1000000 y46.6000000 " + tags(place="city", name="Câmpulung", wikidata="Q736296", population="43552"),
+            # Valea Ștefanului - a near duplicate whose is_in names another commune: merged, reported
+            "n59 v1 x27.4000000 y46.8000000 " + tags(place="village", name="Valea Ștefanului", wikidata="Q12087667",
+                                                     is_in="Albești;Vaslui;România"),
+            "n63 v1 x27.4000000 y46.8100000 " + tags(place="village", name="Valea Ștefanului", is_in="Cozieni;Vaslui;România"),
+            # houses: one at the bare Salcea point, one inside the Câmpulung area with no addr:city
+            "n60 v1 x27.2001000 y46.2046000 " + tags(addr__street="Strada Gării", addr__housenumber="1", addr__city="Salcea"),
+            "n61 v1 x27.2001000 y46.2001000 " + tags(addr__street="Strada Gării", addr__housenumber="2", addr__city="Salcea"),
+            "n62 v1 x27.1500000 y46.6400000 " + tags(addr__street="Strada Mare", addr__housenumber="5"),
         ]
+        for n, x, y in box(140, 27.13, 46.62, 27.17, 46.66):
+            L.append("n%d v1 x%.7f y%.7f" % (n, x, y))
+        L.append("w10 v1 " + tags(place="city", name="Câmpulung") + " Nn141,n142,n143,n144,n141")
         opl = os.path.join(self.d, "t.opl")
         with open(opl, "w", encoding="utf-8") as f:
             f.write("\n".join(L) + "\n")
@@ -336,6 +362,45 @@ class Build2Commune(unittest.TestCase):
         self.assertEqual(names, {"Albești"})
         self.assertFalse(self.c.execute("SELECT count(*) FROM addr_street_fts WHERE addr_street_fts MATCH 'deles*'")
                          .fetchone()[0])
+
+    def count(self, name):
+        return self.c.execute("SELECT count(*) FROM addr_locality WHERE name = ?", (name,)).fetchone()[0]
+
+    def test_same_wikidata_merges_beyond_the_distance(self):
+        self.assertEqual(self.count("Pietrăria"), 1)
+        self.assertEqual(self.c.execute("SELECT pop FROM addr_locality WHERE name = 'Pietrăria'").fetchone()[0], 463)
+
+    def test_a_bare_duplicate_within_2_km_merges_and_brings_its_names_and_houses(self):
+        self.assertEqual(self.count("Salcea"), 1)
+        lid, pop, aliases = self.c.execute("SELECT id, pop, aliases FROM addr_locality WHERE name = 'Salcea'").fetchone()
+        self.assertEqual(pop, 9513)
+        self.assertIn("Сэлча", json.loads(aliases))
+        rows = self.c.execute("SELECT s.locality, s.houses FROM addr_street s WHERE s.name = 'Strada Gării'").fetchall()
+        self.assertEqual(rows, [(lid, 2)])               # one street, both houses, on the surviving id
+        fts = [r[0] for r in self.c.execute("SELECT docid FROM addr_locality_fts WHERE addr_locality_fts MATCH 'сэлча'")]
+        self.assertEqual(fts, [lid])                     # no stale duplicate left in the FTS
+
+    def test_same_name_same_commune_beyond_2_km_without_evidence_stays_apart(self):
+        self.assertEqual(self.count("Poiu"), 2)
+
+    def test_same_name_in_different_communes_never_merges(self):
+        self.assertEqual(self.count("Dealu"), 2)
+        self.assertEqual(self.count("Albești"), 2)
+
+    def test_a_bare_area_of_the_name_is_the_place_however_far_its_centroid(self):
+        self.assertEqual(self.count("Câmpulung"), 1)
+        lid = self.c.execute("SELECT id FROM addr_locality WHERE name = 'Câmpulung'").fetchone()[0]
+        self.assertEqual(self.c.execute("SELECT locality FROM addr_street WHERE name = 'Strada Mare'").fetchone()[0], lid)
+
+    def test_conflicting_is_in_is_merged_and_reported(self):
+        self.assertEqual(self.count("Valea Ștefanului"), 1)
+        self.assertEqual(self.stats["merged_with_conflicting_is_in"], 1)
+
+    def test_the_locality_count_moves_exactly_by_the_merges(self):
+        # Albești 2, Rădeni, Pietrăria, Salcea, Poiu 2, Dealu 2, Câmpulung, Valea Ștefanului = 11
+        self.assertEqual(self.c.execute("SELECT count(*) FROM addr_locality").fetchone()[0], 11)
+        self.assertEqual((self.stats["duplicates_merged_wikidata"], self.stats["duplicates_merged_near"],
+                          self.stats["duplicates_merged_area"]), (1, 2, 1))
 
     def test_no_commune_level_outside_romania_and_v25_columns_stay(self):
         meta = dict(self.c.execute("SELECT k, v FROM addr_meta"))
