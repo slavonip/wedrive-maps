@@ -158,3 +158,21 @@ Scale, all built from the exact published Geofabrik sources (2026-09-27), one de
 scheduled regional run publishes whatever `main` builds. So it stays off `main` until all pass:
 final diff reviewed · this document · the released v25 against final `/2` files · RU built locally
 · a GitHub Actions dry run that publishes nothing.
+
+## Status 2026-10-02
+
+The five gates above are passed: diff reviewed, this document, released v25 against final `/2`
+files (20/20; RU `/2` on v25 PASS), RU built locally (19.5 min, 3.38 GB peak, content identical
+after the memory fix), and two GitHub dry runs on `factory-v2-dryrun` (MD, `mode=dry`, publish
+skipped): 36977623626 and 36984051594 PASS.
+
+The app side is done: v26 (`apk/2026.10.02-v26`, app `main` `a422947`) reads both `/1` and `/2`
+(format detected by the `addr_locality` table), so production can move `/1` -> `/2` with no new
+APK. Production is still `/1`: the manifest on `origin/main` (`29065b3`) is
+`regional-2026-09-28-23`, all 50 countries `wedrive-address/1`.
+
+What remains before `main` is pushed (and with it the cron starts publishing `/2`):
+- the owner's decision to push `main`;
+- one `mode=dry` run on GitHub with the heavy countries (DE, RU, and the largest of FR/PL/IT) —
+  only MD has run in CI so far, so the runner's time and memory for those are not yet measured;
+- a short v26 x `/2` check on that run's artifacts (search code is unchanged since v25).
