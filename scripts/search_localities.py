@@ -38,7 +38,7 @@ KIND_RANK = {k: i for i, k in enumerate(KINDS)}
 ALIAS_KEYS = ("name:ro", "name:ru", "name:en", "name:uk", "name:hu", "name:de",
               "alt_name", "old_name", "official_name", "short_name", "int_name")
 # the admin level whose name tells two same-named localities apart (raion / judeţ / megye / Bezirk)
-DISTRICT_LEVEL = {"MD": "4", "RO": "4", "HU": "6", "AT": "6", "DE": "6"}
+DISTRICT_LEVEL = {"MD": "4", "RO": "4", "HU": "6", "AT": "6", "DE": "6", "RU": "6"}
 # a level BELOW the district that names the administrative unit a locality belongs to, only where
 # the country has one that tells same-named villages apart. One generic "commune", labelled by the
 # country in the UI: Romania's comună / oraș / municipiu (401 same-name pairs inside one județ),
@@ -47,7 +47,7 @@ DISTRICT_LEVEL = {"MD": "4", "RO": "4", "HU": "6", "AT": "6", "DE": "6"}
 # no level 8 at all: their localities carry no commune, which is the data, not a gap to fill.
 # Germany: district = Landkreis / kreisfreie Stadt (level 6, 400 named), commune = Gemeinde (level 8);
 # Berlin and Hamburg are Länder at level 4 with neither, like Wien.
-COMMUNE_LEVEL = {"RO": "8", "AT": "8", "DE": "8"}
+COMMUNE_LEVEL = {"RO": "8", "AT": "8", "DE": "8", "RU": "8"}
 PLAUSIBLE_KM = 25.0
 ANCHOR_KM = 3.0
 NEAR_KM = 15.0
