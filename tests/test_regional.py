@@ -505,6 +505,72 @@ class DatedSource(unittest.TestCase):
                 precheck.dated_name(bad, "europe/germany")
 
 
+class MirrorRedirect(unittest.TestCase):
+    """-latest sent to an external mirror (2026-10-02: germany-latest -> ftp5.gwdg.de, a day
+    behind): the run is still pinned to Geofabrik's own dated file, dated by Geofabrik's own
+    state.txt, or it does not start."""
+
+    G = "https://download.geofabrik.de/"
+    STATE = "# original OSM minutely replication sequence number 7310780\ntimestamp=2026-10-01T20\\:22\\:06Z\nsequenceNumber=4925\n"
+    MD5 = "1ac0767a153932b321b718efd4ae2a55  germany-261001.osm.pbf\n"
+    GWDG = "https://ftp5.gwdg.de/pub/misc/openstreetmap/download.geofabrik.de/germany-latest.osm.pbf"
+
+    def run_with(self, location, pages, served=()):
+        saved = (precheck._latest_location, precheck._get, precheck._served_directly)
+
+        def get(url):
+            if url not in pages:
+                raise SystemExit("404 " + url)
+            return pages[url]
+
+        precheck._latest_location = lambda url: location
+        precheck._get = get
+        precheck._served_directly = lambda url: url in served
+        try:
+            return precheck.geofabrik_source("europe/germany")
+        finally:
+            precheck._latest_location, precheck._get, precheck._served_directly = saved
+
+    def test_1_an_ordinary_dated_redirect_is_unchanged(self):
+        src = self.run_with(self.G + "europe/germany-261001.osm.pbf",
+                            {self.G + "europe/germany-261001.osm.pbf.md5": self.MD5})
+        self.assertEqual(src, {"url": self.G + "europe/germany-261001.osm.pbf",
+                               "md5": "1ac0767a153932b321b718efd4ae2a55"})
+
+    def test_2_a_mirror_without_a_date_is_pinned_by_state_txt(self):
+        src = self.run_with(self.GWDG,
+                            {self.G + "europe/germany-updates/state.txt": self.STATE,
+                             self.G + "europe/germany-261001.osm.pbf.md5": self.MD5},
+                            served={self.G + "europe/germany-261001.osm.pbf"})
+        self.assertEqual(src["url"], self.G + "europe/germany-261001.osm.pbf")
+        self.assertNotIn("latest", src["url"])
+        self.assertEqual(src["md5"], "1ac0767a153932b321b718efd4ae2a55")
+
+    def test_3_a_date_that_cannot_be_confirmed_fails_closed(self):
+        mirror = "https://mirror.example.org/germany-latest.osm.pbf"
+        md5 = {self.G + "europe/germany-261001.osm.pbf.md5": self.MD5}
+        served = {self.G + "europe/germany-261001.osm.pbf"}
+        with self.assertRaises(SystemExit):        # no state.txt
+            self.run_with(mirror, md5, served)
+        with self.assertRaises(SystemExit):        # state.txt without a timestamp
+            self.run_with(mirror, {**md5, self.G + "europe/germany-updates/state.txt": "sequenceNumber=1\n"}, served)
+        with self.assertRaises(SystemExit):        # state.txt names a day Geofabrik does not serve
+            self.run_with(mirror, {**md5, self.G + "europe/germany-updates/state.txt": self.STATE})
+
+    def test_4_an_md5_for_another_file_fails(self):
+        # the mirror's -latest.md5 named the previous day; such an .md5 is never accepted
+        with self.assertRaises(SystemExit):
+            self.run_with(self.GWDG,
+                          {self.G + "europe/germany-updates/state.txt": self.STATE,
+                           self.G + "europe/germany-261001.osm.pbf.md5":
+                               "dd8667eddee3e874b7beb52d5e252f22  germany-260930.osm.pbf\n"},
+                          served={self.G + "europe/germany-261001.osm.pbf"})
+
+    def test_a_geofabrik_redirect_to_latest_is_still_refused(self):
+        with self.assertRaises(SystemExit):
+            self.run_with(self.G + "europe/germany-latest.osm.pbf", {})
+
+
 class WorldManifest(unittest.TestCase):
     """world-manifest.py writes ONLY manifest["world"] and refuses an incomplete descriptor."""
     wm = load("world_manifest", "world-manifest.py")

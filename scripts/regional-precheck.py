@@ -63,21 +63,71 @@ def dated_name(location, path):
     return name
 
 
-def geofabrik_source(path):
-    """{url, md5} of the dated file behind <path>-latest.osm.pbf."""
-    latest = GEOFABRIK + path + "-latest.osm.pbf"
+def _latest_location(url):
+    """Location of the redirect behind a -latest URL, or None when it does not redirect."""
     opener = urllib.request.build_opener(_NoRedirect)
     try:
-        opener.open(urllib.request.Request(latest, method="HEAD"), timeout=60)
-        raise SystemExit("%s did not redirect to a dated file" % latest)
+        opener.open(urllib.request.Request(url, method="HEAD"), timeout=60)
+        return None
     except urllib.error.HTTPError as e:
         if e.code not in (301, 302, 303, 307, 308) or not e.headers.get("Location"):
-            raise SystemExit("%s: HTTP %s" % (latest, e.code))
-        loc = e.headers["Location"]
-    name = dated_name(loc, path)
-    url = GEOFABRIK + path.rsplit("/", 1)[0] + "/" + name if "/" in path else GEOFABRIK + name
-    with urllib.request.urlopen(url + ".md5", timeout=60) as r:
-        md5 = md5_of(r.read().decode(), name)
+            raise SystemExit("%s: HTTP %s" % (url, e.code))
+        return e.headers["Location"]
+
+
+def _get(url):
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return r.read().decode()
+
+
+def _served_directly(url):
+    """True when Geofabrik itself answers 200 for url (no redirect followed)."""
+    opener = urllib.request.build_opener(_NoRedirect)
+    try:
+        with opener.open(urllib.request.Request(url, method="HEAD"), timeout=60) as r:
+            return r.status == 200
+    except urllib.error.HTTPError:
+        return False
+
+
+def state_date(state_text):
+    """YYMMDD of the extract a Geofabrik <region>-updates/state.txt describes, or SystemExit.
+
+    Geofabrik names the dated file after this date: verified 2026-10-02 on FR, RU, MD and RO,
+    where state.txt said 2026-10-01T20:22:06Z and -latest redirected to <name>-261001.osm.pbf."""
+    for line in state_text.splitlines():
+        if line.startswith("timestamp="):
+            ts = line.split("=", 1)[1].replace("\\:", ":").strip()
+            if len(ts) >= 10 and ts[4] == "-" and ts[7] == "-" and ts[:4].isdigit() and ts[5:7].isdigit() and ts[8:10].isdigit():
+                return ts[2:4] + ts[5:7] + ts[8:10]
+    raise SystemExit("Geofabrik state.txt has no usable timestamp: %r" % state_text[:120])
+
+
+def geofabrik_source(path):
+    """{url, md5} of the dated file behind <path>-latest.osm.pbf — never an undated source.
+
+    Normally -latest redirects to the dated file itself. Geofabrik may instead send a large
+    extract to an external mirror (2026-10-02: germany-latest -> ftp5.gwdg.de/.../germany-latest,
+    a mirror that was a day behind). Then the date comes ONLY from Geofabrik's own
+    <path>-updates/state.txt, the dated file must be served by Geofabrik directly, and its .md5
+    must name it; any of those failing stops the run (fail closed, no guessing)."""
+    base = path.rsplit("/", 1)[-1]
+    folder = GEOFABRIK + (path.rsplit("/", 1)[0] + "/" if "/" in path else "")
+    latest = GEOFABRIK + path + "-latest.osm.pbf"
+    loc = _latest_location(latest)
+    if loc is None:
+        raise SystemExit("%s did not redirect to a dated file" % latest)
+    if loc.startswith(GEOFABRIK) or "/" not in loc:
+        name = dated_name(loc, path)            # Geofabrik's own redirect: must be dated
+    else:
+        name = "%s-%s.osm.pbf" % (base, state_date(_get(GEOFABRIK + path + "-updates/state.txt")))
+        if not _served_directly(folder + name):
+            raise SystemExit("%s-latest redirects to %s and Geofabrik does not serve %s, the dated "
+                             "file its state.txt names" % (path, loc, name))
+        print("%s-latest redirects to a mirror (%s); pinned to %s from Geofabrik's state.txt"
+              % (path, loc, name), file=sys.stderr)
+    url = folder + name
+    md5 = md5_of(_get(url + ".md5"), name)
     return {"url": url, "md5": md5}
 
 
