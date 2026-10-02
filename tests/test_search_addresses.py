@@ -84,6 +84,18 @@ class Geometry(unittest.TestCase):
             self.assertEqual(wrong, [], name)
             self.assertTrue(any(bands.contains(*p) for p in pts) and not all(bands.contains(*p) for p in pts), name)
 
+    def test_compact_bands_and_admin_areas_agree_with_the_reference(self):
+        admin = sl.AdminAreas()
+        all_shapes = self.shapes()
+        for name, rings in all_shapes.items():
+            admin.add(name, rings)
+        for name, rings in all_shapes.items():
+            cb = sl.CompactBands(rings)
+            for p in self.points(rings):
+                ref = reference_contains(rings, *p)
+                self.assertEqual(cb.contains(*p), ref, (name, p))
+                self.assertEqual(name in admin.find(*p), ref, (name, p))
+
     def test_holes_and_islands_come_out_right(self):
         rings = self.shapes()["multipolygon"]
         b = sl.Bands(rings)

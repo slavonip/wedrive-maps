@@ -24,6 +24,7 @@ and only points in edge cells pay for an exact even-odd test — and that test r
 segments of the point's latitude band (Bands), never the whole boundary. Even-odd over all rings:
 holes and multipolygon parts come out right by themselves.
 """
+import array
 import collections
 import json
 import math
@@ -145,6 +146,72 @@ class Bands:
         return inside
 
 
+class CompactBands:
+    """Bands with each band's segments packed in one array of doubles (xi, yi, xj, yj, ...): ~32
+    bytes a segment instead of a ~150-byte tuple. Same pairs, same order, same arithmetic, so the
+    same answers as Bands; slower per test, so it is for polygon sets queried a few hundred thousand
+    times (districts, communes: one query per locality), never for the per-house grids."""
+
+    __slots__ = ("bands",)
+
+    def __init__(self, rings):
+        tmp = collections.defaultdict(list)
+        for ring in rings:
+            for i in range(len(ring)):
+                (xj, yj), (xi, yi) = ring[i - 1], ring[i]
+                if yi == yj:
+                    continue
+                for b in range(math.floor(min(yi, yj) / BAND), math.floor(max(yi, yj) / BAND) + 1):
+                    tmp[b].extend((xi, yi, xj, yj))
+        self.bands = {b: array.array("d", v) for b, v in tmp.items()}
+
+    def contains(self, x, y):
+        inside = False
+        s = self.bands.get(math.floor(y / BAND))
+        if s is None:
+            return False
+        for k in range(0, len(s), 4):
+            xi, yi, xj, yj = s[k], s[k + 1], s[k + 2], s[k + 3]
+            if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+                inside = not inside
+        return inside
+
+
+class AdminAreas:
+    """Administrative polygons (district, commune) for one query per LOCALITY, not per house.
+
+    Measured on Russia (2026-10-02): the dense cell grid `Shapes` builds for the per-house sets held
+    7.4 M full cells for the districts and 2.1 M for the communes, plus their vertex lists and tuple
+    bands — 3.2 GB and 2.1 GB, and the build peaked at 8.5 GB while both existed. For 147 k
+    locality points a coarse index of bounding boxes plus the exact band test answers the same
+    question with neither: `find` returns exactly the ids `Shapes.find` returns (both are exact)."""
+
+    CELL = 1.0
+
+    def __init__(self):
+        self.polys = {}                             # id -> (bbox, CompactBands)
+        self.cells = collections.defaultdict(list)  # 1-degree cell -> ids whose bbox overlaps it
+
+    def add(self, pid, rings):
+        if not rings:
+            return
+        xs = [p[0] for r in rings for p in r]
+        ys = [p[1] for r in rings for p in r]
+        box = (min(xs), min(ys), max(xs), max(ys))
+        self.polys[pid] = (box, CompactBands(rings))
+        for cx in range(math.floor(box[0] / self.CELL), math.floor(box[2] / self.CELL) + 1):
+            for cy in range(math.floor(box[1] / self.CELL), math.floor(box[3] / self.CELL) + 1):
+                self.cells[(cx, cy)].append(pid)
+
+    def find(self, x, y):
+        out = []
+        for pid in self.cells.get((math.floor(x / self.CELL), math.floor(y / self.CELL)), ()):
+            (bx0, by0, bx1, by1), bands = self.polys[pid]
+            if bx0 <= x <= bx1 and by0 <= y <= by1 and bands.contains(x, y):
+                out.append(pid)
+        return out
+
+
 def ring_area(rings):
     a = 0.0
     for ring in rings:
@@ -173,7 +240,9 @@ class Shapes:
         xs = [p[0] for r in rings for p in r]
         ys = [p[1] for r in rings for p in r]
         bands = Bands(rings)
-        self.polys[pid] = (rings, (min(xs), min(ys), max(xs), max(ys)), bands)
+        # the vertex list is not kept: everything after this reads the bands (Russia: ~0.6 GB of
+        # place-area vertices nobody read again)
+        self.polys[pid] = (None, (min(xs), min(ys), max(xs), max(ys)), bands)
         # A cell is an edge cell when ANY segment touches it, decided exactly (segment against the
         # closed cell rectangle). The first version sampled each segment every cell/8 and missed a
         # segment clipping a cell corner: that cell was then classified by its centre, and the clipped
@@ -253,8 +322,9 @@ def load_districts(pbf, work, country):
 
 
 def load_admin(pbf, work, what, level):
-    """Areas of one admin level: shapes by pid, and the tags of each (name, official_name, ...)."""
-    shapes = Shapes(0.02)
+    """Areas of one admin level: an index by pid (AdminAreas: one query per locality, so no dense
+    grid), and the tags of each (name, official_name, ...)."""
+    shapes = AdminAreas()
     names = {}
     for f in export(pbf, work, what, ["r/admin_level=" + level], "polygon"):
         p = f["properties"]
@@ -520,6 +590,7 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
             items.append(Locality(name, [], "town", lat, lon, pop, "index"))
         stats["fallback_index_places"] = len(items)
 
+    del nodes, areas, node_cells          # raw features: every locality and area is built from them
     kept = []
     for loc in items:
         if in_country(loc.lat, loc.lon):
@@ -533,6 +604,7 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
     for loc in kept:
         hits = districts.find(loc.lon, loc.lat)
         loc.district = dnames[min(hits)] if hits else ""
+    del districts, dnames                  # before the communes are loaded, not after (RU peak)
     communes, ghosts = [], []
     if (country or "") in COMMUNE_LEVEL:
         cshapes, ctags = load_admin(pbf, work, "commune", COMMUNE_LEVEL[country])
@@ -546,6 +618,7 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
                 loc.commune = by_pid[pid]
             else:
                 stats["localities_without_commune"] += 1
+        del cshapes, ctags
         communes = sorted(by_pid.values(), key=lambda c: (c.district, c.name, c.pid))
         for i, c in enumerate(communes, 1):
             c.id = i
