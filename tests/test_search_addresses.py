@@ -118,6 +118,80 @@ class Geometry(unittest.TestCase):
                     self.assertEqual(name in shapes.find(*p), reference_contains(rings, *p), (cell, name, p))
 
 
+class Nearest(unittest.TestCase):
+    """Localities.nearest: the cell window must cover the radius at every latitude, the band past
+    NEAR_KM never crosses to another landmass. Iceland 2026-10-04: 560 of 7915 streets unresolved,
+    57 of them only because the window reached ~9.8 km east-west at 64° N."""
+
+    @staticmethod
+    def locs(points, loader=None):
+        items = [sl.Locality("L%d" % i, [], "village", la, lo, 0, "n%d" % i) for i, (la, lo) in enumerate(points)]
+        out = sl.Localities(items, None, {}, {})
+        out.landmass_loader = loader
+        return out, items
+
+    @staticmethod
+    def east(lat, lon, d_km):
+        import math
+        return lat, lon + d_km / (111.32 * math.cos(math.radians(lat)))
+
+    def test_east_west_reach_is_the_radius_at_high_latitude(self):
+        for lat in (0.0, 47.0, 64.1, 66.4, 70.9):
+            locs, items = self.locs([self.east(lat, -20.0, 14.5)])
+            self.assertIs(locs.nearest(lat, -20.0, 15.0, 15.0), items[0], lat)
+
+    def test_window_agrees_with_brute_force(self):
+        import random
+        rnd = random.Random(11)
+        for lat0 in (10.0, 47.0, 60.0, 64.0, 69.0):
+            pts = [(lat0 + rnd.uniform(-0.6, 0.6), -20.0 + rnd.uniform(-1.5, 1.5)) for _ in range(150)]
+            locs, items = self.locs(pts)
+            for _ in range(200):
+                la, lo = lat0 + rnd.uniform(-0.5, 0.5), -20.0 + rnd.uniform(-1.3, 1.3)
+                ds = [(sl.km(la, lo, l.lat, l.lon), l) for l in items]
+                within = [x for x in ds if x[0] < 15.0]
+                want = min(within, key=lambda x: x[0])[1] if within else None
+                self.assertIs(locs.nearest(la, lo, 15.0, 15.0), want, (lat0, la, lo))
+
+    def test_fallback_band_and_its_end(self):
+        lat = 64.5
+        for d, found in ((22.0, True), (29.5, True), (31.0, False)):
+            locs, items = self.locs([self.east(lat, -20.0, d)])
+            self.assertEqual(locs.nearest(lat, -20.0) is items[0], found, d)
+
+    def test_coastline_is_read_only_when_the_band_is_reached(self):
+        calls = []
+        loader = lambda: calls.append(1) or sl.Landmasses([])
+        locs, items = self.locs([self.east(64.5, -20.0, 5.0)], loader)
+        self.assertIs(locs.nearest(64.5, -20.0), items[0])
+        self.assertEqual(calls, [])
+
+    def test_the_band_never_crosses_the_sea(self):
+        sq = lambda x0, y0, s: [(x0, y0), (x0 + s, y0), (x0 + s, y0 + s), (x0, y0 + s), (x0, y0)]
+        main, island = sq(-21.0, 64.0, 1.0), sq(-19.7, 64.4, 0.2)   # ~10 km of sea between them
+        lm = sl.Landmasses([main, island])
+        here = (64.5, -20.1)                                        # on the main ring, near its east coast
+        far_island = self.east(64.5, -20.1, 24.0)                  # on the island, inside the band
+        self.assertNotEqual(lm.of(*here), lm.of(*far_island))
+        locs, items = self.locs([far_island], lambda: lm)
+        self.assertIsNone(locs.nearest(*here))                      # across the sea: refused
+        near_island = self.east(64.5, -20.1, 14.0)
+        locs, items = self.locs([near_island], lambda: lm)
+        self.assertIs(locs.nearest(*here), items[0])                # within NEAR_KM: unchanged rule
+        same_land = (64.5 - 22.0 / 110.54, -20.1)                   # 22 km south, same ring
+        locs, items = self.locs([far_island, same_land], lambda: lm)
+        self.assertIs(locs.nearest(*here), items[1])
+        # a locality in no ring (the sea, a pier, a continent's open coast) is never refused
+        locs, items = self.locs([(64.5, -19.55)], lambda: sl.Landmasses([main]))
+        self.assertIs(locs.nearest(*here), items[0])
+
+    def test_coastline_ways_chain_into_rings(self):
+        a, b, c, d = (0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)
+        rings = sl.chain_rings([[c, d, a], [a, b, c], [(5.0, 5.0), (6.0, 5.0)], [(7.0, 7.0), (8.0, 7.0), (8.0, 8.0), (7.0, 7.0)]])
+        self.assertEqual(len(rings), 2)                              # one from two ways, one closed way
+        self.assertTrue(all(r[0] == r[-1] for r in rings))
+
+
 def esc(v):
     return "".join(c if c.isalnum() or c in "-_.:/" else "%%%x%%" % ord(c) for c in v)
 

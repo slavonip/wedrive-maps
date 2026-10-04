@@ -85,7 +85,12 @@ addr_meta(k, v): format, streets, houses, objects, localities, communes, built, 
    county's member communes were once read as its district).
 4. **A street's locality**, in order: `addr:city` naming a locality (name or alias) within 25 km ->
    the place area containing the house -> a same-named street already resolved within 3 km -> the
-   nearest locality within 15 km. `addr:city` spellings seen on >= 3 houses become aliases.
+   nearest locality within 15 km -> the nearest within 30 km **on the same landmass** (closed
+   `natural=coastline` rings of the same PBF; a point in no ring is never refused). `addr:city`
+   spellings seen on >= 3 houses become aliases. The distance search counts its 0.1° cells per
+   axis at the window's most poleward latitude (before 2026-10-04 it reached ~9.8 km east-west at
+   64° N). Iceland `iceland-261003`: 560 -> 48 unresolved streets of 7929 (7.08 % -> 0.61 %),
+   0 street-locality pairs across the sea in the 15-30 km band; MD, HU, RO byte-identical.
 
 ## Duplicate localities (one village mapped twice in OSM)
 

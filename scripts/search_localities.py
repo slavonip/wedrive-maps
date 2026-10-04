@@ -11,7 +11,8 @@ geography rather than by string equality:
     1. addr:city naming a locality (its name or any alias) within PLAUSIBLE_KM   -> "name"
     2. the place area (the locality's own polygon in OSM) that contains the house -> "area"
     3. a same-named street of this build, resolved by 1 or 2, within ANCHOR_KM    -> "anchor"
-    4. the nearest locality point within NEAR_KM                                 -> "nearest"
+    4. the nearest locality point within NEAR_KM, else within FALLBACK_KM on the same
+       landmass (never across the sea, by the coastline of the same PBF)          -> "nearest"
     5. otherwise unresolved (locality NULL)
 
 Everything comes from the same country PBF the graph and the addresses are built from, cut to the
@@ -52,6 +53,11 @@ COMMUNE_LEVEL = {"RO": "8", "AT": "8", "DE": "8", "RU": "8"}
 PLAUSIBLE_KM = 25.0
 ANCHOR_KM = 3.0
 NEAR_KM = 15.0
+# Past NEAR_KM a street still takes the nearest locality up to FALLBACK_KM, but only one on the same
+# landmass (Landmasses). Sparse rural countries have farms 15-30 km from the nearest place=village
+# (Iceland 2026-10-04: 6.3 % of streets beyond 15 km, 0.6 % beyond 30 km); without the landmass
+# guard the band picked Vestmannaeyjabær and Flatey for mainland farms.
+FALLBACK_KM = 30.0
 MERGE_KM = 5.0
 # "mun. Chișinău", "or. Soroca", "s. Bubuieci", "Municipiul București", "comuna X"
 CITY_PREFIX = re.compile(r"^(mun|municipiul|or|oras|orasul|s|sat|satul|c|com|comuna|sec|sectorul|г|пгт|с)\.?\s+", re.I)
@@ -280,6 +286,71 @@ class Shapes:
         return out
 
 
+_UNSET = object()
+
+
+class Landmasses:
+    """Which landmass a point is on, from the closed rings of natural=coastline.
+
+    A closed coastline ring is one piece of land: an island, or a whole country that is one (Iceland).
+    A continent's coast is cut open by the extract and makes no ring, so the mainland of a
+    continental country is simply "no ring" — like a point in the sea or on a pier just outside a
+    ring. Two points are on different landmasses only when BOTH are inside rings and the rings
+    differ; anything unknown is never a reason to refuse."""
+
+    CELL = 0.05
+
+    def __init__(self, rings):
+        self.shapes = Shapes(self.CELL)
+        self.area = {}
+        for i, ring in enumerate(rings):
+            self.shapes.add(i, [ring])
+            self.area[i] = ring_area([ring])
+        self.rings = len(rings)
+
+    def of(self, lat, lon):
+        hits = self.shapes.find(lon, lat)
+        return min(hits, key=lambda i: (self.area[i], i)) if hits else None
+
+    @staticmethod
+    def same(a, b):
+        return a is None or b is None or a == b
+
+
+def chain_rings(lines):
+    """Closed rings out of coastline ways. OSM coastline runs with the land on its left, so the ways
+    of one ring join end to start; a chain that never closes (cut by the extract, or broken data) is
+    dropped, which makes its land "no ring", never a wrong island."""
+    by_start = collections.defaultdict(list)
+    for i, line in enumerate(lines):
+        by_start[line[0]].append(i)
+    used = [False] * len(lines)
+    rings = []
+    for i, line in enumerate(lines):
+        if used[i]:
+            continue
+        used[i] = True
+        chain = list(line)
+        while chain[-1] != chain[0]:
+            nxt = next((j for j in by_start.get(chain[-1], ()) if not used[j]), None)
+            if nxt is None:
+                break
+            used[nxt] = True
+            chain.extend(lines[nxt][1:])
+        if len(chain) >= 4 and chain[-1] == chain[0]:
+            rings.append(chain)
+    return rings
+
+
+def load_landmasses(pbf, work):
+    lines = [[tuple(p) for p in f["geometry"]["coordinates"]]
+             for f in export(pbf, work, "coastline", ["w/natural=coastline"], "linestring")
+             if f["geometry"]["type"] == "LineString" and len(f["geometry"]["coordinates"]) >= 2]
+    lm = Landmasses(chain_rings(lines))
+    print("landmasses: %d coastline ways -> %d closed rings" % (len(lines), lm.rings), file=sys.stderr)
+    return lm
+
+
 # ---------------------------------------------------------------- OSM reading
 
 
@@ -433,16 +504,39 @@ class Localities:
         hits = [self.area_owner[pid] for pid in self.area_shapes.find(lon, lat) if pid in self.area_owner] if self.area_shapes else []
         return min(hits, key=lambda h: (h[1], KIND_RANK[h[0].kind]))[0] if hits else None
 
-    def nearest(self, lat, lon, limit_km=NEAR_KM):
-        best, best_d = None, limit_km
+    landmass_loader = None     # () -> Landmasses, set by load(); read only when the band is reached
+    _landmasses = None
+
+    def landmasses(self):
+        if self._landmasses is None:
+            self._landmasses = self.landmass_loader() if self.landmass_loader else Landmasses([])
+        return self._landmasses
+
+    def nearest(self, lat, lon, limit_km=NEAR_KM, fallback_km=FALLBACK_KM):
+        """The nearest locality point within limit_km; failing that, within fallback_km on the
+        point's own landmass. Ties go to the larger kind of place."""
+        best, best_d = None, max(limit_km, fallback_km)
         cy, cx = int(lat * 10), int(lon * 10)
-        r = int(limit_km / 11) + 1
-        for dy in range(-r, r + 1):
-            for dx in range(-r, r + 1):
+        # Cells are 0.1° in both axes, so a cell is ~11 km tall but only 11.1·cos(lat) km wide. The
+        # first version searched the same number of cells in both directions: at 64° N that reached
+        # ~9.8 km east-west instead of 15 (Iceland 2026-10-04). Count cells per axis, and for
+        # longitude at the most poleward latitude the window touches.
+        ry = int(best_d / 11.05) + 1
+        edge_lat = min(89.0, abs(lat) + (ry + 1) * 0.1)
+        rx = int(best_d / (11.132 * math.cos(math.radians(edge_lat)))) + 1
+        here = _UNSET
+        for dy in range(-ry, ry + 1):
+            for dx in range(-rx, rx + 1):
                 for plat, plon, loc in self.cells.get((cy + dy, cx + dx), ()):
                     d = km(lat, lon, plat, plon)
-                    if d < best_d or (d == best_d and best is not None and KIND_RANK[loc.kind] < KIND_RANK[best.kind]):
-                        best, best_d = loc, d
+                    if d > best_d or (d == best_d and (best is None or KIND_RANK[loc.kind] >= KIND_RANK[best.kind])):
+                        continue
+                    if d > limit_km:
+                        lm = self.landmasses()
+                        here = lm.of(lat, lon) if here is _UNSET else here
+                        if not lm.same(here, lm.of(plat, plon)):
+                            continue
+                    best, best_d = loc, d
         return best
 
 
@@ -632,4 +726,6 @@ def load(pbf, work, country=None, polygon_path=None, fallback_places=()):
     result = Localities(kept, area_shapes if area_owner else None, area_owner, stats, ghosts)
     result.in_country = in_country
     result.communes = communes
+    # the coastline is read only if some street gets as far as the FALLBACK_KM band (most do not)
+    result.landmass_loader = lambda: load_landmasses(pbf, work)
     return result
