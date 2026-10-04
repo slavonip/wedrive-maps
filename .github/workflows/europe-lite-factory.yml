@@ -40,7 +40,6 @@ permissions:
   packages: read      # pull the lite engine from GHCR by digest
 
 env:
-  SOURCE_URL: https://download.geofabrik.de/europe-latest.osm.pbf
   LITE: tools/europe-lite
 
 jobs:
@@ -49,6 +48,8 @@ jobs:
     timeout-minutes: 10
     outputs:
       go: ${{ steps.decide.outputs.go }}
+      source_url: ${{ steps.decide.outputs.source_url }}
+      source_md5: ${{ steps.decide.outputs.source_md5 }}
       lite_image: ${{ steps.lock.outputs.lite_image }}
       stock_image: ${{ steps.lock.outputs.stock_image }}
     steps:
@@ -63,13 +64,22 @@ jobs:
           [[ "$stock_ref" == *@sha256:* ]] || { echo "::error::engine.lock stock_image is not a digest"; exit 1; }
           [ "$(bash "$LITE/factory/lite-key.sh")" = "$(get lite_key)" ] || { echo "::error::engine.lock lite_key does not match the recipe"; exit 1; }
           echo "lite_image=$lite_ref" >> "$GITHUB_OUTPUT"; echo "stock_image=$stock_ref" >> "$GITHUB_OUTPUT"
+      # THE RUN IS PINNED TO ONE DATED FILE, resolved by the same rule as the regional factory
+      # (scripts/regional-precheck.py `source`): what europe-latest stands for, checked against that
+      # file's own .md5; when -latest is sent to an external mirror, dated by Geofabrik's
+      # europe-updates/state.txt and served by Geofabrik itself. Anything unconfirmable stops here.
+      # 2026-10-03 (run 37112133117): europe-latest -> ftp5.gwdg.de, europe-latest.osm.pbf.md5 = 404.
       - name: anything new at Geofabrik?
         id: decide
         env:
           FORCE: ${{ inputs.force }}
         run: |
           set -euo pipefail
-          md5=$(curl -fsSL "$SOURCE_URL.md5" | awk '{print $1}')
+          src=$(python3 scripts/regional-precheck.py source europe)
+          url=$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["url"])' "$src")
+          md5=$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["md5"])' "$src")
+          echo "source $url  md5 $md5"
+          echo "source_url=$url" >> "$GITHUB_OUTPUT"; echo "source_md5=$md5" >> "$GITHUB_OUTPUT"
           cur=""
           [ -f europe-lite.json ] && cur=$(python3 -c 'import json;print(json.load(open("europe-lite.json"))["source"].get("md5",""))')
           echo "Geofabrik md5 $md5, current pointer md5 ${cur:-none}"
@@ -107,10 +117,13 @@ jobs:
         run: |
           docker pull -q "$LITE_IMAGE"
           bash "$LITE/valhalla/check-image.sh" "$LITE_IMAGE"
-      - name: source (Geofabrik, MD5-checked)
+      - name: source (the dated Geofabrik file the precheck pinned, MD5-checked)
+        env:
+          SOURCE_URL: ${{ needs.precheck.outputs.source_url }}
+          SOURCE_MD5: ${{ needs.precheck.outputs.source_md5 }}
         run: |
           set -euo pipefail
-          bash "$LITE/fetch-source.sh" "$WORK" "$SOURCE_URL"
+          bash "$LITE/fetch-source.sh" "$WORK" "$SOURCE_URL" "$SOURCE_MD5"
           bash "$LITE/factory/source-json.sh" "$WORK" "$WORK/source.json"
       - name: build.sh --new-data
         run: bash "$LITE/build.sh" --new-data "$WORK" "$LITE_IMAGE"

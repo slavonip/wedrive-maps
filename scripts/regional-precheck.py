@@ -3,6 +3,7 @@
 
     regional-precheck.py <regional.json> <regional-engine.lock> <manifest.json|-> \
         [--countries MD,RO] [--rebuild auto|all|MD,RO] [--md5-json file] [--github-output file]
+    regional-precheck.py source <geofabrik path>      {url, md5} of one dated extract (Europe Lite)
 
 A country is rebuilt when (auto):
     - it is not in the current manifest;
@@ -166,6 +167,13 @@ def decide(cfg, lock, manifest, countries, rebuild_arg, md5s):
 
 
 def main():
+    # `regional-precheck.py source <geofabrik path>` prints {url, md5} of the dated file, resolved
+    # exactly as for a country. The Europe Lite factory uses it for `europe` (2026-10-03:
+    # europe-latest went to ftp5.gwdg.de and europe-latest.osm.pbf.md5 answered 404), so both
+    # factories pin their source by one rule and neither ever downloads an undated file.
+    if len(sys.argv) == 3 and sys.argv[1] == "source":
+        print(json.dumps(geofabrik_source(sys.argv[2]), sort_keys=True))
+        return 0
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("config")
     ap.add_argument("lock")

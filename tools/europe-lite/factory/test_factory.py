@@ -300,5 +300,131 @@ class Manifest(unittest.TestCase):
         self.assertTrue(lite_manifest.validate(m))
 
 
+class EuropeSource(unittest.TestCase):
+    """The Lite source is pinned by the regional rule (scripts/regional-precheck.py `source`).
+
+    2026-10-03, run 37112133117: europe-latest redirected to ftp5.gwdg.de and
+    europe-latest.osm.pbf.md5 answered 404, so the precheck died before deciding anything."""
+
+    G = "https://download.geofabrik.de/"
+    GWDG = "https://ftp5.gwdg.de/pub/misc/openstreetmap/download.geofabrik.de/europe-latest.osm.pbf"
+    STATE = "# original OSM minutely replication sequence number 7313609\ntimestamp=2026-10-03T20\:20\:50Z\nsequenceNumber=4932\n"
+    MD5 = "c0c22bb3c69adda609d9fbaaf1891e1b  europe-261003.osm.pbf\n"
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "regional_precheck_lite", os.path.join(REPO_ROOT, "scripts", "regional-precheck.py"))
+        cls.pre = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.pre)
+
+    def resolve(self, location, pages, served=()):
+        pre, asked = self.pre, []
+
+        def get(url):
+            asked.append(url)
+            if url not in pages:
+                raise SystemExit("404 " + url)
+            return pages[url]
+
+        saved = (pre._latest_location, pre._get, pre._served_directly)
+        pre._latest_location = lambda url: location
+        pre._get = get
+        pre._served_directly = lambda url: url in served
+        try:
+            return pre.geofabrik_source("europe"), asked
+        finally:
+            pre._latest_location, pre._get, pre._served_directly = saved
+
+    def test_the_mirror_case_of_2026_10_03_is_pinned_to_the_dated_file(self):
+        src, asked = self.resolve(self.GWDG,
+                                  {self.G + "europe-updates/state.txt": self.STATE,
+                                   self.G + "europe-261003.osm.pbf.md5": self.MD5},
+                                  served={self.G + "europe-261003.osm.pbf"})
+        self.assertEqual(src, {"url": self.G + "europe-261003.osm.pbf",
+                               "md5": "c0c22bb3c69adda609d9fbaaf1891e1b"})
+        self.assertFalse([u for u in asked if "latest" in u], asked)   # never the 404 -latest.md5
+
+    def test_an_ordinary_dated_redirect_still_works(self):
+        src, _ = self.resolve(self.G + "europe-261003.osm.pbf",
+                              {self.G + "europe-261003.osm.pbf.md5": self.MD5})
+        self.assertEqual(src["url"], self.G + "europe-261003.osm.pbf")
+
+    def test_unconfirmable_sources_fail_closed(self):
+        md5 = {self.G + "europe-261003.osm.pbf.md5": self.MD5}
+        served = {self.G + "europe-261003.osm.pbf"}
+        state = {self.G + "europe-updates/state.txt": self.STATE}
+        for loc, pages, srv in (
+                (self.GWDG, md5, served),                                   # no state.txt
+                (self.GWDG, {**md5, self.G + "europe-updates/state.txt": "sequenceNumber=1\n"}, served),
+                (self.GWDG, {**md5, **state}, ()),                          # dated file not served
+                (self.GWDG, {**state, self.G + "europe-261003.osm.pbf.md5":   # md5 of another day
+                             "dd8667eddee3e874b7beb52d5e252f22  europe-261002.osm.pbf\n"}, served),
+                (self.G + "europe-latest.osm.pbf", {}, ())):                # Geofabrik -> undated
+            with self.assertRaises(SystemExit, msg=(loc, sorted(pages))):
+                self.resolve(loc, pages, srv)
+
+    def test_the_workflow_takes_the_source_from_the_shared_rule_only(self):
+        wf = open(os.path.join(REPO_ROOT, ".github", "workflows", "europe-lite-factory.yml"),
+                  encoding="utf-8").read()
+        self.assertIn("regional-precheck.py source europe", wf)
+        code = "\n".join(l for l in wf.splitlines() if not l.lstrip().startswith("#"))
+        self.assertNotIn("-latest", code)        # no undated source anywhere the runner executes
+        self.assertIn('fetch-source.sh" "$WORK" "$SOURCE_URL" "$SOURCE_MD5"', wf)
+
+
+@unittest.skipUnless(shutil.which("bash") and shutil.which("curl") and sys.platform != "win32",
+                     "fetch-source.sh runs on Linux")
+class FetchSource(unittest.TestCase):
+    """fetch-source.sh downloads only a dated file whose own .md5 names it and agrees with the
+    precheck; served here over file:// so no network is touched."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.srv = os.path.join(self.d, "srv"); os.mkdir(self.srv)
+        self.work = os.path.join(self.d, "work"); os.mkdir(self.work)
+        self.body = b"not really a pbf\n" * 100
+        import hashlib
+        self.md5 = hashlib.md5(self.body).hexdigest()
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def serve(self, name, md5line):
+        with open(os.path.join(self.srv, name), "wb") as f:
+            f.write(self.body)
+        with open(os.path.join(self.srv, name + ".md5"), "w") as f:
+            f.write(md5line)
+        return "file://" + os.path.join(self.srv, name)
+
+    def fetch(self, url, want):
+        return subprocess.run(["bash", os.path.join(HERE, "..", "fetch-source.sh"), self.work, url, want],
+                              capture_output=True, text=True)
+
+    def test_the_pinned_file_is_fetched_and_recorded(self):
+        url = self.serve("europe-261003.osm.pbf", "%s  europe-261003.osm.pbf\n" % self.md5)
+        r = self.fetch(url, self.md5)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        src = open(os.path.join(self.work, "europe.osm.pbf.source")).read()
+        self.assertIn("url      = " + url, src)
+        self.assertIn("md5      = " + self.md5, src)
+
+    def test_an_undated_url_is_refused(self):
+        url = self.serve("europe-latest.osm.pbf", "%s  europe-latest.osm.pbf\n" % self.md5)
+        r = self.fetch(url, self.md5)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertFalse(os.path.exists(os.path.join(self.work, "europe.osm.pbf")))
+
+    def test_an_md5_naming_another_file_is_refused(self):
+        url = self.serve("europe-261003.osm.pbf", "%s  europe-261002.osm.pbf\n" % self.md5)
+        self.assertNotEqual(self.fetch(url, self.md5).returncode, 0)
+
+    def test_a_published_md5_unlike_the_precheck_is_refused(self):
+        url = self.serve("europe-261003.osm.pbf", "%s  europe-261003.osm.pbf\n" % self.md5)
+        self.assertNotEqual(self.fetch(url, "0" * 32).returncode, 0)
+        self.assertFalse(os.path.exists(os.path.join(self.work, "europe.osm.pbf")))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
