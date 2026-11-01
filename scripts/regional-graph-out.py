@@ -17,6 +17,8 @@ def main():
     d = json.load(open(desc, encoding="utf-8"))
     names = [p["name"] for p in d.get("parts") or []] or [d["package"]]
     names += [d["frontier"]["file"], d["features"]["file"]]
+    if d.get("bus_lanes"):
+        names.append(d["bus_lanes"]["file"])
     os.makedirs(out, exist_ok=True)
     for n in names:
         shutil.move(os.path.join(work, n), os.path.join(out, n))

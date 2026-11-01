@@ -39,7 +39,8 @@ def effective(work, basemaps, manifest, rebuild, carry):
         if graph:
             d = json.load(open(os.path.join(work, "%s.package.json" % low), encoding="utf-8"))
             names = [d.get("package")] + [p["name"] for p in d.get("parts") or []] + \
-                    [(d.get("frontier") or {}).get("file"), (d.get("features") or {}).get("file")]
+                    [(d.get("frontier") or {}).get("file"), (d.get("features") or {}).get("file"),
+                     (d.get("bus_lanes") or {}).get("file")]
             for n in filter(None, names):
                 p = os.path.join(work, n)
                 if os.path.isfile(p):

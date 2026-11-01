@@ -434,17 +434,22 @@ class SourceIdentity(unittest.TestCase):
     """Owner 2026-09-27: graph, frontier, features and search addresses of one country version come
     from ONE PBF, or the run fails — never a warning."""
 
-    def region(self, graph="aaa", fr="aaa", fe="aaa", ad="aaa"):
+    def region(self, graph="aaa", fr="aaa", fe="aaa", ad="aaa", bl="aaa"):
         r = {"source": {"md5": graph}}
         if fr is not None: r["frontier"] = {"file": "f", "source_md5": fr}
         if fe is not None: r["features"] = {"file": "e", "source_md5": fe}
         if ad is not None: r["search"] = {"file": "s", "addresses": {"houses": 1, "source_md5": ad}}
+        if bl is not None: r["bus_lanes"] = {"file": "b", "source_md5": bl}
         return r
 
     def test_one_source_passes(self):
         rows, problems = manifest.sources({"regions": {"MD": self.region()}}, {"MD"})
         self.assertEqual(problems, [])
-        self.assertEqual(len(rows), 4)
+        self.assertEqual(len(rows), 5)
+
+    def test_bus_lanes_from_another_pbf_fail(self):
+        _, problems = manifest.sources({"regions": {"MD": self.region(bl="bbb")}}, {"MD"})
+        self.assertTrue(any("bus_lanes" in p for p in problems))
 
     def test_a_search_from_another_pbf_fails(self):
         _, problems = manifest.sources({"regions": {"MD": self.region(ad="bbb")}}, {"MD"})
@@ -455,11 +460,11 @@ class SourceIdentity(unittest.TestCase):
         self.assertTrue(any("no source identity" in p for p in problems))
 
     def test_old_graph_with_a_new_search_fails_even_when_carried(self):
-        _, problems = manifest.sources({"regions": {"RO": self.region(graph="old", fr=None, fe=None, ad="new")}}, set())
+        _, problems = manifest.sources({"regions": {"RO": self.region(graph="old", fr=None, fe=None, ad="new", bl=None)}}, set())
         self.assertEqual(len(problems), 1)
 
     def test_a_pre_identity_carried_country_is_not_failed_for_missing_stamps(self):
-        _, problems = manifest.sources({"regions": {"RO": self.region(fr=None, fe=None, ad=None)}}, set())
+        _, problems = manifest.sources({"regions": {"RO": self.region(fr=None, fe=None, ad=None, bl=None)}}, set())
         self.assertEqual(problems, [])
 
     def test_a_carried_country_may_not_lose_its_map_or_search(self):

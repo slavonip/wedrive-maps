@@ -118,6 +118,13 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
             f = {k: fe[k] for k in ("format", "file", "bytes", "sha256", "entries", "counts", "source_md5") if k in fe}
             f["url"] = fe.get("url") or "%s/%s" % (base_url, fe["file"])
             r["features"] = f
+        # BUS LANES: the wedrive-buslanes/1 sidecar beside navigation.features on the device,
+        # travelling with the country exactly like the features file (carried with it, own url).
+        bl = d.get("bus_lanes")
+        if bl:
+            f = {k: bl[k] for k in ("format", "file", "bytes", "sha256", "entries", "counts", "source_md5") if k in bl}
+            f["url"] = bl.get("url") or "%s/%s" % (base_url, bl["file"])
+            r["bus_lanes"] = f
         # map/search: из описания переносимой страны или из предыдущего манифеста — никогда не
         # теряются из-за того, что граф пересобран.
         for k in OPTIONAL_CARRY:
@@ -211,6 +218,11 @@ def features_here(m, r):
     return bool(f) and tag_of(f["url"]) == m.get("tag")
 
 
+def buslanes_here(m, r):
+    f = r.get("bus_lanes")
+    return bool(f) and tag_of(f["url"]) == m.get("tag")
+
+
 def side_here(m, r, key):
     f = r.get(key)
     return bool(f) and bool(f.get("url")) and "file" in f and tag_of(f["url"]) == m.get("tag")
@@ -237,6 +249,8 @@ def assets(m, side=True):
             out.append(r["frontier"]["file"])
         if features_here(m, r):
             out.append(r["features"]["file"])
+        if buslanes_here(m, r):
+            out.append(r["bus_lanes"]["file"])
         for k in (OPTIONAL_CARRY if side else ()):
             if side_here(m, r, k):
                 out += [n for n, _, _ in side_files(r[k])]
@@ -260,6 +274,7 @@ def sources(m, built=()):
         stamps = {"graph": want,
                   "frontier": (r.get("frontier") or {}).get("source_md5"),
                   "features": (r.get("features") or {}).get("source_md5"),
+                  "bus_lanes": (r.get("bus_lanes") or {}).get("source_md5"),
                   "search/addresses": ((r.get("search") or {}).get("addresses") or {}).get("source_md5")}
         if (r.get("frontier") or {}).get("source") == "graph-only":
             stamps["frontier"] = "graph-only"
@@ -284,7 +299,7 @@ def carry_losses(m, prev, built=()):
     for code, pr in (prev or {}).get("regions", {}).items():
         if code in built or code not in m["regions"]:
             continue
-        for k in ("map", "search", "frontier", "features"):
+        for k in ("map", "search", "frontier", "features", "bus_lanes"):
             if pr.get(k) and not m["regions"][code].get(k):
                 out.append("%s: carried without its %s (previous %s had it)" % (code, k, prev.get("tag")))
     return out
@@ -301,6 +316,8 @@ def urls(m):
             out.append((r["frontier"]["url"], r["frontier"]["bytes"]))
         if r.get("features"):
             out.append((r["features"]["url"], r["features"]["bytes"]))
+        if r.get("bus_lanes"):
+            out.append((r["bus_lanes"]["url"], r["bus_lanes"]["bytes"]))
         for k in OPTIONAL_CARRY:
             e = r.get(k)
             if e and e.get("url") and "bytes" in e and "file" in e:
@@ -325,6 +342,8 @@ def verify_assets(m, directory):
             want[r["frontier"]["file"]] = (r["frontier"]["bytes"], r["frontier"]["sha256"])
         if features_here(m, r):
             want[r["features"]["file"]] = (r["features"]["bytes"], r["features"]["sha256"])
+        if buslanes_here(m, r):
+            want[r["bus_lanes"]["file"]] = (r["bus_lanes"]["bytes"], r["bus_lanes"]["sha256"])
         for k in OPTIONAL_CARRY:
             if side_here(m, r, k):
                 want.update({n: (size, h) for n, size, h in side_files(r[k])})
@@ -453,6 +472,18 @@ def check(m, work, complete_cfg=None, provenance=False):
             else:
                 print("   %-8s %-28s ok  features %d%s" % (code, fe["file"], fe.get("entries", 0),
                                                         "" if features_here(m, r) else "  (перенос)"))
+        bl = r.get("bus_lanes")
+        if bl:
+            p = os.path.join(work, bl["file"])
+            if bl.get("format") != "wedrive-buslanes/1":
+                print("   %-8s bus_lanes format %s unknown" % (code, bl.get("format"))); bad += 1
+            elif not os.path.isfile(p):
+                print("   НЕТ ФАЙЛА %s (bus_lanes %s)" % (bl["file"], code)); bad += 1
+            elif sha256(p) != bl["sha256"] or os.path.getsize(p) != bl["bytes"]:
+                print("   %-8s %-28s BUS LANES НЕ СОШЛИСЬ" % (code, bl["file"])); bad += 1
+            else:
+                print("   %-8s %-28s ok  bus lanes %d%s" % (code, bl["file"], bl.get("entries", 0),
+                                                        "" if buslanes_here(m, r) else "  (перенос)"))
         if provenance:
             src = r.get("source") or {}
             for k in ("md5", "sha256", "replication"):

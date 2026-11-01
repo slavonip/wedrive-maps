@@ -85,6 +85,7 @@ jobs:
           python3 tests/test_regional.py
           python3 tests/test_frontier.py
           python3 tests/test_features.py
+          python3 tests/test_buslanes.py
           python3 tests/test_pmtiles_contract.py
       - name: tests of the address index (builds a tiny PBF, so osmium)
         run: |
@@ -407,6 +408,15 @@ jobs:
           python3 scripts/regional-features.py backfill "$WORK"
           python3 scripts/regional-features.py gates "$WORK" regional.json manifest.json | tee "$WORK/features-report.txt"
 
+      # BUS LANES: the wedrive-buslanes/1 sidecar for the app's lane cards, built with the country
+      # in regional-build.sh. Format gate only (header, every line parsable, side from the
+      # dictionary); a country published before bus lanes existed ships without them until its next
+      # rebuild — the app degrades softly.
+      - name: bus lanes format gate
+        run: |
+          set -u
+          python3 scripts/regional-buslanes.py gates "$WORK" | tee "$WORK/buslanes-report.txt"
+
       # THE TABLE THE APP BUILDS: D1 over the set's frontiers. It is what the regression below runs
       # on, because it is what the car runs on. Ambiguity, or a border of regional.json with both
       # countries present and no portal, fails the run.
@@ -505,6 +515,7 @@ jobs:
             /data/regional/frontier-report.txt
             /data/regional/frontier-portals.json
             /data/regional/features-report.txt
+            /data/regional/buslanes-report.txt
             /data/regional/resources.txt
             /data/regional/samples.csv
             /data/regional/timings.txt

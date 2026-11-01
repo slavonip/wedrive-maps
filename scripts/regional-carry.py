@@ -82,6 +82,17 @@ def carry(manifest, code, work, fetch=fetch):
             os.remove(edst)
             raise SystemExit("%s: features %s does not match the manifest" % (code, fe["file"]))
         desc["features"] = dict(fe)
+    # Bus lanes, the same way. A country published before bus lanes existed has none until it is
+    # rebuilt — the app degrades softly (lane cards simply carry no BUS cell).
+    bl = r.get("bus_lanes")
+    if bl:
+        bdst = os.path.join(work, bl["file"])
+        if not (os.path.isfile(bdst) and sha256(bdst) == bl["sha256"]):
+            fetch(bl["url"], bdst)
+        if os.path.getsize(bdst) != bl["bytes"] or sha256(bdst) != bl["sha256"]:
+            os.remove(bdst)
+            raise SystemExit("%s: bus lanes %s do not match the manifest" % (code, bl["file"]))
+        desc["bus_lanes"] = dict(bl)
     with open(os.path.join(work, "%s.package.json" % code.lower()), "w", encoding="utf-8") as f:
         json.dump(desc, f, indent=2)
     print("   %s carried: %s (%d bytes, sha256 ok)" % (code, r["package"], r["bytes"]))

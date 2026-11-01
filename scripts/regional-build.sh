@@ -145,6 +145,20 @@ FE_BYTES="$(stat -c %s "$FEATURES")"
 FE_ENTRIES="$(sed -n 's/^entries //p' "$FEATURES")"
 FE_COUNTS="$(python3 "$(dirname "$0")/regional-features.py" counts "$FEATURES")"
 
+# BUS LANES — the ways with a dedicated bus/PSV lane and its side (wedrive-buslanes/1), the
+# sidecar the app's synthesized lane cards read beside navigation.features. Same extract as the
+# graph, so the way ids name ways of this graph version. The file itself is the APP's strict
+# format (one format line + `w<id> <side>` rows, nothing else); provenance lives here and in the
+# manifest. The format gate over the whole set runs in the factory job.
+echo "==> bus lanes"
+BUSLANES="$OUT/${low}-${DATA_DATE}.buslanes"
+python3 "$(dirname "$0")/regional-buslanes.py" build "$PBF" "$CODE" "$BUSLANES" \
+  || { echo "bus lanes $CODE не извлеклись — пакет не выпускается" >&2; exit 1; }
+BL_SHA="$(sha256sum "$BUSLANES" | cut -d' ' -f1)"
+BL_BYTES="$(stat -c %s "$BUSLANES")"
+BL_ENTRIES="$(( $(wc -l < "$BUSLANES") - 1 ))"
+BL_COUNTS="$(python3 "$(dirname "$0")/regional-buslanes.py" counts "$BUSLANES")"
+
 # ПУТЬ АРХИВА ЗАДАЁТСЯ В КОНФИГЕ, а не аргументом: valhalla_build_extract пишет туда, куда
 # указывает mjolnir.tile_extract. Позиционного аргумента у него нет вовсе, и переданный
 # argparse отвергает с кодом 2. Отдельный конфиг под упаковку нужен потому, что в основном
@@ -213,6 +227,15 @@ cat > "$OUT/${low}.package.json" <<JSON
     "sha256": "$FE_SHA",
     "entries": $FE_ENTRIES,
     "counts": $FE_COUNTS,
+    "source_md5": "$MD5"
+  },
+  "bus_lanes": {
+    "format": "wedrive-buslanes/1",
+    "file": "$(basename "$BUSLANES")",
+    "bytes": $BL_BYTES,
+    "sha256": "$BL_SHA",
+    "entries": $BL_ENTRIES,
+    "counts": $BL_COUNTS,
     "source_md5": "$MD5"
   }
 }
