@@ -587,6 +587,52 @@ class MirrorRedirect(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.run_with(self.G + "europe/germany-latest.osm.pbf", {})
 
+    def run_moved(self, hops, pages, served=(), path="europe"):
+        saved = (precheck._latest_location, precheck._get, precheck._served_directly)
+
+        def get(url):
+            if url not in pages:
+                raise SystemExit("404 " + url)
+            return pages[url]
+
+        precheck._latest_location = lambda url: hops.get(url)
+        precheck._get = get
+        precheck._served_directly = lambda url: url in served
+        try:
+            return precheck.geofabrik_source(path)
+        finally:
+            precheck._latest_location, precheck._get, precheck._served_directly = saved
+
+    def test_5_a_continent_moved_into_its_folder_is_followed(self):
+        # 2026-11-21: europe-latest -> europe/europe-latest -> GWDG mirror; the dated file lives in
+        # europe/, state.txt is reached through Geofabrik's own redirect of europe-updates/state.txt.
+        md5 = "0123456789abcdef0123456789abcdef  europe-261120.osm.pbf\n"
+        state = "timestamp=2026-11-20T20\:21\:43Z\n"
+        hops = {self.G + "europe-latest.osm.pbf": self.G + "europe/europe-latest.osm.pbf",
+                self.G + "europe/europe-latest.osm.pbf":
+                    "https://ftp.gwdg.de/pub/misc/openstreetmap/download.geofabrik.de/europe-latest.osm.pbf"}
+        src = self.run_moved(hops, {self.G + "europe-updates/state.txt": state,
+                                    self.G + "europe/europe-261120.osm.pbf.md5": md5},
+                             served={self.G + "europe/europe-261120.osm.pbf"})
+        self.assertEqual(src, {"url": self.G + "europe/europe-261120.osm.pbf",
+                               "md5": "0123456789abcdef0123456789abcdef"})
+
+    def test_6_a_moved_latest_that_redirects_to_a_dated_file(self):
+        hops = {self.G + "russia-latest.osm.pbf": self.G + "russia/russia-latest.osm.pbf",
+                self.G + "russia/russia-latest.osm.pbf": self.G + "russia/russia-261120.osm.pbf"}
+        src = self.run_moved(hops, {self.G + "russia/russia-261120.osm.pbf.md5":
+                                    "0123456789abcdef0123456789abcdef  russia-261120.osm.pbf\n"},
+                             path="russia")
+        self.assertEqual(src["url"], self.G + "russia/russia-261120.osm.pbf")
+
+    def test_7_hops_to_another_name_or_in_a_loop_are_refused(self):
+        with self.assertRaises(SystemExit):          # a -latest of a DIFFERENT name
+            self.run_moved({self.G + "europe-latest.osm.pbf": self.G + "europe/germany-latest.osm.pbf"}, {})
+        loop = {self.G + "europe-latest.osm.pbf": self.G + "europe/europe-latest.osm.pbf",
+                self.G + "europe/europe-latest.osm.pbf": self.G + "europe-latest.osm.pbf"}
+        with self.assertRaises(SystemExit):          # ping-pong between two -latest URLs
+            self.run_moved(loop, {})
+
 
 class WorldManifest(unittest.TestCase):
     """world-manifest.py writes ONLY manifest["world"] and refuses an incomplete descriptor."""

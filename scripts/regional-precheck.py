@@ -113,11 +113,23 @@ def geofabrik_source(path):
     <path>-updates/state.txt, the dated file must be served by Geofabrik directly, and its .md5
     must name it; any of those failing stops the run (fail closed, no guessing)."""
     base = path.rsplit("/", 1)[-1]
-    folder = GEOFABRIK + (path.rsplit("/", 1)[0] + "/" if "/" in path else "")
     latest = GEOFABRIK + path + "-latest.osm.pbf"
-    loc = _latest_location(latest)
-    if loc is None:
-        raise SystemExit("%s did not redirect to a dated file" % latest)
+    # Geofabrik MOVED its continent/large-country files into folders (seen 2026-11-21:
+    # europe-latest -> europe/europe-latest, russia-latest -> russia/russia-latest). Such a hop is
+    # Geofabrik's own -latest of the SAME name at a new place: follow it (at most 3), and take the
+    # folder from where it landed. A redirect back to the same URL is still refused below.
+    for _ in range(3):
+        loc = _latest_location(latest)
+        if loc is None:
+            raise SystemExit("%s did not redirect to a dated file" % latest)
+        if (loc.startswith(GEOFABRIK) and loc != latest
+                and loc.rsplit("/", 1)[-1] == base + "-latest.osm.pbf"):
+            latest = loc
+            continue
+        break
+    else:
+        raise SystemExit("%s: too many Geofabrik -latest hops" % (GEOFABRIK + path))
+    folder = latest.rsplit("/", 1)[0] + "/"
     if loc.startswith(GEOFABRIK) or "/" not in loc:
         name = dated_name(loc, path)            # Geofabrik's own redirect: must be dated
     else:
