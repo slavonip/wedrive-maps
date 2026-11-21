@@ -262,6 +262,18 @@ class Manifest(unittest.TestCase):
         self.assertEqual(manifest.check(m, self.d, provenance=True), 0)
         self.assertNotIn("world", self.m({"regions": {}}))
 
+    def test_the_charging_catalogue_is_carried_by_every_regional_run(self):
+        self.built("MD", b"md-new")
+        charging = {"format": "wedrive-charging/1", "build": "2026-12-06",
+                    "url": "https://github.com/o/r/releases/download/charging-2026-12-06/charging.sqlite.gz",
+                    "bytes": 23000000, "sha256": "c" * 64, "sqlite_bytes": 60000000, "sqlite_sha256": "d" * 64,
+                    "counts": {"stations": 1}, "sources": {"ocm": {}, "osm": []}}
+        m = self.m({"regions": {}, "charging": charging})
+        self.assertEqual(m["charging"], charging)
+        self.assertIn((charging["url"], charging["bytes"]), manifest.urls(m))
+        self.assertEqual(manifest.check(m, self.d, provenance=True), 0)
+        self.assertNotIn("charging", self.m({"regions": {}}))
+
     def test_map_and_search_built_in_this_run_replace_the_carried_ones(self):
         self.built("MD", b"md-new")
         bm = os.path.join(self.d, "bm")
@@ -593,6 +605,13 @@ class WorldManifest(unittest.TestCase):
     def test_an_incomplete_descriptor_is_refused(self):
         with self.assertRaises(SystemExit):
             self.wm.apply({"kind": "regional"}, {"size": 1}, "u")
+
+    def test_the_charging_entry_survives_a_world_update(self):
+        charging = {"url": "https://x/charging.sqlite.gz", "bytes": 5, "sha256": "c" * 64, "build": "2026-12-06"}
+        m = {"kind": "regional", "tag": "regional-x", "regions": {}, "portals": {}, "charging": charging}
+        w = {"size": 1, "sha256": "f" * 64, "build": "20260927", "maxzoom": 6, "layers": ["earth"]}
+        out = self.wm.apply(json.loads(json.dumps(m)), w, "https://x/world.pmtiles")
+        self.assertEqual(out["charging"], charging)
 
 
 if __name__ == "__main__":

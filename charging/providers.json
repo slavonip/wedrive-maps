@@ -1,0 +1,424 @@
+{
+  "_": [
+    "OCM data providers whose records may enter charging.sqlite (wedrive-charging/1).",
+    "allow: published with this licence on their own `source` row. The licence text is OCM's",
+    "referencedata DataProviders[].License, copied 2026-11-21; `licence` is our short name for it.",
+    "excluded: known providers without an open licence; their records are dropped and counted.",
+    "A provider id in NEITHER list is dropped and reported as a warning (an issue, not a failure):",
+    "a new id joins `allow` only after the owner has reviewed its licence.",
+    "26 Oplaadpalen.nl (CC BY-NC-SA 3.0) is included by the owner's decision of 2026-11-21:",
+    "one personal, non-commercial vehicle; its licence travels on its row."
+  ],
+  "osm": {
+    "name": "OpenStreetMap",
+    "licence": "ODbL 1.0",
+    "licence_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "attribution": "© OpenStreetMap contributors",
+    "url": "https://www.openstreetmap.org/copyright"
+  },
+  "allow": [
+    {
+      "id": 1,
+      "name": "Open Charge Map Contributors",
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+      "licence_text": "Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Open Charge Map contributors (openchargemap.org)",
+      "url": "http://openchargemap.org"
+    },
+    {
+      "id": 2,
+      "name": "afdc.energy.gov",
+      "licence": "Public domain (US DOE / NREL)",
+      "licence_url": null,
+      "licence_text": "This data is provided by the National Renewable Energy Laboratory (\"NREL\"), which is operated by the Alliance for Sustainable Energy, LLC (\"Alliance\"), for the U.S. Department of Energy (\"DOE\"), and may be used for any purpose whatsoever.",
+      "attribution": "afdc.energy.gov, via Open Charge Map (openchargemap.org)",
+      "url": "http://www.afdc.energy.gov/"
+    },
+    {
+      "id": 7,
+      "name": "Mobie.pt",
+      "licence": "as stated by the provider",
+      "licence_url": null,
+      "licence_text": "Public Data redistributed by agreement",
+      "attribution": "Mobie.pt, via Open Charge Map (openchargemap.org)",
+      "url": "http://www.mobie.pt"
+    },
+    {
+      "id": 18,
+      "name": "UK National Charge Point Registry",
+      "licence": "OGL v2.0",
+      "licence_url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/2/",
+      "licence_text": "Contains public sector information licensed under the Open Government Licence v2.0.",
+      "attribution": "UK National Charge Point Registry, via Open Charge Map (openchargemap.org)",
+      "url": "http://chargepoints.dft.gov.uk"
+    },
+    {
+      "id": 19,
+      "name": "NOBIL",
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+      "licence_text": "NOBIL by Enova is licensed under a Creative Commons Attribution 4.0 International (CC BY 4.0) License.",
+      "attribution": "NOBIL, via Open Charge Map (openchargemap.org)",
+      "url": "https://nobil.no/"
+    },
+    {
+      "id": 24,
+      "name": "AddÉnergie Technologies Inc.",
+      "licence": "CC BY 3.0",
+      "licence_url": "https://creativecommons.org/licenses/by/3.0/",
+      "licence_text": "http://creativecommons.org/licenses/by/3.0",
+      "attribution": "AddÉnergie Technologies Inc., via Open Charge Map (openchargemap.org)",
+      "url": "http://www.addenergietechnologies.com/"
+    },
+    {
+      "id": 25,
+      "name": "Catalan Energy Institute (ICAEN)",
+      "licence": "as stated by the provider",
+      "licence_url": null,
+      "licence_text": "General public data",
+      "attribution": "Catalan Energy Institute (ICAEN), via Open Charge Map (openchargemap.org)",
+      "url": "http://icaen.gencat.cat/"
+    },
+    {
+      "id": 26,
+      "name": "Oplaadpalen.nl",
+      "licence": "CC BY-NC-SA 3.0",
+      "licence_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "licence_text": "Licensed under Attribution-NonCommercial-ShareAlike 3.0 : http://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "attribution": "Oplaadpalen.nl, via Open Charge Map (openchargemap.org)",
+      "url": "http://www.oplaadpalen.nl/"
+    },
+    {
+      "id": 28,
+      "name": "data.gouv.fr",
+      "licence": "Licence Ouverte (Etalab)",
+      "licence_url": "https://www.etalab.gouv.fr/wp-content/uploads/2014/05/Licence_Ouverte.pdf",
+      "licence_text": "Open License: https://www.etalab.gouv.fr/wp-content/uploads/2014/05/Licence_Ouverte.pdf",
+      "attribution": "data.gouv.fr, via Open Charge Map (openchargemap.org)",
+      "url": "https://www.data.gouv.fr/fr/datasets/fichier-consolide-des-bornes-de-recharge-pour-vehicules-electriques/"
+    },
+    {
+      "id": 29,
+      "name": "Bundesnetzagentur.de",
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+      "licence_text": "Provided by Bundesnetzagentur.de under the CC-BY 4.0 license",
+      "attribution": "Bundesnetzagentur.de, via Open Charge Map (openchargemap.org)",
+      "url": "https://bundesnetzagentur.de"
+    },
+    {
+      "id": 30,
+      "name": "EVIO - Electrical Mobility, Lda",
+      "licence": "CC BY",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+      "licence_text": "CC-BY",
+      "attribution": "EVIO - Electrical Mobility, Lda, via Open Charge Map (openchargemap.org)",
+      "url": "https://go-evio.com/"
+    },
+    {
+      "id": 31,
+      "name": "SITRONICS PAO",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC-0",
+      "attribution": "SITRONICS PAO, via Open Charge Map (openchargemap.org)",
+      "url": "https://www.sitronics-electro.com/en"
+    },
+    {
+      "id": 32,
+      "name": "Lithuanian Road Administration",
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+      "licence_text": "Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Lithuanian Road Administration, via Open Charge Map (openchargemap.org)",
+      "url": "https://ev.lakd.lt/en/open_source"
+    },
+    {
+      "id": 33,
+      "name": "Gaia Green Tech SLU",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC-0",
+      "attribution": "Gaia Green Tech SLU, via Open Charge Map (openchargemap.org)",
+      "url": "https://gaiacharge.com"
+    },
+    {
+      "id": 34,
+      "name": "Toger.co",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "Licensed under CC0  by data sharing agreement",
+      "attribution": "Toger.co, via Open Charge Map (openchargemap.org)",
+      "url": "https://toger.co"
+    },
+    {
+      "id": 35,
+      "name": "Electric Era",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "Licensed under CC0 by data sharing agreement",
+      "attribution": "Electric Era, via Open Charge Map (openchargemap.org)",
+      "url": "https://electriceratechnologies.com/"
+    },
+    {
+      "id": 36,
+      "name": "ITCharge",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "Licensed under CC0  by data sharing agreement",
+      "attribution": "ITCharge, via Open Charge Map (openchargemap.org)",
+      "url": "https://itcharge.ru"
+    },
+    {
+      "id": 37,
+      "name": "Voltrelli",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "Licensed under CC0  by data sharing agreement",
+      "attribution": "Voltrelli, via Open Charge Map (openchargemap.org)",
+      "url": "https://evozone.app"
+    },
+    {
+      "id": 38,
+      "name": "PowerGo",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "Licensed under CC0 by data sharing agreement",
+      "attribution": "PowerGo, via Open Charge Map (openchargemap.org)",
+      "url": "https://www.powergo.energy/"
+    },
+    {
+      "id": 39,
+      "name": "Punkt-E",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "Licensed under CC0 by data sharing agreement",
+      "attribution": "Punkt-E, via Open Charge Map (openchargemap.org)",
+      "url": "https://punkt-e.ru/"
+    },
+    {
+      "id": 40,
+      "name": "Easy Volt",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC-0",
+      "attribution": "Easy Volt, via Open Charge Map (openchargemap.org)",
+      "url": "https://www.ezvolt.com.br"
+    },
+    {
+      "id": 41,
+      "name": "ChargeSini",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "ChargeSini, via Open Charge Map (openchargemap.org)",
+      "url": "https://www.chargesini.com"
+    },
+    {
+      "id": 42,
+      "name": "Otopriz",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC-0",
+      "attribution": "Otopriz, via Open Charge Map (openchargemap.org)",
+      "url": "https://otopriz.com.tr"
+    },
+    {
+      "id": 43,
+      "name": "EV24",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "Licensed under CC0 by data sharing agreement",
+      "attribution": "EV24, via Open Charge Map (openchargemap.org)",
+      "url": "https://ev24.cloud"
+    },
+    {
+      "id": 44,
+      "name": "Zepto,pl",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "Licensed under CC0 by data sharing agreement",
+      "attribution": "Zepto,pl, via Open Charge Map (openchargemap.org)",
+      "url": "https://zepto.pl"
+    },
+    {
+      "id": 45,
+      "name": "Greems Technologies",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "Greems Technologies, via Open Charge Map (openchargemap.org)",
+      "url": "http://www.greems.io"
+    },
+    {
+      "id": 46,
+      "name": "Voltspot",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC-0",
+      "attribution": "Voltspot, via Open Charge Map (openchargemap.org)",
+      "url": "https://my.voltspot.net"
+    },
+    {
+      "id": 47,
+      "name": "Stuart Energy, UAB",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "Stuart Energy, UAB, via Open Charge Map (openchargemap.org)",
+      "url": "https://www.stuart.energy"
+    },
+    {
+      "id": 48,
+      "name": "QRSOLVE sp. z o. o.",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "QRSOLVE sp. z o. o., via Open Charge Map (openchargemap.org)",
+      "url": "http://ev24.cloud"
+    },
+    {
+      "id": 50,
+      "name": "TECHNO FUSION SRL",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC-0",
+      "attribution": "TECHNO FUSION SRL, via Open Charge Map (openchargemap.org)",
+      "url": "https://e-fusion.ro"
+    },
+    {
+      "id": 51,
+      "name": "UGV Chargers",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC-0",
+      "attribution": "UGV Chargers, via Open Charge Map (openchargemap.org)",
+      "url": "https://ugv.ua/"
+    },
+    {
+      "id": 52,
+      "name": "Floading energy infra",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "Floading energy infra, via Open Charge Map (openchargemap.org)",
+      "url": "http://floading.com"
+    },
+    {
+      "id": 53,
+      "name": "NordOCPI",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "NordOCPI, via Open Charge Map (openchargemap.org)",
+      "url": "https://nordocpi.viaaq.eu"
+    },
+    {
+      "id": 54,
+      "name": "PowerGo",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "PowerGo, via Open Charge Map (openchargemap.org)",
+      "url": "https://www.powergo.nl/"
+    },
+    {
+      "id": 55,
+      "name": "Asynio",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "Asynio, via Open Charge Map (openchargemap.org)",
+      "url": "https://asynio.com"
+    },
+    {
+      "id": 56,
+      "name": "eplvs",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "eplvs, via Open Charge Map (openchargemap.org)",
+      "url": "http://www.eplvs.com"
+    },
+    {
+      "id": 57,
+      "name": "YellotMob",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC0",
+      "attribution": "YellotMob, via Open Charge Map (openchargemap.org)",
+      "url": "https://yellotmob.com.br"
+    },
+    {
+      "id": 59,
+      "name": "Schouten Energy",
+      "licence": "CC BY",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+      "licence_text": "CC-BY",
+      "attribution": "Schouten Energy, via Open Charge Map (openchargemap.org)",
+      "url": "http://www.schoutenenergy.nl"
+    },
+    {
+      "id": 60,
+      "name": "Tritan EV Dock PVT LTD",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licence_text": "CC-0",
+      "attribution": "Tritan EV Dock PVT LTD, via Open Charge Map (openchargemap.org)",
+      "url": "https://tritanev.com/"
+    }
+  ],
+  "excluded": [
+    {
+      "id": 8,
+      "name": "ev-charging.com",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=None)"
+    },
+    {
+      "id": 13,
+      "name": "www.uppladdning.nu",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=None)"
+    },
+    {
+      "id": 14,
+      "name": "e-Laad",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=None)"
+    },
+    {
+      "id": 15,
+      "name": "CarStations.com",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=False)"
+    },
+    {
+      "id": 17,
+      "name": "BlinkNetwork.com",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=None)"
+    },
+    {
+      "id": 20,
+      "name": "Chargepoint.net",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=None)"
+    },
+    {
+      "id": 21,
+      "name": "RWE Mobility",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=None)"
+    },
+    {
+      "id": 22,
+      "name": "CHAdeMO.com",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=False)"
+    },
+    {
+      "id": 23,
+      "name": "ESB eCars",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=False)"
+    },
+    {
+      "id": 27,
+      "name": "Place To Plug",
+      "why": "no open licence in OCM referencedata (IsOpenDataLicensed=False)"
+    }
+  ]
+}

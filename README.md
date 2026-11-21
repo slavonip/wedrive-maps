@@ -7,6 +7,15 @@ Map data © OpenStreetMap contributors, available under the
 [Open Database License](https://opendatacommons.org/licenses/odbl/). Anything built here is a
 derived database and carries the same licence.
 
+The charging catalogue (`charging-*` releases, `charging.sqlite.gz`, built by
+[`charging-factory.yml`](.github/workflows/charging-factory.yml)) combines two sources and never
+mixes them in one record: charging stations © OpenStreetMap contributors (ODbL 1.0), and
+[Open Charge Map](https://openchargemap.org) — its contributors' data under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), imported data © each data provider
+under that provider's own licence (CC BY 4.0, CC0 1.0, CC BY-NC-SA 3.0 for Oplaadpalen.nl, and
+others), listed in [`charging/providers.json`](charging/providers.json). Every station row in the
+file names its source, and every source row carries its licence and attribution.
+
 ---
 
 ## What this repository is for

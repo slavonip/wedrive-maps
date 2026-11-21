@@ -1,0 +1,928 @@
+{
+ "ConnectionTypes": [
+  {
+   "FormalName": "Avcon SAE J1772-2001",
+   "ID": 7,
+   "IsDiscontinued": true,
+   "IsObsolete": false,
+   "Title": "Avcon Connector"
+  },
+  {
+   "FormalName": null,
+   "ID": 4,
+   "IsDiscontinued": null,
+   "IsObsolete": null,
+   "Title": "Blue Commando (2P+E)"
+  },
+  {
+   "FormalName": "BS1363 / Type G",
+   "ID": 3,
+   "IsDiscontinued": null,
+   "IsObsolete": null,
+   "Title": "BS1363 3 Pin 13 Amp"
+  },
+  {
+   "FormalName": "IEC 62196-3 Configuration EE",
+   "ID": 32,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "CCS (Type 1)"
+  },
+  {
+   "FormalName": "IEC 62196-3 Configuration FF",
+   "ID": 33,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "CCS (Type 2)"
+  },
+  {
+   "FormalName": null,
+   "ID": 16,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "CEE 3 Pin"
+  },
+  {
+   "FormalName": null,
+   "ID": 17,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "CEE 5 Pin"
+  },
+  {
+   "FormalName": "CEE 7/4",
+   "ID": 28,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "CEE 7/4 - Schuko - Type F"
+  },
+  {
+   "FormalName": null,
+   "ID": 23,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "CEE 7/5"
+  },
+  {
+   "FormalName": null,
+   "ID": 18,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "CEE+ 7 Pin"
+  },
+  {
+   "FormalName": "IEC 62196-3 Configuration AA",
+   "ID": 2,
+   "IsDiscontinued": null,
+   "IsObsolete": null,
+   "Title": "CHAdeMO"
+  },
+  {
+   "FormalName": null,
+   "ID": 1044,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "ChaoJi / CHAdeMO 3.x"
+  },
+  {
+   "FormalName": "Europlug 2-Pin (CEE 7/16)",
+   "ID": 13,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "Europlug 2-Pin (CEE 7/16)"
+  },
+  {
+   "FormalName": "GB-T AC - GB/T 20234.2 (Socket)",
+   "ID": 1038,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "GB-T AC - GB/T 20234.2 (Socket)"
+  },
+  {
+   "FormalName": "GB-T AC - GB/T 20234.2 (Tethered Cable)",
+   "ID": 1039,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "GB-T AC - GB/T 20234.2 (Tethered Cable)"
+  },
+  {
+   "FormalName": "GB-T DC - GB/T 20234.3",
+   "ID": 1040,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "GB-T DC - GB/T 20234.3"
+  },
+  {
+   "FormalName": "IEC 60309 3-pin",
+   "ID": 34,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "IEC 60309 3-pin"
+  },
+  {
+   "FormalName": "IEC 60309 5-pin",
+   "ID": 35,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "IEC 60309 5-pin"
+  },
+  {
+   "FormalName": "Large Paddle Inductive",
+   "ID": 5,
+   "IsDiscontinued": true,
+   "IsObsolete": true,
+   "Title": "LP Inductive"
+  },
+  {
+   "FormalName": "SAE J3400",
+   "ID": 27,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "NACS / Tesla Supercharger"
+  },
+  {
+   "FormalName": null,
+   "ID": 10,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "NEMA 14-30"
+  },
+  {
+   "FormalName": null,
+   "ID": 11,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "NEMA 14-50"
+  },
+  {
+   "FormalName": "NEMA 5-15R",
+   "ID": 22,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "NEMA 5-15R"
+  },
+  {
+   "FormalName": null,
+   "ID": 9,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "NEMA 5-20R"
+  },
+  {
+   "FormalName": null,
+   "ID": 15,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "NEMA 6-15"
+  },
+  {
+   "FormalName": null,
+   "ID": 14,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "NEMA 6-20"
+  },
+  {
+   "FormalName": null,
+   "ID": 1042,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "NEMA TT-30R"
+  },
+  {
+   "FormalName": null,
+   "ID": 36,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "SCAME Type 3A (Low Power)"
+  },
+  {
+   "FormalName": "IEC 62196-2 Type 3",
+   "ID": 26,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "SCAME Type 3C (Schneider-Legrand)"
+  },
+  {
+   "FormalName": "Small Paddle Inductive",
+   "ID": 6,
+   "IsDiscontinued": true,
+   "IsObsolete": true,
+   "Title": "SP Inductive"
+  },
+  {
+   "FormalName": "T13/ IEC Type J",
+   "ID": 1037,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "T13 - SEC1011 ( Swiss domestic 3-pin ) - Type J"
+  },
+  {
+   "FormalName": null,
+   "ID": 30,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "Tesla (Model S/X)"
+  },
+  {
+   "FormalName": "Tesla Connector",
+   "ID": 8,
+   "IsDiscontinued": true,
+   "IsObsolete": false,
+   "Title": "Tesla (Roadster)"
+  },
+  {
+   "FormalName": "Tesla Battery Swap Station",
+   "ID": 31,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "Tesla Battery Swap"
+  },
+  {
+   "FormalName": "AS/NZS 3123 Three Phase",
+   "ID": 1041,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "Three Phase 5-Pin (AS/NZ 3123)"
+  },
+  {
+   "FormalName": "SAE J1772-2009",
+   "ID": 1,
+   "IsDiscontinued": null,
+   "IsObsolete": null,
+   "Title": "Type 1 (J1772)"
+  },
+  {
+   "FormalName": "IEC 62196-2 Type 2",
+   "ID": 25,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "Type 2 (Socket Only)"
+  },
+  {
+   "FormalName": "IEC 62196-2",
+   "ID": 1036,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "Type 2 (Tethered Connector) "
+  },
+  {
+   "FormalName": "Type I/AS 3112/CPCS-CCC",
+   "ID": 29,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "Type I (AS 3112)"
+  },
+  {
+   "FormalName": "IEC Type M (SANS 164-1, IS 1293:2005)",
+   "ID": 1043,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "Type M"
+  },
+  {
+   "FormalName": "Not Specified",
+   "ID": 0,
+   "IsDiscontinued": null,
+   "IsObsolete": null,
+   "Title": "Unknown"
+  },
+  {
+   "FormalName": null,
+   "ID": 24,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "Wireless Charging"
+  },
+  {
+   "FormalName": null,
+   "ID": 21,
+   "IsDiscontinued": false,
+   "IsObsolete": false,
+   "Title": "XLR Plug (4 pin)"
+  }
+ ],
+ "Countries": [
+  {
+   "ContinentCode": "EU",
+   "ID": 87,
+   "ISOCode": "DE",
+   "Title": "Germany"
+  },
+  {
+   "ContinentCode": "EU",
+   "ID": 148,
+   "ISOCode": "MD",
+   "Title": "Moldova, Republic Of"
+  },
+  {
+   "ContinentCode": "EU",
+   "ID": 159,
+   "ISOCode": "NL",
+   "Title": "Netherlands"
+  },
+  {
+   "ContinentCode": "EU",
+   "ID": 184,
+   "ISOCode": "RO",
+   "Title": "Romania"
+  }
+ ],
+ "CurrentTypes": [
+  {
+   "Description": "Alternating Current - Single Phase",
+   "ID": 10,
+   "Title": "AC (Single-Phase)"
+  },
+  {
+   "Description": "Alternating Current - Three Phase",
+   "ID": 20,
+   "Title": "AC (Three-Phase)"
+  },
+  {
+   "Description": "Direct Current",
+   "ID": 30,
+   "Title": "DC"
+  }
+ ],
+ "DataProviders": [
+  {
+   "ID": 1,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0)",
+   "Title": "Open Charge Map Contributors",
+   "WebsiteURL": "http://openchargemap.org"
+  },
+  {
+   "ID": 2,
+   "IsOpenDataLicensed": true,
+   "License": "This data is provided by the National Renewable Energy Laboratory (\"NREL\"), which is operated by the Alliance for Sustainable Energy, LLC (\"Alliance\"), for the U.S. Department of Energy (\"DOE\"), and may be used for any purpose whatsoever.",
+   "Title": "afdc.energy.gov",
+   "WebsiteURL": "http://www.afdc.energy.gov/"
+  },
+  {
+   "ID": 7,
+   "IsOpenDataLicensed": true,
+   "License": "Public Data redistributed by agreement",
+   "Title": "Mobie.pt",
+   "WebsiteURL": "http://www.mobie.pt"
+  },
+  {
+   "ID": 8,
+   "IsOpenDataLicensed": null,
+   "License": null,
+   "Title": "ev-charging.com",
+   "WebsiteURL": "http://e-tankstellen-finder.com/"
+  },
+  {
+   "ID": 13,
+   "IsOpenDataLicensed": null,
+   "License": null,
+   "Title": "www.uppladdning.nu",
+   "WebsiteURL": "http://www.uppladdning.nu"
+  },
+  {
+   "ID": 14,
+   "IsOpenDataLicensed": null,
+   "License": null,
+   "Title": "e-Laad",
+   "WebsiteURL": "http://www.e-laad.nl"
+  },
+  {
+   "ID": 15,
+   "IsOpenDataLicensed": false,
+   "License": null,
+   "Title": "CarStations.com",
+   "WebsiteURL": "http://www.carstations.com"
+  },
+  {
+   "ID": 17,
+   "IsOpenDataLicensed": null,
+   "License": null,
+   "Title": "BlinkNetwork.com",
+   "WebsiteURL": "http://www.blinknetwork.com"
+  },
+  {
+   "ID": 18,
+   "IsOpenDataLicensed": true,
+   "License": "Contains public sector information licensed under the Open Government Licence v2.0.",
+   "Title": "UK National Charge Point Registry",
+   "WebsiteURL": "http://chargepoints.dft.gov.uk"
+  },
+  {
+   "ID": 19,
+   "IsOpenDataLicensed": true,
+   "License": "NOBIL by Enova is licensed under a Creative Commons Attribution 4.0 International (CC BY 4.0) License.",
+   "Title": "NOBIL",
+   "WebsiteURL": "https://nobil.no/"
+  },
+  {
+   "ID": 20,
+   "IsOpenDataLicensed": null,
+   "License": null,
+   "Title": "Chargepoint.net",
+   "WebsiteURL": "http://www.chargepoint.net/"
+  },
+  {
+   "ID": 21,
+   "IsOpenDataLicensed": null,
+   "License": null,
+   "Title": "RWE Mobility",
+   "WebsiteURL": "https://www.rwe-mobility.com/"
+  },
+  {
+   "ID": 22,
+   "IsOpenDataLicensed": false,
+   "License": null,
+   "Title": "CHAdeMO.com",
+   "WebsiteURL": "http://www.chademo.com"
+  },
+  {
+   "ID": 23,
+   "IsOpenDataLicensed": false,
+   "License": null,
+   "Title": "ESB eCars",
+   "WebsiteURL": "http://www.esb.ie/electric-cars/"
+  },
+  {
+   "ID": 24,
+   "IsOpenDataLicensed": true,
+   "License": "http://creativecommons.org/licenses/by/3.0",
+   "Title": "AddÉnergie Technologies Inc.",
+   "WebsiteURL": "http://www.addenergietechnologies.com/"
+  },
+  {
+   "ID": 25,
+   "IsOpenDataLicensed": true,
+   "License": "General public data",
+   "Title": "Catalan Energy Institute (ICAEN)",
+   "WebsiteURL": "http://icaen.gencat.cat/"
+  },
+  {
+   "ID": 26,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under Attribution-NonCommercial-ShareAlike 3.0 : http://creativecommons.org/licenses/by-nc-sa/3.0/",
+   "Title": "Oplaadpalen.nl",
+   "WebsiteURL": "http://www.oplaadpalen.nl/"
+  },
+  {
+   "ID": 27,
+   "IsOpenDataLicensed": false,
+   "License": null,
+   "Title": "Place To Plug",
+   "WebsiteURL": "https://www.placetoplug.com"
+  },
+  {
+   "ID": 28,
+   "IsOpenDataLicensed": true,
+   "License": "Open License: https://www.etalab.gouv.fr/wp-content/uploads/2014/05/Licence_Ouverte.pdf",
+   "Title": "data.gouv.fr",
+   "WebsiteURL": "https://www.data.gouv.fr/fr/datasets/fichier-consolide-des-bornes-de-recharge-pour-vehicules-electriques/"
+  },
+  {
+   "ID": 29,
+   "IsOpenDataLicensed": true,
+   "License": "Provided by Bundesnetzagentur.de under the CC-BY 4.0 license",
+   "Title": "Bundesnetzagentur.de",
+   "WebsiteURL": "https://bundesnetzagentur.de"
+  },
+  {
+   "ID": 30,
+   "IsOpenDataLicensed": true,
+   "License": "CC-BY",
+   "Title": "EVIO - Electrical Mobility, Lda",
+   "WebsiteURL": "https://go-evio.com/"
+  },
+  {
+   "ID": 31,
+   "IsOpenDataLicensed": true,
+   "License": "CC-0",
+   "Title": "SITRONICS PAO",
+   "WebsiteURL": "https://www.sitronics-electro.com/en"
+  },
+  {
+   "ID": 32,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0)",
+   "Title": "Lithuanian Road Administration",
+   "WebsiteURL": "https://ev.lakd.lt/en/open_source"
+  },
+  {
+   "ID": 33,
+   "IsOpenDataLicensed": true,
+   "License": "CC-0",
+   "Title": "Gaia Green Tech SLU",
+   "WebsiteURL": "https://gaiacharge.com"
+  },
+  {
+   "ID": 34,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under CC0  by data sharing agreement",
+   "Title": "Toger.co",
+   "WebsiteURL": "https://toger.co"
+  },
+  {
+   "ID": 35,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under CC0 by data sharing agreement",
+   "Title": "Electric Era",
+   "WebsiteURL": "https://electriceratechnologies.com/"
+  },
+  {
+   "ID": 36,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under CC0  by data sharing agreement",
+   "Title": "ITCharge",
+   "WebsiteURL": "https://itcharge.ru"
+  },
+  {
+   "ID": 37,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under CC0  by data sharing agreement",
+   "Title": "Voltrelli",
+   "WebsiteURL": "https://evozone.app"
+  },
+  {
+   "ID": 38,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under CC0 by data sharing agreement",
+   "Title": "PowerGo",
+   "WebsiteURL": "https://www.powergo.energy/"
+  },
+  {
+   "ID": 39,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under CC0 by data sharing agreement",
+   "Title": "Punkt-E",
+   "WebsiteURL": "https://punkt-e.ru/"
+  },
+  {
+   "ID": 40,
+   "IsOpenDataLicensed": true,
+   "License": "CC-0",
+   "Title": "Easy Volt",
+   "WebsiteURL": "https://www.ezvolt.com.br"
+  },
+  {
+   "ID": 41,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "ChargeSini",
+   "WebsiteURL": "https://www.chargesini.com"
+  },
+  {
+   "ID": 42,
+   "IsOpenDataLicensed": true,
+   "License": "CC-0",
+   "Title": "Otopriz",
+   "WebsiteURL": "https://otopriz.com.tr"
+  },
+  {
+   "ID": 43,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under CC0 by data sharing agreement",
+   "Title": "EV24",
+   "WebsiteURL": "https://ev24.cloud"
+  },
+  {
+   "ID": 44,
+   "IsOpenDataLicensed": true,
+   "License": "Licensed under CC0 by data sharing agreement",
+   "Title": "Zepto,pl",
+   "WebsiteURL": "https://zepto.pl"
+  },
+  {
+   "ID": 45,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "Greems Technologies",
+   "WebsiteURL": "http://www.greems.io"
+  },
+  {
+   "ID": 46,
+   "IsOpenDataLicensed": true,
+   "License": "CC-0",
+   "Title": "Voltspot",
+   "WebsiteURL": "https://my.voltspot.net"
+  },
+  {
+   "ID": 47,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "Stuart Energy, UAB",
+   "WebsiteURL": "https://www.stuart.energy"
+  },
+  {
+   "ID": 48,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "QRSOLVE sp. z o. o.",
+   "WebsiteURL": "http://ev24.cloud"
+  },
+  {
+   "ID": 50,
+   "IsOpenDataLicensed": true,
+   "License": "CC-0",
+   "Title": "TECHNO FUSION SRL",
+   "WebsiteURL": "https://e-fusion.ro"
+  },
+  {
+   "ID": 51,
+   "IsOpenDataLicensed": true,
+   "License": "CC-0",
+   "Title": "UGV Chargers",
+   "WebsiteURL": "https://ugv.ua/"
+  },
+  {
+   "ID": 52,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "Floading energy infra",
+   "WebsiteURL": "http://floading.com"
+  },
+  {
+   "ID": 53,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "NordOCPI",
+   "WebsiteURL": "https://nordocpi.viaaq.eu"
+  },
+  {
+   "ID": 54,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "PowerGo",
+   "WebsiteURL": "https://www.powergo.nl/"
+  },
+  {
+   "ID": 55,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "Asynio",
+   "WebsiteURL": "https://asynio.com"
+  },
+  {
+   "ID": 56,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "eplvs",
+   "WebsiteURL": "http://www.eplvs.com"
+  },
+  {
+   "ID": 57,
+   "IsOpenDataLicensed": true,
+   "License": "CC0",
+   "Title": "YellotMob",
+   "WebsiteURL": "https://yellotmob.com.br"
+  },
+  {
+   "ID": 59,
+   "IsOpenDataLicensed": true,
+   "License": "CC-BY",
+   "Title": "Schouten Energy",
+   "WebsiteURL": "http://www.schoutenenergy.nl"
+  },
+  {
+   "ID": 60,
+   "IsOpenDataLicensed": true,
+   "License": "CC-0",
+   "Title": "Tritan EV Dock PVT LTD",
+   "WebsiteURL": "https://tritanev.com/"
+  }
+ ],
+ "Operators": [
+  {
+   "ID": 45,
+   "Title": "(Business Owner at Location)"
+  },
+  {
+   "ID": 44,
+   "Title": "(Private Residence/Individual)"
+  },
+  {
+   "ID": 1,
+   "Title": "(Unknown Operator)"
+  },
+  {
+   "ID": 3271,
+   "Title": "e-Charge (Romania)"
+  },
+  {
+   "ID": 3497,
+   "Title": "EcoFactor Network"
+  },
+  {
+   "ID": 3519,
+   "Title": "ELMotion"
+  },
+  {
+   "ID": 80,
+   "Title": "Enel X"
+  },
+  {
+   "ID": 3297,
+   "Title": "Entega"
+  },
+  {
+   "ID": 3502,
+   "Title": "EV Point Moldova"
+  },
+  {
+   "ID": 69,
+   "Title": "ladenetz.de"
+  },
+  {
+   "ID": 3632,
+   "Title": "PowerGo"
+  },
+  {
+   "ID": 47,
+   "Title": "Shell Recharge Solutions (NL)"
+  },
+  {
+   "ID": 23,
+   "Title": "Tesla (Tesla-only charging)"
+  },
+  {
+   "ID": 3843,
+   "Title": "Voltrelli (RO)"
+  }
+ ],
+ "StatusTypes": [
+  {
+   "ID": 0,
+   "IsOperational": null,
+   "IsUserSelectable": true,
+   "Title": "Unknown"
+  },
+  {
+   "ID": 10,
+   "IsOperational": true,
+   "IsUserSelectable": false,
+   "Title": "Currently Available (Automated Status)"
+  },
+  {
+   "ID": 20,
+   "IsOperational": true,
+   "IsUserSelectable": false,
+   "Title": "Currently In Use (Automated Status)"
+  },
+  {
+   "ID": 30,
+   "IsOperational": true,
+   "IsUserSelectable": true,
+   "Title": "Temporarily Unavailable"
+  },
+  {
+   "ID": 50,
+   "IsOperational": true,
+   "IsUserSelectable": true,
+   "Title": "Operational"
+  },
+  {
+   "ID": 75,
+   "IsOperational": true,
+   "IsUserSelectable": true,
+   "Title": "Partly Operational (Mixed)"
+  },
+  {
+   "ID": 100,
+   "IsOperational": false,
+   "IsUserSelectable": true,
+   "Title": "Not Operational"
+  },
+  {
+   "ID": 150,
+   "IsOperational": false,
+   "IsUserSelectable": true,
+   "Title": "Planned For Future Date"
+  },
+  {
+   "ID": 200,
+   "IsOperational": false,
+   "IsUserSelectable": true,
+   "Title": "Removed (Decommissioned)"
+  },
+  {
+   "ID": 210,
+   "IsOperational": false,
+   "IsUserSelectable": true,
+   "Title": "Removed (Duplicate Listing)"
+  }
+ ],
+ "SubmissionStatusTypes": [
+  {
+   "ID": 1,
+   "IsLive": false,
+   "Title": "Submission Under Review"
+  },
+  {
+   "ID": 50,
+   "IsLive": false,
+   "Title": "Imported and Under Review"
+  },
+  {
+   "ID": 100,
+   "IsLive": true,
+   "Title": "Imported and Published"
+  },
+  {
+   "ID": 200,
+   "IsLive": true,
+   "Title": "Submission Published"
+  },
+  {
+   "ID": 250,
+   "IsLive": false,
+   "Title": "Submission Rejected - Incomplete"
+  },
+  {
+   "ID": 1000,
+   "IsLive": false,
+   "Title": "Delisted"
+  },
+  {
+   "ID": 1001,
+   "IsLive": false,
+   "Title": "Delisted - Duplicate"
+  },
+  {
+   "ID": 1002,
+   "IsLive": false,
+   "Title": "Delisted - No Longer Active/Decommissioned"
+  },
+  {
+   "ID": 1005,
+   "IsLive": false,
+   "Title": "Delisted - Superseded by Update"
+  },
+  {
+   "ID": 1010,
+   "IsLive": false,
+   "Title": "Delisted - Not Public Information/Is Private Residence"
+  },
+  {
+   "ID": 1020,
+   "IsLive": false,
+   "Title": "Delisted - Removed by Import Data Provider"
+  }
+ ],
+ "UsageTypes": [
+  {
+   "ID": 0,
+   "IsAccessKeyRequired": null,
+   "IsMembershipRequired": null,
+   "IsPayAtLocation": null,
+   "Title": "(Unknown)"
+  },
+  {
+   "ID": 6,
+   "IsAccessKeyRequired": false,
+   "IsMembershipRequired": false,
+   "IsPayAtLocation": false,
+   "Title": "Private - For Staff, Visitors or Customers"
+  },
+  {
+   "ID": 2,
+   "IsAccessKeyRequired": null,
+   "IsMembershipRequired": true,
+   "IsPayAtLocation": null,
+   "Title": "Private - Restricted Access"
+  },
+  {
+   "ID": 3,
+   "IsAccessKeyRequired": null,
+   "IsMembershipRequired": null,
+   "IsPayAtLocation": null,
+   "Title": "Privately Owned - Notice Required"
+  },
+  {
+   "ID": 1,
+   "IsAccessKeyRequired": null,
+   "IsMembershipRequired": null,
+   "IsPayAtLocation": null,
+   "Title": "Public"
+  },
+  {
+   "ID": 4,
+   "IsAccessKeyRequired": true,
+   "IsMembershipRequired": true,
+   "IsPayAtLocation": false,
+   "Title": "Public - Membership Required"
+  },
+  {
+   "ID": 7,
+   "IsAccessKeyRequired": false,
+   "IsMembershipRequired": false,
+   "IsPayAtLocation": false,
+   "Title": "Public - Notice Required"
+  },
+  {
+   "ID": 5,
+   "IsAccessKeyRequired": false,
+   "IsMembershipRequired": false,
+   "IsPayAtLocation": true,
+   "Title": "Public - Pay At Location"
+  }
+ ]
+}

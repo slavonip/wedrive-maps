@@ -1,0 +1,13 @@
+{
+ "_": "previous-release gate (AC-10): NL loses 30 % with 1000 before -> FAIL",
+ "previous": {
+  "NL": 1000,
+  "DE": 5000,
+  "MD": 46
+ },
+ "current": {
+  "NL": 700,
+  "DE": 5000,
+  "MD": 46
+ }
+}

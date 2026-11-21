@@ -1,0 +1,82 @@
+{"type":"Feature","id":"n4578005090","geometry":{"type":"Point","coordinates":[28.1874151,45.9068314]},"properties":{"amenity":"charging_station","operator":"ZTP 17"}}
+{"type":"Feature","id":"n4796328121","geometry":{"type":"Point","coordinates":[28.8546345,47.0150927]},"properties":{"addr:city":"Chișinău","addr:country":"MD","addr:district":"Municipiul Chișinău","addr:housenumber":"2/4","addr:street":"Bulevardul Constantin Negruzzi","amenity":"charging_station","name":"Statie de alimentare automobile electrice","name:en":"Electric cars charger station","name:ro":"Statie de alimentare automobile electrice","name:ru":"Заправка для электромобилей","opening_hours":"24/7","operator":"Grand Hall"}}
+{"type":"Feature","id":"n6356992663","geometry":{"type":"Point","coordinates":[28.8503574,47.0524821]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n6600794098","geometry":{"type":"Point","coordinates":[28.853998,47.0143549]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n6681496687","geometry":{"type":"Point","coordinates":[28.8902109,47.0432069]},"properties":{"amenity":"charging_station","operator":"Зарядная установка на солнечных панелях. С разъемами на 220 и 5 вольт"}}
+{"type":"Feature","id":"n7466815317","geometry":{"type":"Point","coordinates":[29.5253257,46.5918769]},"properties":{"amenity":"charging_station","bicycle":"no"}}
+{"type":"Feature","id":"n7466815318","geometry":{"type":"Point","coordinates":[29.3969717,46.657404]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815319","geometry":{"type":"Point","coordinates":[28.7810509,46.5265481]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815320","geometry":{"type":"Point","coordinates":[28.7805086,46.5272807]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815321","geometry":{"type":"Point","coordinates":[28.2740202,46.4854955]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815323","geometry":{"type":"Point","coordinates":[28.6590779,46.3066944]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815324","geometry":{"type":"Point","coordinates":[28.5951325,46.0932555]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815325","geometry":{"type":"Point","coordinates":[28.8143108,46.063302]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815326","geometry":{"type":"Point","coordinates":[28.5690984,45.929729]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815327","geometry":{"type":"Point","coordinates":[28.2051229,45.8950042]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815329","geometry":{"type":"Point","coordinates":[29.6126417,46.8520257]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815330","geometry":{"type":"Point","coordinates":[29.224891,46.8674387]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815331","geometry":{"type":"Point","coordinates":[28.1679406,46.7953114]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815332","geometry":{"type":"Point","coordinates":[28.1967928,46.8289584]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815333","geometry":{"type":"Point","coordinates":[28.666387,46.9951952]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815334","geometry":{"type":"Point","coordinates":[28.787324,46.9916205]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815335","geometry":{"type":"Point","coordinates":[28.792879,46.9939191]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815336","geometry":{"type":"Point","coordinates":[28.8901237,46.965844]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815337","geometry":{"type":"Point","coordinates":[28.8474991,46.9735627]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815338","geometry":{"type":"Point","coordinates":[28.8912196,46.9805105]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815340","geometry":{"type":"Point","coordinates":[28.9153807,46.9871538]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815341","geometry":{"type":"Point","coordinates":[28.8915569,46.995203]},"properties":{"amenity":"charging_station","name":"Stația de Încărcare „Green'Up\""}}
+{"type":"Feature","id":"n7466815342","geometry":{"type":"Point","coordinates":[28.8701885,47.018276]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815343","geometry":{"type":"Point","coordinates":[28.8733174,47.0148819]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815344","geometry":{"type":"Point","coordinates":[28.8546853,47.0142932]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815345","geometry":{"type":"Point","coordinates":[28.854327,47.0155086]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815346","geometry":{"type":"Point","coordinates":[28.8415302,47.0041447]},"properties":{"amenity":"charging_station","capacity":"1","fixme":"Benzinăria Tirex Petrol și-a încetat activitatea la această locație. O nouă benzinărie Avante s-a deschis la această locație în toamna anului 2023.","operator":"EcoFactor"}}
+{"type":"Feature","id":"n7466815347","geometry":{"type":"Point","coordinates":[28.8790256,47.0299849]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815348","geometry":{"type":"Point","coordinates":[28.8753082,47.0286989]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815349","geometry":{"type":"Point","coordinates":[28.8516488,47.0380412]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815350","geometry":{"type":"Point","coordinates":[28.8418085,47.0411025]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815351","geometry":{"type":"Point","coordinates":[28.8285591,47.0396698]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815352","geometry":{"type":"Point","coordinates":[28.8549846,47.0647184]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815354","geometry":{"type":"Point","coordinates":[28.7771533,47.0530438]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815355","geometry":{"type":"Point","coordinates":[28.770871,47.0531778]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815356","geometry":{"type":"Point","coordinates":[28.7703475,47.0455652]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815358","geometry":{"type":"Point","coordinates":[27.800394,47.197578]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815359","geometry":{"type":"Point","coordinates":[27.6131655,47.3276955]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815360","geometry":{"type":"Point","coordinates":[28.7967212,47.3928118]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815361","geometry":{"type":"Point","coordinates":[28.7802213,47.3974526]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815363","geometry":{"type":"Point","coordinates":[28.093048,47.6420618]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815364","geometry":{"type":"Point","coordinates":[28.9422011,47.7487751]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815365","geometry":{"type":"Point","coordinates":[27.8450892,47.7301522]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815366","geometry":{"type":"Point","coordinates":[27.8775395,47.7941115]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815367","geometry":{"type":"Point","coordinates":[27.9328444,47.7905557]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815368","geometry":{"type":"Point","coordinates":[28.2942575,47.9023345]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815369","geometry":{"type":"Point","coordinates":[27.3309435,48.1580205]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815370","geometry":{"type":"Point","coordinates":[27.2887102,48.1840422]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n7466815371","geometry":{"type":"Point","coordinates":[27.1156789,48.338717]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n8321132978","geometry":{"type":"Point","coordinates":[28.301792,48.1443131]},"properties":{"access":"yes","amenity":"charging_station","capacity":"1","fee":"yes","motorcar":"yes","name":"Type 2 - charging station"}}
+{"type":"Feature","id":"n8321138167","geometry":{"type":"Point","coordinates":[28.3173016,48.1124556]},"properties":{"access":"yes","amenity":"charging_station","capacity":"2","fee":"yes","motorcar":"yes","name":"EV Point - Type 2 - charging station"}}
+{"type":"Feature","id":"n8442778823","geometry":{"type":"Point","coordinates":[28.7518127,47.041542]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n11106971955","geometry":{"type":"Point","coordinates":[28.7639436,46.9534778]},"properties":{"amenity":"charging_station","name":"EcoFactor Charging Station"}}
+{"type":"Feature","id":"n11106981795","geometry":{"type":"Point","coordinates":[28.769795,46.9542776]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n11782204936","geometry":{"type":"Point","coordinates":[29.6381065,46.8413298]},"properties":{"access":"customers","amenity":"charging_station","brand":"Tesla Wall Connector (EU)","capacity":"2","description":"2x Type-2","fee":"yes","payment:cash":"yes","payment:credit_cards":"yes","payment:debit_cards":"yes"}}
+{"type":"Feature","id":"n11883476788","geometry":{"type":"Point","coordinates":[28.8475411,47.0575849]},"properties":{"amenity":"charging_station","capacity":"2"}}
+{"type":"Feature","id":"n12546008007","geometry":{"type":"Point","coordinates":[29.6674098,46.5233539]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n12566095931","geometry":{"type":"Point","coordinates":[28.8607073,46.9900352]},"properties":{"amenity":"charging_station","brand":"Charging Station Kaufland","operator":"Kaufland"}}
+{"type":"Feature","id":"n12879477501","geometry":{"type":"Point","coordinates":[28.8593168,46.9906315]},"properties":{"addr:country":"MD","addr:street":"Bulevardul Decebal","amenity":"charging_station","opening_hours":"24/7","operator":"Plug2Go","website":"https://plug2go.md/"}}
+{"type":"Feature","id":"n13768534201","geometry":{"type":"Point","coordinates":[29.5492704,46.8376334]},"properties":{"amenity":"charging_station","name":"Гипермаркет"}}
+{"type":"Feature","id":"n14005964734","geometry":{"type":"Point","coordinates":[28.8404981,47.0001198]},"properties":{"amenity":"charging_station","check_date":"2026-07-11"}}
+{"type":"Feature","id":"n14017300996","geometry":{"type":"Point","coordinates":[28.7568909,47.1506136]},"properties":{"amenity":"charging_station"}}
+{"type":"Feature","id":"n14249360784","geometry":{"type":"Point","coordinates":[28.8172207,47.0232609]},"properties":{"access":"permissive","amenity":"charging_station","fee":"yes","source":"survey"}}
+{"type":"Feature","id":"n9100000001","geometry":{"type":"Point","coordinates":[28.65,46.3]},"properties":{"amenity":"charging_station","socket:type2":"4","socket:type2:output":"22 kW","socket:type2_combo":"2","socket:type2_combo:output":"150 kW","socket:weird_plug":"1","capacity":"6","operator":"Hand Test","addr:country":"MD","note":"hand-made: sockets"}}
+{"type":"Feature","id":"n9100000002","geometry":{"type":"Point","coordinates":[28.65,46.31]},"properties":{"disused:amenity":"charging_station","note":"hand-made"}}
+{"type":"Feature","id":"n9100000003","geometry":{"type":"Point","coordinates":[28.65,46.32]},"properties":{"construction:amenity":"charging_station","note":"hand-made"}}
+{"type":"Feature","id":"n9100000004","geometry":{"type":"Point","coordinates":[28.65,46.33]},"properties":{"proposed:amenity":"charging_station","note":"hand-made"}}
+{"type":"Feature","id":"n9100000005","geometry":{"type":"Point","coordinates":[28.65,46.34]},"properties":{"planned:amenity":"charging_station","note":"hand-made"}}
+{"type":"Feature","id":"n9100000006","geometry":{"type":"Point","coordinates":[28.65,46.35]},"properties":{"amenity":"charging_station","operational_status":"closed","note":"hand-made"}}
+{"type":"Feature","id":"n9100000007","geometry":{"type":"Point","coordinates":[28.65,46.36]},"properties":{"abandoned:amenity":"charging_station","note":"hand-made"}}
+{"type":"Feature","id":"n9100000008","geometry":{"type":"Point","coordinates":[28.65,46.37]},"properties":{"demolished:amenity":"charging_station","note":"hand-made"}}
+{"type":"Feature","id":"n9100000009","geometry":{"type":"Point","coordinates":[28.65,46.38]},"properties":{"removed:amenity":"charging_station","note":"hand-made"}}
+{"type":"Feature","id":"n9100000010","geometry":{"type":"Point","coordinates":[28.65,46.39]},"properties":{"razed:amenity":"charging_station","note":"hand-made"}}
+{"type":"Feature","id":"n9100000020","geometry":{"type":"Point","coordinates":[27.6014,47.1585]},"properties":{"amenity":"charging_station","note":"hand-made: Iasi, inside MD's bbox, no addr:country"}}
+{"type":"Feature","id":"n9100000021","geometry":{"type":"Point","coordinates":[28.9,46.4]},"properties":{"amenity":"charging_station","note":"hand-made: Moldova, no addr:country"}}
+{"type":"Feature","id":"n9100000030","geometry":{"type":"Point","coordinates":[8.682,50.118]},"properties":{"amenity":"charging_station","ref:EU:EVSE":"DE*ION*E12345","note":"hand-made: EVSE id, 900 m from OCM 9000300"}}
+{"type":"Feature","id":"w9200000001","geometry":{"type":"Polygon","coordinates":[[[28.7,46.5],[28.701,46.5],[28.701,46.501],[28.7,46.501],[28.7,46.5]]]},"properties":{"amenity":"charging_station","access":"private","note":"hand-made: a way, private"}}

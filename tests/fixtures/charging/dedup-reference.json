@@ -1,0 +1,221 @@
+{
+ "_": [
+  "Hand reference for dedup (AC-7): 30 (OCM, OSM) pairs in Moldova. same=true: the five pairs",
+  "under 50 m the architect checked by name and address (2026-11-21, plan 2.4); same=false: ten pairs at",
+  "50-500 m that are different objects (115-149 m were checked as different), and fifteen far ones.",
+  "The 74 m pair 101022/n4796328121 shares an address with the 34 m match: one OCM record joins ONE OSM",
+  "record (rule 6), so it is the 34 m one."
+ ],
+ "pairs": [
+  {
+   "ocm": 101022,
+   "osm": "n6600794098",
+   "m": 34,
+   "same": true,
+   "note": "Grand Hall parking, Negruzzi 2/4"
+  },
+  {
+   "ocm": 192297,
+   "osm": "n12566095931",
+   "m": 44,
+   "same": true,
+   "note": "Kaufland Decebal"
+  },
+  {
+   "ocm": 192298,
+   "osm": "n14005964734",
+   "m": 7,
+   "same": true,
+   "note": "Kaufland Testemitanu"
+  },
+  {
+   "ocm": 192470,
+   "osm": "n7466815369",
+   "m": 45,
+   "same": true,
+   "note": "EV0019"
+  },
+  {
+   "ocm": 192482,
+   "osm": "n7466815360",
+   "m": 13,
+   "same": true,
+   "note": "EV0016"
+  },
+  {
+   "ocm": 101022,
+   "osm": "n7466815344",
+   "m": 72,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 101022,
+   "osm": "n4796328121",
+   "m": 74,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 192193,
+   "osm": "n7466815344",
+   "m": 115,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 192193,
+   "osm": "n4796328121",
+   "m": 121,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 192193,
+   "osm": "n6600794098",
+   "m": 163,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 192291,
+   "osm": "n7466815323",
+   "m": 417,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 192297,
+   "osm": "n12879477501",
+   "m": 82,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 192298,
+   "osm": "n7466815346",
+   "m": 460,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 192485,
+   "osm": "n7466815363",
+   "m": 149,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 297288,
+   "osm": "n7466815318",
+   "m": 272,
+   "same": false,
+   "note": "different object, 50-500 m"
+  },
+  {
+   "ocm": 169706,
+   "osm": "n7466815349",
+   "m": 1428,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 169706,
+   "osm": "n7466815350",
+   "m": 1497,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192163,
+   "osm": "n7466815351",
+   "m": 1059,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192163,
+   "osm": "n14249360784",
+   "m": 1844,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192172,
+   "osm": "n7466815351",
+   "m": 1914,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192172,
+   "osm": "n14249360784",
+   "m": 2081,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192188,
+   "osm": "n7466815367",
+   "m": 2686,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192188,
+   "osm": "n7466815366",
+   "m": 5680,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192191,
+   "osm": "n7466815344",
+   "m": 1130,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192191,
+   "osm": "n6600794098",
+   "m": 1156,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192194,
+   "osm": "n7466815349",
+   "m": 731,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192194,
+   "osm": "n6356992663",
+   "m": 1151,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192289,
+   "osm": "n7466815351",
+   "m": 1122,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192289,
+   "osm": "n14249360784",
+   "m": 1533,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  },
+  {
+   "ocm": 192290,
+   "osm": "n7466815332",
+   "m": 2615,
+   "same": false,
+   "note": "nearest OSM is far: different object"
+  }
+ ]
+}

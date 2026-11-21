@@ -194,6 +194,10 @@ def build(cfg_path, work, base_url, previous=None, tag=None, lock=None, pipeline
     # would silently take the world map away from the car.
     if previous and previous.get("world"):
         m["world"] = previous["world"]
+    # The charging catalogue (charging-factory.yml) is published the same way, and carried the
+    # same way: a regional run neither builds it nor may drop it.
+    if previous and previous.get("charging"):
+        m["charging"] = previous["charging"]
     return m
 
 
@@ -326,6 +330,8 @@ def urls(m):
     out += [(t["url"], t["bytes"]) for t in m["portals"].values()]
     if m.get("world"):
         out.append((m["world"]["url"], m["world"]["size"]))
+    if m.get("charging"):
+        out.append((m["charging"]["url"], m["charging"]["bytes"]))
     return out
 
 

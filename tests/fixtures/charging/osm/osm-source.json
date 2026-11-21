@@ -1,0 +1,12 @@
+[
+  {
+    "bytes": 101554084,
+    "md5": "53adc01bba1f8fa1824a4d7a808b77f1",
+    "name": "md",
+    "replication": "2026-11-20T21:21:21Z",
+    "sequence": 4974,
+    "sha256": "5a896a0af7398c25909b628b1392ae0a78f22487b370c6b091baa8e94b22fb33",
+    "stations": 68,
+    "url": "local:md.pbf"
+  }
+]
