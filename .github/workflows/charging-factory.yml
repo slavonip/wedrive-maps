@@ -20,6 +20,10 @@
 name: charging factory
 
 on:
+  # TEMPORARY (2026-11-21): a push to this branch runs a DRY build — publish and report only run on
+  # schedule / verify / publish. Needed because workflow_dispatch requires the file on main. Remove before merge.
+  push:
+    branches: [charging-p0]
   workflow_dispatch:
     inputs:
       mode:
