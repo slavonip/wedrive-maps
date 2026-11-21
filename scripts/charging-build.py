@@ -34,18 +34,29 @@ def load_json(path):
         return json.load(f)
 
 
+AREA_TYPES = ("Polygon", "MultiPolygon")
+
+
 def read_osm(path):
-    """geojsonseq -> features, one per OSM id (europe and russia overlap: the first wins)."""
-    seen, out = set(), []
+    """geojsonseq -> features, one per OSM object (europe and russia overlap: the first wins).
+
+    osmium emits a closed way both as a line and as an area ('a' id, see cdb.osm_id); both are the
+    same object. The ids are normalised to n/w/r and the AREA geometry is kept when both arrive
+    (its centroid is the station, a ring's first vertex is not)."""
+    index, out = {}, []
     for line in open(path, encoding="utf-8"):
         line = line.strip().lstrip("\x1e")
         if not line:
             continue
         f = json.loads(line)
-        if f.get("id") in seen:
-            continue
-        seen.add(f.get("id"))
-        out.append(f)
+        f["id"] = cdb.osm_id(f.get("id"))
+        i = index.get(f["id"])
+        if i is None:
+            index[f["id"]] = len(out)
+            out.append(f)
+        elif ((f.get("geometry") or {}).get("type") in AREA_TYPES
+              and (out[i].get("geometry") or {}).get("type") not in AREA_TYPES):
+            out[i] = f
     return out
 
 

@@ -986,5 +986,45 @@ class Manifest(unittest.TestCase):
             cman.apply({"kind": "regional"}, self.DESC, "http://x")
 
 
+
+class OsmIds(unittest.TestCase):
+    """osmium --add-unique-id=type_id with polygon output also emits AREAS ('a' ids): 2*way for a
+    closed way, 2*relation+1 for a multipolygon. First real Europe run 2026-11-21 died on them."""
+
+    def test_area_ids_map_back_to_their_osm_object(self):
+        self.assertEqual(cdb.osm_id("n5"), "n5")
+        self.assertEqual(cdb.osm_id("w45"), "w45")
+        self.assertEqual(cdb.osm_id("r6"), "r6")
+        self.assertEqual(cdb.osm_id("a90"), "w45")
+        self.assertEqual(cdb.osm_id("a13"), "r6")
+        for bad in ("", "x1", "a", "w", "n1a", None):
+            with self.assertRaises(ValueError):
+                cdb.osm_id(bad)
+
+    def test_a_closed_way_seen_as_line_and_as_area_is_one_station_with_the_area(self):
+        line = {"type": "Feature", "id": "w45", "properties": {"amenity": "charging_station"},
+                "geometry": {"type": "LineString", "coordinates": [[0, 0], [0, 1], [1, 1], [0, 0]]}}
+        area = {"type": "Feature", "id": "a90", "properties": {"amenity": "charging_station"},
+                "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [0, 1], [1, 1], [0, 0]]]}}
+        node = {"type": "Feature", "id": "n7", "properties": {"amenity": "charging_station"},
+                "geometry": {"type": "Point", "coordinates": [2, 2]}}
+        rel = {"type": "Feature", "id": "a13", "properties": {"amenity": "charging_station"},
+               "geometry": {"type": "MultiPolygon", "coordinates": [[[[3, 3], [3, 4], [4, 4], [3, 3]]]]}}
+        d = tempfile.mkdtemp()
+        try:
+            for order in ([line, area, node, rel], [area, line, node, rel]):
+                path = os.path.join(d, "osm.geojsonseq")
+                with open(path, "w", encoding="utf-8") as fh:
+                    for f in order:
+                        fh.write("\x1e" + json.dumps(f) + "\n")
+                got = build.read_osm(path)
+                self.assertEqual(sorted(f["id"] for f in got), ["n7", "r6", "w45"])
+                w = [f for f in got if f["id"] == "w45"][0]
+                self.assertEqual(w["geometry"]["type"], "Polygon")
+                for f in got:
+                    cdb.osm_sort_key(f["id"])        # every id sorts
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

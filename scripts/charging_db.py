@@ -295,6 +295,21 @@ def osm_record(feature, connectors, countries, report):
         "evse_ids": evse_norm(tags.get("ref:EU:EVSE")), "connectors": conns}
 
 
+def osm_id(raw):
+    """osmium --add-unique-id=type_id -> our 'n123'/'w45'/'r6'.
+
+    With polygon output osmium also emits AREAS as 'a<area id>': area id = 2*way id for a closed
+    way, 2*relation id + 1 for a multipolygon (osmium's area numbering). Seen on the first real
+    Europe run 2026-11-21 (191 383 features for 178 554 objects). Map them back to the OSM object
+    so one station is one src_id; anything else is refused by name."""
+    if not raw or raw[0] not in "nwra" or not raw[1:].isdigit():
+        raise ValueError("unexpected OSM feature id %r" % (raw,))
+    if raw[0] != "a":
+        return raw
+    n = int(raw[1:])
+    return ("w%d" % (n // 2)) if n % 2 == 0 else ("r%d" % ((n - 1) // 2))
+
+
 def osm_sort_key(src_id):
     return ("nwr".index(src_id[0]), int(src_id[1:]))
 
