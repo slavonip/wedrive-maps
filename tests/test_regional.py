@@ -646,6 +646,27 @@ class MirrorRedirect(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.run_moved(hops, {**state, **bad}, served={self.G + "europe/europe-261121.osm.pbf"})
 
+    def test_9_own_redirect_whose_md5_is_not_served_falls_back_a_day(self):
+        # 2026-11-22: latvia-latest -> latvia/latvia-latest -> latvia/latvia-261121 (Geofabrik's own),
+        # 261121.md5 hung, 261120 was served with its .md5
+        L = self.G + "europe/latvia/"
+        hops = {self.G + "europe/latvia-latest.osm.pbf": L + "latvia-latest.osm.pbf",
+                L + "latvia-latest.osm.pbf": L + "latvia-261121.osm.pbf"}
+        prev = {L + "latvia-261120.osm.pbf.md5": "91ff5617cbb6d508e9164324cc9356af  latvia-261120.osm.pbf\n"}
+        src = self.run_moved(hops, prev, served={L + "latvia-261120.osm.pbf"}, path="europe/latvia")
+        self.assertEqual(src, {"url": L + "latvia-261120.osm.pbf", "md5": "91ff5617cbb6d508e9164324cc9356af"})
+        # the day's own .md5 served: it is taken, no fallback
+        own = {L + "latvia-261121.osm.pbf.md5": "0123456789abcdef0123456789abcdef  latvia-261121.osm.pbf\n"}
+        src = self.run_moved(hops, {**own, **prev}, served={L + "latvia-261120.osm.pbf"}, path="europe/latvia")
+        self.assertEqual(src["url"], L + "latvia-261121.osm.pbf")
+        # an earlier day listed in .md5 but its file not served: not taken; nothing left -> fail closed
+        with self.assertRaises(SystemExit):
+            self.run_moved(hops, prev, served=(), path="europe/latvia")
+        # an .md5 naming another file still stops the run
+        bad = {L + "latvia-261121.osm.pbf.md5": "0123456789abcdef0123456789abcdef  latvia-261120.osm.pbf\n"}
+        with self.assertRaises(SystemExit):
+            self.run_moved(hops, {**bad, **prev}, served={L + "latvia-261120.osm.pbf"}, path="europe/latvia")
+
     def test_7_hops_to_another_name_or_in_a_loop_are_refused(self):
         with self.assertRaises(SystemExit):          # a -latest of a DIFFERENT name
             self.run_moved({self.G + "europe-latest.osm.pbf": self.G + "europe/germany-latest.osm.pbf"}, {})

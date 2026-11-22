@@ -150,9 +150,20 @@ def geofabrik_source(path):
               % (path, loc, name, "" if back == 0 else " (%s not served yet: %d day(s) back)" % (newest, back)),
               file=sys.stderr)
         return {"url": folder + name, "md5": md5}
-    url = folder + name
-    md5 = md5_of(_get(url + ".md5"), name)
-    return {"url": url, "md5": md5}
+    # The same "listed before it is served" gap on Geofabrik's OWN redirect (2026-11-22: -latest
+    # pointed at latvia-261121 and its .md5 hung for 90 s while 261120's answered at once; it failed
+    # two publish runs). Fall back to the previous day's dated file exactly as above; day 0 is the
+    # redirect's own file, so it needs no separate "is it served" probe.
+    newest = name[len(base) + 1:-len(".osm.pbf")]
+    for back in range(MAX_DAYS_BACK + 1):
+        cand = name if back == 0 else "%s-%s.osm.pbf" % (base, _days_before(newest, back))
+        md5 = _served_md5(folder + cand, cand) if back == 0 or _served_directly(folder + cand) else None
+        if md5:
+            if back:
+                print("%s: %s has no .md5 served yet; pinned to %s (%d day(s) back)"
+                      % (path, name, cand, back), file=sys.stderr)
+            return {"url": folder + cand, "md5": md5}
+    raise SystemExit("Geofabrik serves no .md5 for %s nor for the %d days before it" % (name, MAX_DAYS_BACK))
 
 
 MAX_DAYS_BACK = 2
