@@ -87,7 +87,7 @@ def _served_directly(url):
     try:
         with opener.open(urllib.request.Request(url, method="HEAD"), timeout=60) as r:
             return r.status == 200
-    except urllib.error.HTTPError:
+    except (urllib.error.URLError, OSError):     # HTTPError, refused, timed out
         return False
 
 
@@ -133,15 +133,45 @@ def geofabrik_source(path):
     if loc.startswith(GEOFABRIK) or "/" not in loc:
         name = dated_name(loc, path)            # Geofabrik's own redirect: must be dated
     else:
-        name = "%s-%s.osm.pbf" % (base, state_date(_get(GEOFABRIK + path + "-updates/state.txt")))
-        if not _served_directly(folder + name):
-            raise SystemExit("%s-latest redirects to %s and Geofabrik does not serve %s, the dated "
-                             "file its state.txt names" % (path, loc, name))
-        print("%s-latest redirects to a mirror (%s); pinned to %s from Geofabrik's state.txt"
-              % (path, loc, name), file=sys.stderr)
+        newest = state_date(_get(GEOFABRIK + path + "-updates/state.txt"))
+        # Geofabrik can LIST the newest dated file for a day before it serves it (2026-11-21/22:
+        # europe-261121 and its .md5 timed out or answered 404 while 261120 answered 200). Then take
+        # the previous day's file, at most MAX_DAYS_BACK back -- still Geofabrik's own dated file and
+        # its own .md5 naming it, never the mirror, never an undated name.
+        for back in range(MAX_DAYS_BACK + 1):
+            name = "%s-%s.osm.pbf" % (base, _days_before(newest, back))
+            md5 = _served_md5(folder + name, name) if _served_directly(folder + name) else None
+            if md5:
+                break
+        else:
+            raise SystemExit("%s-latest redirects to %s and Geofabrik serves none of the dated files "
+                             "%s..%d days before, the one its state.txt names" % (path, loc, newest, MAX_DAYS_BACK))
+        print("%s-latest redirects to a mirror (%s); pinned to %s from Geofabrik's state.txt%s"
+              % (path, loc, name, "" if back == 0 else " (%s not served yet: %d day(s) back)" % (newest, back)),
+              file=sys.stderr)
+        return {"url": folder + name, "md5": md5}
     url = folder + name
     md5 = md5_of(_get(url + ".md5"), name)
     return {"url": url, "md5": md5}
+
+
+MAX_DAYS_BACK = 2
+
+
+def _days_before(yymmdd, n):
+    import datetime
+    d = datetime.date(2000 + int(yymmdd[:2]), int(yymmdd[2:4]), int(yymmdd[4:6])) - datetime.timedelta(days=n)
+    return d.strftime("%y%m%d")
+
+
+def _served_md5(url, name):
+    """md5 from Geofabrik's url.md5 naming `name`, or None when it is not served. An .md5 that IS
+    served but names another file still stops the run (md5_of raises)."""
+    try:
+        text = _get(url + ".md5")
+    except (SystemExit, urllib.error.URLError, OSError):
+        return None
+    return md5_of(text, name)
 
 
 def decide(cfg, lock, manifest, countries, rebuild_arg, md5s):
