@@ -54,7 +54,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120   # Overpass is minutes; the per-country Geofabrik fallback needs room
+    timeout-minutes: 360   # GitHub-hosted maximum: an overloaded Overpass (502/504 per country) took >2 h on 2026-11-22
     outputs:
       build: ${{ steps.build.outputs.build }}
       netbad: ${{ steps.net.outputs.netbad }}
@@ -101,6 +101,10 @@ jobs:
           restore-keys: charging-osm-${{ steps.day.outputs.date }}-
       - name: OSM charging stations (Overpass per country, Geofabrik fallback)
         id: osm
+        # below the job limit on purpose: a step that hits ITS timeout FAILS, a job that hits its own is
+        # CANCELLED, and the cache-save step below runs only on success/failure -- a cancel lost 32
+        # fetched countries on 2026-11-22
+        timeout-minutes: 300
         run: |
           set -euo pipefail
           base="$WORK"
