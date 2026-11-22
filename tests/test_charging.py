@@ -30,6 +30,7 @@ def load(name, file):
 
 
 ocm = load("charging_ocm_fetch", "charging-ocm-fetch.py")
+ovp = load("charging_osm_overpass", "charging-osm-overpass.py")
 build = load("charging_build", "charging-build.py")
 cman = load("charging_manifest", "charging-manifest.py")
 CFG = json.load(open(os.path.join(ROOT, "regional.json"), encoding="utf-8"))
@@ -944,7 +945,7 @@ class PreviousRelease(unittest.TestCase):
                 p = os.path.join(d, "prev.json")
                 json.dump(prev, open(p, "w"))
                 got = cdb.previous_gate(dict(desc["counts"]["ocm_by_country"], NL=cur_nl),
-                                        build.previous_counts(p))
+                                        build.previous_counts(p)[0])
                 self.assertEqual(bool(got), fails, (share, got))
         finally:
             shutil.rmtree(d)
@@ -1025,6 +1026,318 @@ class OsmIds(unittest.TestCase):
                     cdb.osm_sort_key(f["id"])        # every id sorts
         finally:
             shutil.rmtree(d, ignore_errors=True)
+
+
+
+# ─────────────────────────── OSM through Overpass, per country (option C) ───────────────────────────
+
+NINE = {"amenity", "disused:amenity", "construction:amenity", "proposed:amenity", "planned:amenity",
+        "abandoned:amenity", "demolished:amenity", "removed:amenity", "razed:amenity"}
+GOOD = (b'<?xml version="1.0" encoding="UTF-8"?>\n<osm version="0.6" generator="Overpass API">\n'
+        b'<meta osm_base="2026-11-22T08:00:00Z"/>\n'
+        b'<node id="1" lat="47.0" lon="28.8" version="3" timestamp="2026-01-01T00:00:00Z">'
+        b'<tag k="amenity" v="charging_station"/></node>\n'
+        b'<node id="2" lat="47.1" lon="28.9" version="1" timestamp="2026-01-01T00:00:00Z"/>\n'
+        b'<node id="3" lat="47.2" lon="28.9" version="1" timestamp="2026-01-01T00:00:00Z">'
+        b'<tag k="razed:amenity" v="charging_station"/></node>\n'
+        b'<way id="4" version="2" timestamp="2026-01-01T00:00:00Z"><nd ref="2"/>'
+        b'<tag k="disused:amenity" v="charging_station"/></way>\n</osm>\n')
+REMARK = GOOD.replace(b"</osm>", b'<remark> runtime error: Query timed out in "query" at line 3 after 601 seconds. </remark>\n</osm>')
+TRUNCATED = GOOD[:GOOD.index(b"<way")]
+
+
+class FakeOverpass:
+    """A local /api/interpreter answering from a script of (status, body), then the last one."""
+
+    def __init__(self, script):
+        self.script = list(script)
+        self.seen = []
+        fake = self
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_POST(self):
+                n = int(self.headers.get("Content-Length") or 0)
+                fake.seen.append((dict(self.headers), urllib.parse.parse_qs(self.rfile.read(n).decode())))
+                code, body = fake.script.pop(0) if len(fake.script) > 1 else fake.script[0]
+                self.send_response(code)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        self.httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+        self.url = "http://127.0.0.1:%d/api/interpreter" % self.httpd.server_address[1]
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+
+    def close(self):
+        self.httpd.shutdown(); self.httpd.server_close()
+
+
+def quiet(*a, **k):
+    pass
+
+
+class OverpassQuery(unittest.TestCase):
+    # AC-1
+    def keys(self, q):
+        import re
+        got = set(re.findall(r"nwr\[([a-z:]+)=charging_station\]", q))
+        for alt in re.findall(r'nwr\[~"\^\(([^)]*)\):amenity\$"~"\^charging_station\$"\]', q):
+            got |= {p + ":amenity" for p in alt.split("|")}
+        return got
+
+    def test_the_query_asks_for_exactly_the_nine_keys(self):
+        q = ovp.query(ovp.area_clauses("MD", CFG))
+        self.assertEqual(self.keys(q), NINE)
+        self.assertEqual(set(ovp.KEYS), NINE)
+        self.assertTrue(q.startswith("[out:xml][timeout:600];"))
+        self.assertIn("(._;>;);", q)
+        self.assertIn("out meta;", q)
+        self.assertIn("(45.46,26.61,48.49,30.19)", q)           # MD's bbox as (S,W,N,E)
+        self.assertNotIn("poly:", q)
+
+    def test_the_osmium_fallback_filter_is_the_same_nine_keys(self):
+        self.assertEqual({f.split("/", 1)[1].split("=")[0] for f in ovp.FILTER}, NINE)
+        self.assertTrue(all(f.startswith("nwr/") and f.endswith("=charging_station") for f in ovp.FILTER))
+        sh = open(os.path.join(S, "charging-osm-extract.sh"), encoding="utf-8").read()
+        for k in NINE:
+            self.assertIn("nwr/%s=charging_station" % k, sh)
+
+    def test_russia_goes_by_polygon_never_by_bbox(self):
+        clauses = ovp.area_clauses("RU", CFG)
+        self.assertTrue(clauses)
+        self.assertTrue(all(c.startswith('(poly:"') for c in clauses))
+        q = ovp.query(clauses)
+        self.assertNotIn("-180", q.split("poly:")[0])
+        self.assertNotIn("(35.61,-180.0,83.83,180.0)", q)
+        self.assertEqual(self.keys(q), NINE)
+        for c in clauses:                                      # "lat lon" pairs, lat in range
+            nums = [float(x) for x in c[len('(poly:"'):-2].split()]
+            self.assertEqual(len(nums) % 2, 0)
+            self.assertTrue(all(-90 <= lat <= 90 for lat in nums[0::2]))
+            self.assertGreaterEqual(len(nums) // 2, 3)
+
+
+class OverpassFetch(unittest.TestCase):
+    # AC-2
+    def test_a_good_answer_is_taken_and_counted(self):
+        srv = FakeOverpass([(200, GOOD)])
+        d = tempfile.mkdtemp()
+        try:
+            clock = Clock()
+            row = ovp.one("MD", CFG, d, ROOT,
+                          overpass_fn=lambda cc, q: ovp.overpass(cc, q, endpoints=(srv.url,), sleep=clock.sleep, log=quiet))
+            self.assertEqual(row["url"], srv.url)
+            self.assertEqual(row["replication"], "2026-11-22T08:00:00Z")
+            self.assertEqual(row["stations"], 3)                     # n1, n3 (razed:), w4 (disused:); not n2
+            self.assertIsNone(row["sequence"])
+            self.assertEqual(row["bytes"], len(GOOD))
+            self.assertEqual(row["md5"], hashlib.md5(GOOD).hexdigest())
+            self.assertEqual(row["sha256"], hashlib.sha256(GOOD).hexdigest())
+            self.assertEqual(open(os.path.join(d, "MD.osm"), "rb").read(), GOOD)
+            headers, form = srv.seen[0]
+            self.assertEqual(headers.get("User-Agent"), ovp.USER_AGENT)
+            self.assertIn("nwr[amenity=charging_station]", form["data"][0])
+            self.assertEqual(clock.sleeps, [])
+        finally:
+            srv.close(); shutil.rmtree(d)
+
+    def test_remark_504_and_truncated_are_failures_then_the_other_endpoint(self):
+        a = FakeOverpass([(200, REMARK), (504, b"busy"), (200, TRUNCATED)])
+        b = FakeOverpass([(200, GOOD)])
+        clock = Clock()
+        try:
+            ep, body, base = ovp.overpass("MD", "q", endpoints=(a.url, b.url), attempts=3, sleep=clock.sleep, log=quiet)
+            self.assertEqual((ep, body, base), (b.url, GOOD, "2026-11-22T08:00:00Z"))
+            self.assertEqual(len(a.seen), 3)
+            self.assertEqual(len(b.seen), 1)
+            self.assertEqual(clock.sleeps, [ovp.BACKOFF, ovp.BACKOFF * 2])          # exponential, per endpoint
+        finally:
+            a.close(); b.close()
+
+    def test_a_transfer_cut_short_is_retried_not_a_traceback(self):
+        # IncompleteRead / BadStatusLine are http.client.HTTPException, not OSError (verifier, 2026-11-22)
+        import http.client
+        raised = [http.client.IncompleteRead(b"<osm"), http.client.BadStatusLine("garbage")]
+
+        def post(ep, q):
+            if raised:
+                raise raised.pop(0)
+            return GOOD
+        clock = Clock()
+        ep, body, base = ovp.overpass("MD", "q", endpoints=("a",), attempts=3, post=post, sleep=clock.sleep, log=quiet)
+        self.assertEqual(body, GOOD)
+        self.assertEqual(len(clock.sleeps), 2)
+
+    def test_malformed_xml_that_ends_in_osm_is_a_failure(self):
+        bad = GOOD.replace(b"<osm", b"<osm <<", 1)
+        self.assertTrue(bad.rstrip().endswith(b"</osm>"))
+        with self.assertRaises(ovp.Failure):
+            ovp.check_body(bad)
+
+    def test_each_bad_answer_alone_is_a_failure(self):
+        for body in (REMARK, TRUNCATED, GOOD.replace(b'<meta osm_base="2026-11-22T08:00:00Z"/>', b"")):
+            with self.assertRaises(ovp.Failure):
+                ovp.check_body(body)
+        self.assertEqual(ovp.check_body(GOOD), "2026-11-22T08:00:00Z")
+
+    def test_both_endpoints_down_fall_back_to_geofabrik(self):
+        a = FakeOverpass([(429, b"slow down")])
+        b = FakeOverpass([(503, b"down")])
+        d = tempfile.mkdtemp()
+        calls = []
+
+        def gf(cc, cfg, out_dir):
+            calls.append(cc)
+            return {"name": "md", "url": "https://download.geofabrik.de/europe/moldova-261121.osm.pbf",
+                    "md5": "m", "sha256": "s", "bytes": 1, "replication": "r", "sequence": None, "stations": 68}
+        try:
+            row = ovp.one("MD", CFG, d, ROOT, overpass_fn=lambda cc, q: ovp.overpass(
+                cc, q, endpoints=(a.url, b.url), attempts=2, sleep=Clock().sleep, log=quiet),
+                geofabrik_fn=gf, log=quiet)
+            self.assertEqual(calls, ["MD"])
+            self.assertEqual(row["stations"], 68)
+            self.assertEqual((len(a.seen), len(b.seen)), (2, 2))
+            self.assertFalse(os.path.exists(os.path.join(d, "MD.osm")))
+        finally:
+            a.close(); b.close(); shutil.rmtree(d)
+
+    def test_overpass_and_geofabrik_both_failing_fails_the_run(self):
+        a = FakeOverpass([(504, b"timeout")])
+        d = tempfile.mkdtemp()
+
+        def gf(cc, cfg, out_dir):
+            raise SystemExit("Geofabrik serves none of the dated files")
+
+        def one(cc, cfg, out_dir, root):
+            return ovp.one(cc, cfg, out_dir, root, overpass_fn=lambda c, q: ovp.overpass(
+                c, q, endpoints=(a.url,), attempts=2, sleep=Clock().sleep, log=quiet), geofabrik_fn=gf, log=quiet)
+        try:
+            prov = os.path.join(d, "prov.jsonl")
+            cfg = os.path.join(d, "cfg.json")
+            json.dump({"countries": {"MD": CFG["countries"]["MD"], "RO": CFG["countries"]["RO"]}}, open(cfg, "w"))
+            import contextlib, io as _io
+            err = _io.StringIO()
+            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(_io.StringIO()):
+                rc = ovp.main([cfg, os.path.join(d, "out"), prov], root=ROOT, one_fn=one, sleep=lambda s: None)
+            self.assertNotEqual(rc, 0)
+            self.assertIn("FAIL", err.getvalue())
+            self.assertFalse(os.path.exists(prov) and open(prov).read().strip())     # MD failed first: no row
+        finally:
+            a.close(); shutil.rmtree(d)
+
+    def test_the_geofabrik_fallback_checks_md5_and_filters_the_nine_keys(self):
+        d = tempfile.mkdtemp()
+        data = b"pbf-bytes"
+        served = [b"corrupt", data]
+        cmds = []
+
+        def fetch(url, dst):
+            open(dst, "wb").write(served.pop(0))
+
+        def run(*args):
+            cmds.append(args)
+            if args[:3] == ("fileinfo", "-g", "header.option.osmosis_replication_timestamp"):
+                return "2026-11-21T20:21:00Z"
+            if args[0] == "fileinfo":
+                return {"data.count.nodes": "5", "data.count.ways": "2", "data.count.relations": "0"}[args[3]]
+            return ""
+        try:
+            src = lambda p: {"url": "https://download.geofabrik.de/europe/moldova-261121.osm.pbf",
+                             "md5": hashlib.md5(data).hexdigest()}
+            row = ovp.geofabrik("MD", CFG, d, source=src, fetch=fetch, run=run, log=quiet)
+            self.assertEqual(row["stations"], 7)
+            self.assertEqual(row["replication"], "2026-11-21T20:21:00Z")
+            self.assertEqual(row["md5"], hashlib.md5(data).hexdigest())
+            self.assertEqual(row["sha256"], hashlib.sha256(data).hexdigest())
+            self.assertIsNone(row["sequence"])
+            filt = [c for c in cmds if c[0] == "tags-filter"]
+            self.assertEqual(len(filt), 2)
+            for c in filt:
+                self.assertEqual({a.split("/", 1)[1].split("=")[0] for a in c if a.startswith("nwr/")}, NINE)
+            self.assertFalse(os.path.exists(os.path.join(d, "MD-geofabrik.osm.pbf")))     # the source goes
+            with self.assertRaises(ovp.Failure):                                          # undated: refused
+                ovp.geofabrik("MD", CFG, d, source=lambda p: {"url": "https://x/moldova-latest.osm.pbf", "md5": "x"},
+                              fetch=fetch, run=run, log=quiet)
+        finally:
+            shutil.rmtree(d)
+
+
+class Coverage(unittest.TestCase):
+    # AC-3
+    def station(self, lat, lon, **tags):
+        return {"id": "n9", "geometry": {"type": "Point", "coordinates": [lon, lat]},
+                "properties": dict({"amenity": "charging_station"}, **tags)}
+
+    def test_stations_outside_every_polygon_are_dropped(self):
+        countries = cdb.Countries(CFG, ROOT)
+        for lat, lon, where in ((40.15, 44.04, "Armenia, inside GE's and TR's bboxes"),
+                                (35.68, 139.69, "Tokyo, inside RU's bbox")):
+            self.assertFalse(countries.covers(lat, lon), where)
+            rep = {}
+            self.assertIsNone(cdb.osm_record(self.station(lat, lon), CONNECTORS, countries, rep), where)
+            self.assertEqual(rep, {"dropped_outside": 1}, where)
+            rep = {}                                              # addr:country naming ours does not save it
+            self.assertIsNone(cdb.osm_record(self.station(lat, lon, **{"addr:country": "GE"}), CONNECTORS, countries, rep))
+            self.assertEqual(rep, {"dropped_outside": 1})
+
+    def test_border_stations_keep_their_country(self):
+        countries = cdb.Countries(CFG, ROOT)
+        for lat, lon, cc in ((47.2112, 27.8000, "MD"),            # Ungheni
+                             (47.1585, 27.6014, "RO"),            # Iași
+                             (47.0245, 28.8323, "MD"),            # Chișinău
+                             (45.9050, 28.1950, "MD"),            # Cahul
+                             (45.4353, 28.0080, "RO")):           # Galați
+            self.assertTrue(countries.covers(lat, lon), cc)
+            self.assertEqual(cdb.osm_record(self.station(lat, lon), CONNECTORS, countries, {})["country"], cc)
+            self.assertEqual(countries.of(lat, lon), cc)
+
+    def test_every_fixture_station_is_still_built(self):
+        d = tempfile.mkdtemp()
+        try:
+            desc, rep = run_build(d)
+            self.assertEqual(rep.get("dropped_outside", 0), 0)
+        finally:
+            shutil.rmtree(d)
+
+
+class OsmGate(unittest.TestCase):
+    # AC-6
+    def test_a_country_losing_more_than_20_percent_of_osm_fails(self):
+        self.assertTrue(cdb.osm_gate({"DE": 500}, {"DE": 1000}))
+        self.assertEqual(cdb.osm_gate({"DE": 850}, {"DE": 1000}), [])
+        self.assertEqual(cdb.osm_gate({"MD": 10}, {"MD": 40}), [])               # below the floor: may swing
+        self.assertTrue(cdb.osm_gate({}, {"DE": 1000}))                           # gone entirely
+
+    def test_validate_fails_on_halved_osm_against_the_previous_manifest(self):
+        d = tempfile.mkdtemp()
+        try:
+            desc, _ = run_build(d)
+            cur = desc["counts"]
+            self.assertGreaterEqual(cur["osm_by_country"]["MD"], cdb.COUNTRY_LOSS_FLOOR)
+            outs = {}
+            for name, prev_osm in (("same", dict(cur["osm_by_country"])),
+                                   ("halved", dict(cur["osm_by_country"], DE=2 * max(cur["osm_by_country"].get("DE", 0), 50),
+                                                   MD=2 * cur["osm_by_country"]["MD"]))):
+                p = os.path.join(d, name + ".json")
+                json.dump({"charging": {"counts": {"ocm_by_country": cur["ocm_by_country"],
+                                                   "osm_by_country": prev_osm}}}, open(p, "w"))
+                import contextlib, io as _io
+                o = _io.StringIO()
+                with contextlib.redirect_stdout(o):
+                    rc = build.main(["validate", d, os.path.join(ROOT, "regional.json"), p, "--no-min-ocm"])
+                outs[name] = (rc, o.getvalue())
+            self.assertEqual(outs["same"][0], 0, outs["same"][1])
+            self.assertIn("CHARGING GATES: PASS", outs["same"][1])
+            self.assertEqual(outs["halved"][0], 1)
+            self.assertIn("CHARGING GATES: FAIL", outs["halved"][1])
+            self.assertIn("DE: %d OSM stations" % cur["osm_by_country"].get("DE", 0), outs["halved"][1])
+            self.assertIn("MD: %d OSM stations" % cur["osm_by_country"]["MD"], outs["halved"][1])
+        finally:
+            shutil.rmtree(d)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

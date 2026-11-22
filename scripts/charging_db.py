@@ -28,7 +28,7 @@ MAX_SQLITE = 150 * 1024 * 1024
 MAX_GZ = 60 * 1024 * 1024
 MIN_OCM = {"MD": 40}                   # Moldova has had 46 OCM stations (API, 2026-11-21)
 COUNTRY_LOSS = 0.20                    # a country with >= 50 OCM stations may not lose more
-COUNTRY_LOSS_FLOOR = 50
+COUNTRY_LOSS_FLOOR = 50               # (the same two numbers gate OSM stations per country)
 TOTAL_KEEP = 0.90                      # total OCM may not fall below this share of the previous
 BBOX_SLACK = 0.2
 
@@ -86,11 +86,26 @@ class Countries:
     def __init__(self, cfg, root=None):
         self.bbox = {c: v["bbox"] for c, v in cfg["countries"].items()}
         self.area = {c: (b[2] - b[0]) * (b[3] - b[1]) for c, b in self.bbox.items()}
-        self.polys = {}
+        self.polys, self.pbox = {}, {}
         for c, v in cfg["countries"].items():
             p = v.get("polygon")
             if root and p and os.path.isfile(os.path.join(root, p)):
-                self.polys[c] = _bands(json.load(open(os.path.join(root, p), encoding="utf-8")))
+                geo = json.load(open(os.path.join(root, p), encoding="utf-8"))
+                self.polys[c] = _bands(geo)
+                self.pbox[c] = _extent(geo)
+
+    def covers(self, lat, lon):
+        """Inside any of our country polygons (a country without one: inside its bbox). A station
+        outside all of them is not ours, whatever bbox happens to hold it (Armenia inside GE's and
+        TR's, Japan inside RU's)."""
+        for c, b in self.bbox.items():
+            if c in self.polys:
+                w, s, e, n = self.pbox[c]
+                if w <= lon <= e and s <= lat <= n and _inside(self.polys[c], lat, lon):
+                    return True
+            elif b[0] <= lon <= b[2] and b[1] <= lat <= b[3]:
+                return True
+        return False
 
     def of(self, lat, lon, addr=None):
         a = (addr or "").strip().upper()
@@ -112,6 +127,14 @@ class Countries:
 
 
 BAND = 0.1
+
+
+def _extent(geo):
+    g = geo.get("geometry", geo)
+    polys = g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]
+    xs = [x for poly in polys for ring in poly for x, _ in ring]
+    ys = [y for poly in polys for ring in poly for _, y in ring]
+    return min(xs), min(ys), max(xs), max(ys)
 
 
 def _bands(geo):
@@ -268,6 +291,9 @@ def osm_record(feature, connectors, countries, report):
         report["dropped_nocoords_osm"] = report.get("dropped_nocoords_osm", 0) + 1
         return None
     lat, lon = pos
+    if not countries.covers(lat, lon):
+        report["dropped_outside"] = report.get("dropped_outside", 0) + 1
+        return None
     cc = countries.of(lat, lon, tags.get("addr:country"))
     if cc is None:
         report["dropped_outside"] = report.get("dropped_outside", 0) + 1
@@ -502,7 +528,20 @@ def previous_gate(current, previous):
     return problems
 
 
-def validate(sqlite_path, gz_path, cfg, previous_counts=None, min_ocm=MIN_OCM):
+def osm_gate(current, previous):
+    """current/previous: {country: OSM station count}. A country with >= 50 OSM stations in the
+    previous release losing more than 20 % fails the publish: a country Overpass answered short
+    must not replace a good catalogue."""
+    problems = []
+    for cc, before in sorted((previous or {}).items()):
+        now = current.get(cc, 0)
+        if before >= COUNTRY_LOSS_FLOOR and now < before * (1 - COUNTRY_LOSS):
+            problems.append("%s: %d OSM stations, the previous release had %d (-%.0f %%, more than %d %%)"
+                            % (cc, now, before, 100.0 * (before - now) / before, COUNTRY_LOSS * 100))
+    return problems
+
+
+def validate(sqlite_path, gz_path, cfg, previous_counts=None, min_ocm=MIN_OCM, previous_osm=None):
     """-> (problems, notes). Any problem fails the run; notes are reported only."""
     problems, notes = [], []
     db = sqlite3.connect(sqlite_path)
@@ -549,6 +588,9 @@ def validate(sqlite_path, gz_path, cfg, previous_counts=None, min_ocm=MIN_OCM):
             problems.append("%s: %d OCM stations, at least %d expected" % (cc, ocm_by.get(cc, 0), want))
     if previous_counts is not None:
         problems += previous_gate(ocm_by, previous_counts)
+    if previous_osm is not None:
+        osm_by = dict(q("SELECT country, count(*) FROM station WHERE source = ? GROUP BY 1", OSM_SOURCE_ID))
+        problems += osm_gate(osm_by, previous_osm)
     db.close()
     s, g = os.path.getsize(sqlite_path), os.path.getsize(gz_path)
     if s > MAX_SQLITE:

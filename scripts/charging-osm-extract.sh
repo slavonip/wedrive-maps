@@ -1,8 +1,11 @@
 #!/bin/bash
 # OSM half of the charging catalogue (wedrive-charging/1): every charging station in the
-# Geofabrik extracts that cover regional.json, as GeoJSON sequence, with its provenance.
+# regional.json countries, as GeoJSON sequence, with its provenance.
 #
-#   scripts/charging-osm-extract.sh OUT                 download europe + russia (dated, md5-checked)
+#   scripts/charging-osm-extract.sh OUT                 only the charging stations, one Overpass query
+#                                                       per country (charging-osm-overpass.py; a country
+#                                                       Overpass will not serve falls back to its dated,
+#                                                       md5-checked Geofabrik extract; both fail: exit 1)
 #   scripts/charging-osm-extract.sh OUT FILE.osm.pbf…   use local extracts (tests, local measurements)
 #
 # OUT/osm.geojsonseq   one feature per line, id "n123"/"w45"/"r6" (osmium --add-unique-id=type_id),
@@ -15,8 +18,9 @@
 # removed:, razed: (dropped by the build, but counted, so a gone station is seen to be gone).
 # Which country a station belongs to is decided by charging-build.py, not here.
 #
-# europe-latest covers every regional.json country except RU (russia is its own Geofabrik extract).
-# Each big file is deleted as soon as it is filtered: two 30+ GB files never sit on the disk together.
+# Country bboxes overlap, so one object can arrive in several country files. They come with
+# `out meta` (versions and timestamps), and after `osmium merge` — which keeps EVERY version it
+# sees — `osmium time-filter` keeps the newest version of each object.
 set -euo pipefail
 OUT="${1:?usage: charging-osm-extract.sh OUT [FILE.osm.pbf ...]}"; shift
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -69,27 +73,25 @@ if [ $# -gt 0 ]; then
     filter_one "$name" "$pbf" "local:$(basename "$pbf")" "$(md5sum "$pbf" | cut -d' ' -f1)"
   done
 else
-  for geo in europe russia; do
-    src="$(python3 "$HERE/regional-precheck.py" source "$geo")"
-    url="$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["url"])' "$src")"
-    md5="$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["md5"])' "$src")"
-    [[ "${url##*/}" =~ ^$geo-[0-9]{6}\.osm\.pbf$ ]] || { echo "FAIL: $url is not a dated Geofabrik extract" >&2; exit 1; }
-    pbf="$WORK/$geo.osm.pbf"
-    ok=""
-    for attempt in 1 2; do
-      curl -fsSL --retry 3 -C - -o "$pbf.part" "$url"
-      if [ "$(md5sum "$pbf.part" | cut -d' ' -f1)" = "$md5" ]; then ok=1; break; fi
-      rm -f "$pbf.part"; echo "md5 of $url does not match $md5 (attempt $attempt)" >&2
-    done
-    [ -n "$ok" ] || { echo "FAIL: Geofabrik never served a consistent $url" >&2; exit 1; }
-    mv -f "$pbf.part" "$pbf"
-    filter_one "$geo" "$pbf" "$url" "$md5"
-    rm -f "$pbf"
+  # one country at a time, sequential; it writes <CC>.osm (Overpass) or <CC>.osm.pbf (Geofabrik)
+  # and appends each country's provenance row to $PROV itself
+  OV="$WORK/overpass"
+  rm -rf "$OV"
+  python3 "$HERE/charging-osm-overpass.py" "$HERE/../regional.json" "$OV" "$PROV"
+  for f in "$OV"/*.osm "$OV"/*.osm.pbf; do
+    [ -e "$f" ] || continue
+    name="$(basename "$f")"; name="${name%%.*}"
+    out="$WORK/$name-charging.osm.pbf"
+    osmium sort --overwrite -o "$out" "$f"
+    FILTERED+=("$out")
   done
+  [ "${#FILTERED[@]}" -gt 0 ] || { echo "FAIL: charging-osm-overpass.py wrote no country file" >&2; exit 1; }
 fi
 
 if [ "${#FILTERED[@]}" -gt 1 ]; then
-  osmium merge --overwrite -o "$WORK/charging.osm.pbf" "${FILTERED[@]}"
+  osmium merge -H --overwrite -o "$WORK/merged.osm.pbf" "${FILTERED[@]}"
+  osmium time-filter --overwrite -o "$WORK/charging.osm.pbf" "$WORK/merged.osm.pbf"
+  rm -f "$WORK/merged.osm.pbf"
 else
   cp -f "${FILTERED[0]}" "$WORK/charging.osm.pbf"
 fi

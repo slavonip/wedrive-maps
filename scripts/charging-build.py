@@ -13,8 +13,9 @@ bytes: nothing in the file comes from the clock of the build — `created` IS th
 
 validate runs the gates (plan §6.6) and exits 1 when any fails: integrity, enums, no removed
 station, licences, kW range, the minimum for Moldova, and against the PREVIOUS release — a country
-with 50+ OCM stations losing more than 20 %, or the whole of OCM falling below 90 %, fails the
-publish (a broken fetch must not replace a good catalogue). Above 150 MB sqlite / 60 MB gz it
+with 50+ OCM stations losing more than 20 %, or the whole of OCM falling below 90 %, or a country
+with 50+ OSM stations losing more than 20 %, fails the publish (a broken fetch must not replace a
+good catalogue). Above 150 MB sqlite / 60 MB gz it
 stops and says so.
 """
 import gzip, importlib.util, json, os, sys
@@ -38,7 +39,7 @@ AREA_TYPES = ("Polygon", "MultiPolygon")
 
 
 def read_osm(path):
-    """geojsonseq -> features, one per OSM object (europe and russia overlap: the first wins).
+    """geojsonseq -> features, one per OSM object (the country files overlap: the first wins).
 
     osmium emits a closed way both as a line and as an area ('a' id, see cdb.osm_id); both are the
     same object. The ids are normalised to n/w/r and the AREA geometry is kept when both arrive
@@ -141,10 +142,11 @@ def build(cfg_path, ocm_dir, osm_dir, out, providers_path=None, connectors_path=
 
 
 def previous_counts(path):
+    """-> (ocm_by_country, osm_by_country) of the previous release; (None, None) without one."""
     if not path or path == "-" or not os.path.isfile(path):
-        return None
+        return None, None
     c = (load_json(path).get("charging") or {}).get("counts") or {}
-    return c.get("ocm_by_country")
+    return c.get("ocm_by_country"), c.get("osm_by_country")
 
 
 def main(argv):
@@ -168,8 +170,9 @@ def main(argv):
     if len(argv) >= 4 and argv[0] == "validate":
         out, cfg = argv[1], load_json(argv[2])
         min_ocm = {} if "--no-min-ocm" in argv else cdb.MIN_OCM
+        prev_ocm, prev_osm = previous_counts(argv[3])
         problems, notes = cdb.validate(os.path.join(out, "charging.sqlite"), os.path.join(out, "charging.sqlite.gz"),
-                                       cfg, previous_counts(argv[3]), min_ocm)
+                                       cfg, prev_ocm, min_ocm, prev_osm)
         for n in notes:
             print("   note: " + n)
         for p in problems:

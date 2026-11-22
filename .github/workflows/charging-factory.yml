@@ -3,7 +3,8 @@
 # wedrive-charging/1 — published as a release asset and written into the production manifest
 # (manifest.json "charging"), from where the app downloads it itself.
 #
-#   build:   tests -> OCM fetch (secret OCM_API_KEY) -> OSM extract (europe + russia, dated, md5)
+#   build:   tests -> OCM fetch (secret OCM_API_KEY) -> OSM charging stations (Overpass, one query
+#            per country, sequential; a country it will not serve: its dated Geofabrik extract)
 #            -> charging-build.py build + validate against the previous release -> artifact
 #   publish: draft -> upload -> download back -> sha256 -> (verify: delete the draft |
 #            publish: publish -> manifest.json "charging" -> push, 3 rebase retries)
@@ -42,7 +43,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 120   # Overpass is minutes; the per-country Geofabrik fallback needs room
     outputs:
       build: ${{ steps.build.outputs.build }}
     steps:
@@ -66,7 +67,7 @@ jobs:
           echo "::add-mask::$OCM_API_KEY"
           python3 scripts/charging-ocm-fetch.py regional.json "$WORK/ocm"
           python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("requests", r["requests"], "total", r["total"]); [print("  %-3s %6d  pages %d  ids %s..%s  status %s  provider %s" % (c, v["count"], v["pages"], v["min_id"], v["max_id"], v["status"], v["provider"])) for c, v in sorted(r["countries"].items())]' "$WORK/ocm/report.json"
-      - name: OSM extract (europe + russia)
+      - name: OSM charging stations (Overpass per country, Geofabrik fallback)
         run: |
           set -euo pipefail
           base="$WORK"
