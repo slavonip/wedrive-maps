@@ -5,7 +5,8 @@
 #   scripts/charging-osm-extract.sh OUT                 only the charging stations, one Overpass query
 #                                                       per country (charging-osm-overpass.py; a country
 #                                                       Overpass will not serve falls back to its dated,
-#                                                       md5-checked Geofabrik extract; both fail: exit 1)
+#                                                       md5-checked Geofabrik extract; both fail: exit 1;
+#                                                       env CHARGING_OSM_CACHE=DIR: per-country cache)
 #   scripts/charging-osm-extract.sh OUT FILE.osm.pbf…   use local extracts (tests, local measurements)
 #
 # OUT/osm.geojsonseq   one feature per line, id "n123"/"w45"/"r6" (osmium --add-unique-id=type_id),
@@ -75,9 +76,13 @@ if [ $# -gt 0 ]; then
 else
   # one country at a time, sequential; it writes <CC>.osm (Overpass) or <CC>.osm.pbf (Geofabrik)
   # and appends each country's provenance row to $PROV itself
+  # CHARGING_OSM_CACHE: keep each country that succeeded there and reuse it on a later run
+  # (charging-osm-overpass.py --cache; the workflow restores only the same UTC day's cache)
   OV="$WORK/overpass"
   rm -rf "$OV"
-  python3 "$HERE/charging-osm-overpass.py" "$HERE/../regional.json" "$OV" "$PROV"
+  CACHE_ARGS=()
+  if [ -n "${CHARGING_OSM_CACHE:-}" ]; then CACHE_ARGS=(--cache "$CHARGING_OSM_CACHE"); fi
+  python3 "$HERE/charging-osm-overpass.py" "$HERE/../regional.json" "$OV" "$PROV" ${CACHE_ARGS[@]+"${CACHE_ARGS[@]}"}
   for f in "$OV"/*.osm "$OV"/*.osm.pbf; do
     [ -e "$f" ] || continue
     name="$(basename "$f")"; name="${name%%.*}"

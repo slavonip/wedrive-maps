@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Charging stations of every regional.json country from OpenStreetMap, ONLY the stations.
 
-    charging-osm-overpass.py <regional.json> <OUT dir> <provenance.jsonl> [--only CC,CC]
+    charging-osm-overpass.py <regional.json> <OUT dir> <provenance.jsonl> [--only CC,CC] [--cache DIR]
 
 One Overpass query per country, strictly one after another (never in parallel): the country's
 bbox from regional.json, RU through `poly:` built from its polygon (its bbox spans the whole
@@ -22,9 +22,16 @@ Each country appends one provenance row to provenance.jsonl:
 the Geofabrik URL, md5/sha256/bytes describe what was downloaded, replication is Overpass's
 osm_base or the PBF header's timestamp, stations counts the charging objects themselves.
 
+--cache DIR keeps every country that succeeded (its <CC>.osm or <CC>.osm.pbf, that file's own
+sha256 and its provenance row, written atomically), and a country with a complete entry there is
+reused — copied into OUT, its row appended, no network. So a run killed by one country loses none
+of the countries it already had. An entry whose file does not match its recorded sha256, or that
+is incomplete, is ignored and the country fetched again. Freshness is the caller's job: the
+workflow restores only the same UTC day's cache.
+
 Standard library only; osmium and curl are needed for the Geofabrik fallback alone.
 """
-import hashlib, http.client, importlib.util, json, os, re, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
+import hashlib, http.client, importlib.util, json, os, re, shutil, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -238,11 +245,61 @@ def one(cc, cfg, out_dir, root=ROOT, overpass_fn=overpass, geofabrik_fn=geofabri
             "replication": base, "sequence": None, "stations": count_xml(path)}
 
 
+OUTPUTS = ("%s.osm", "%s.osm.pbf")
+
+
+def _atomic_copy(src, dst):
+    shutil.copyfile(src, dst + ".part")
+    os.replace(dst + ".part", dst)
+
+
+def cache_put(cache, cc, out_dir, row):
+    """Keep a country that succeeded: its output file, the file's own sha256 and its provenance row.
+    (The row's sha256 describes what was DOWNLOADED — for Geofabrik the whole extract, not the
+    filtered file — so the file gets its own.)"""
+    files = [n % cc for n in OUTPUTS if os.path.isfile(os.path.join(out_dir, n % cc))]
+    if len(files) != 1:
+        return False
+    name = files[0]
+    os.makedirs(cache, exist_ok=True)
+    meta = os.path.join(cache, "%s.json" % cc)
+    if os.path.exists(meta):                      # the old entry goes first: never an old row beside a new file
+        os.remove(meta)
+    _atomic_copy(os.path.join(out_dir, name), os.path.join(cache, name))
+    entry = {"file": name, "sha256": digest(os.path.join(cache, name))[1], "row": row}
+    with open(meta + ".part", "w", encoding="utf-8") as f:
+        json.dump(entry, f, sort_keys=True)
+    os.replace(meta + ".part", meta)
+    return True
+
+
+def cache_get(cache, cc, out_dir):
+    """-> the provenance row of a complete cache entry (its file copied into out_dir), or None."""
+    meta = os.path.join(cache, "%s.json" % cc)
+    try:
+        with open(meta, encoding="utf-8") as f:
+            entry = json.load(f)
+        name, want, row = entry["file"], entry["sha256"], entry["row"]
+        if name not in [n % cc for n in OUTPUTS] or not isinstance(row, dict) or row.get("name") != cc.lower():
+            return None
+        src = os.path.join(cache, name)
+        if not os.path.isfile(src) or digest(src)[1] != want:
+            return None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    for stale in OUTPUTS:
+        if os.path.exists(os.path.join(out_dir, stale % cc)):
+            os.remove(os.path.join(out_dir, stale % cc))
+    _atomic_copy(src, os.path.join(out_dir, name))
+    return row
+
+
 def main(argv, root=ROOT, one_fn=one, sleep=time.sleep, clock=time.monotonic):
     import argparse
     p = argparse.ArgumentParser(add_help=False)
     p.add_argument("cfg"); p.add_argument("out"); p.add_argument("prov")
     p.add_argument("--only", default="")
+    p.add_argument("--cache", default="")
     try:
         a = p.parse_args(argv)
     except SystemExit:
@@ -255,9 +312,18 @@ def main(argv, root=ROOT, one_fn=one, sleep=time.sleep, clock=time.monotonic):
         want = {c.strip().upper() for c in a.only.split(",") if c.strip()}
         codes = [c for c in codes if c in want]
     os.makedirs(out_dir, exist_ok=True)
-    for i, cc in enumerate(codes):
-        if i:
+    fetched = False                               # PAUSE is owed only between two network fetches
+    for cc in codes:
+        row = cache_get(a.cache, cc, out_dir) if a.cache else None
+        if row is not None:
+            with open(prov, "a", encoding="utf-8") as f:
+                f.write(json.dumps(row, sort_keys=True) + "\n")
+            print("==> %s: from cache (%d charging objects, data %s, %s)"
+                  % (cc, row["stations"], row["replication"], row["url"]))
+            continue
+        if fetched:
             sleep(PAUSE)
+        fetched = True
         t = clock()
         try:
             row = one_fn(cc, cfg, out_dir, root)
@@ -266,6 +332,8 @@ def main(argv, root=ROOT, one_fn=one, sleep=time.sleep, clock=time.monotonic):
             return 1
         with open(prov, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, sort_keys=True) + "\n")
+        if a.cache and not cache_put(a.cache, cc, out_dir, row):
+            print("   %s: not cached (no single output file in %s)" % (cc, out_dir), file=sys.stderr)
         print("==> %s: %d charging objects, data %s, %d bytes, %.1f s, %s"
               % (cc, row["stations"], row["replication"], row["bytes"], clock() - t, row["url"]))
     return 0

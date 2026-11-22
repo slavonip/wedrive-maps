@@ -3,12 +3,19 @@
 # wedrive-charging/1 — published as a release asset and written into the production manifest
 # (manifest.json "charging"), from where the app downloads it itself.
 #
-#   build:   tests -> OCM fetch (secret OCM_API_KEY) -> OSM charging stations (Overpass, one query
-#            per country, sequential; a country it will not serve: its dated Geofabrik extract)
-#            -> charging-build.py build + validate against the previous release -> artifact
+#   build:   network preflight (charging-netcheck.py) -> tests -> OCM fetch (secret OCM_API_KEY)
+#            -> OSM charging stations (Overpass, one query per country, sequential; a country it will not serve: its dated Geofabrik extract)
+#            -> charging-build.py build + validate against the previous release -> artifact.
+#            Countries fetched are kept in an Actions cache of the SAME UTC day
+#            (charging-osm-<date>-<run>), saved even when the run fails, so a re-run fetches only
+#            what is still missing.
+#   redispatch: when the preflight finds a bad runner (overpass-api.de AND download.geofabrik.de,
+#            both on Hetzner, unreachable at the network level — run 45024134477), dispatch this
+#            workflow again, same mode, attempt+1, while attempt < 3. It queues behind this run in
+#            the concurrency group, which is ending.
 #   publish: draft -> upload -> download back -> sha256 -> (verify: delete the draft |
 #            publish: publish -> manifest.json "charging" -> push, 3 rebase retries)
-#   report:  an issue when a scheduled or publish run fails
+#   report:  an issue when a scheduled or publish run fails — not when a bad runner was redispatched
 #
 # One file for Europe, not one per country: the EV planner needs chargers in countries the car has
 # not installed, and deleting a country must not take its chargers away. OCM changes on its own
@@ -28,6 +35,10 @@ on:
         type: choice
         options: [dry, verify, publish]
         default: dry
+      attempt:
+        description: "re-dispatch counter after a bad-runner preflight (set by the workflow itself; at most 3)"
+        type: string
+        default: "1"
   schedule:
     - cron: "17 3 6 * *"   # 6th, 03:17 UTC — after Europe Lite (3rd) and the regional factory (4th)
 
@@ -46,8 +57,18 @@ jobs:
     timeout-minutes: 120   # Overpass is minutes; the per-country Geofabrik fallback needs room
     outputs:
       build: ${{ steps.build.outputs.build }}
+      netbad: ${{ steps.net.outputs.netbad }}
     steps:
       - uses: actions/checkout@v4
+      # A runner with no route to Hetzner (overpass-api.de AND download.geofabrik.de) cannot fetch
+      # Europe: stop here, and the redispatch job tries a fresh runner.
+      - name: network preflight
+        id: net
+        run: |
+          set +e
+          python3 scripts/charging-netcheck.py; rc=$?
+          [ "$rc" -eq 0 ] || echo "netbad=1" >> "$GITHUB_OUTPUT"
+          exit "$rc"
       - name: tests (offline, on fixtures)
         run: python3 tests/test_charging.py
       - name: tools and disk
@@ -56,6 +77,10 @@ jobs:
           sudo apt-get -qq update && sudo apt-get -qq install -y osmium-tool >/dev/null
           osmium --version | head -1; python3 --version; df -h / "$RUNNER_TEMP"
           echo "WORK=$RUNNER_TEMP/charging" >> "$GITHUB_ENV"
+          echo "CHARGING_OSM_CACHE=$RUNNER_TEMP/charging-osm-cache" >> "$GITHUB_ENV"
+      - name: cache day (UTC)
+        id: day
+        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
       # The key exists ONLY as the Actions secret. It goes into the X-API-Key header and nowhere
       # else (never a URL, never a log line); add-mask hides it should anything ever print it.
       - name: OCM fetch
@@ -67,11 +92,26 @@ jobs:
           echo "::add-mask::$OCM_API_KEY"
           python3 scripts/charging-ocm-fetch.py regional.json "$WORK/ocm"
           python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("requests", r["requests"], "total", r["total"]); [print("  %-3s %6d  pages %d  ids %s..%s  status %s  provider %s" % (c, v["count"], v["pages"], v["min_id"], v["max_id"], v["status"], v["provider"])) for c, v in sorted(r["countries"].items())]' "$WORK/ocm/report.json"
+      # only the same UTC day's countries come back: an older fetch is not fresh enough
+      - name: restore the per-country OSM cache (same UTC day)
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/charging-osm-cache
+          key: charging-osm-${{ steps.day.outputs.date }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: charging-osm-${{ steps.day.outputs.date }}-
       - name: OSM charging stations (Overpass per country, Geofabrik fallback)
+        id: osm
         run: |
           set -euo pipefail
           base="$WORK"
           WORK="$base/osm-work" bash scripts/charging-osm-extract.sh "$base/osm"
+      # saved even when the step failed: the countries it did fetch are not lost
+      - name: save the per-country OSM cache
+        if: always() && (steps.osm.outcome == 'success' || steps.osm.outcome == 'failure')
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/charging-osm-cache
+          key: charging-osm-${{ steps.day.outputs.date }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: build
         id: build
         run: |
@@ -168,9 +208,37 @@ jobs:
                 echo "pruning $old"; gh release delete "$old" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
               done
 
+  # A bad runner (the preflight failed) is not a failed catalogue: try a fresh one, same mode.
+  redispatch:
+    needs: build
+    if: always() && needs.build.result == 'failure' && needs.build.outputs.netbad == '1'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    outputs:
+      dispatched: ${{ steps.again.outputs.dispatched }}
+    steps:
+      - name: dispatch this workflow again (attempt + 1, at most 3)
+        id: again
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ github.event_name == 'schedule' && 'publish' || inputs.mode }}
+          ATTEMPT: ${{ github.event_name == 'schedule' && '1' || inputs.attempt }}
+          REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          case "$ATTEMPT" in ''|*[!0-9]*) ATTEMPT=1 ;; esac
+          if [ "$ATTEMPT" -ge 3 ]; then
+            echo "::error::bad runner on attempt $ATTEMPT of 3 — not dispatching again"; exit 0
+          fi
+          next=$((ATTEMPT + 1))
+          gh workflow run charging-factory.yml --repo "$GITHUB_REPOSITORY" --ref "$REF" -f mode="$MODE" -f attempt="$next"
+          echo "dispatched=1" >> "$GITHUB_OUTPUT"
+          echo "::warning::bad runner — charging factory dispatched again: mode $MODE, attempt $next, ref $REF"
+
   report:
-    needs: [build, publish]
-    if: always() && (needs.build.result == 'failure' || needs.publish.result == 'failure') && (github.event_name == 'schedule' || inputs.mode == 'publish')
+    needs: [build, publish, redispatch]
+    if: always() && (needs.build.result == 'failure' || needs.publish.result == 'failure') && (github.event_name == 'schedule' || inputs.mode == 'publish') && needs.redispatch.outputs.dispatched != '1'
     runs-on: ubuntu-latest
     permissions:
       issues: write

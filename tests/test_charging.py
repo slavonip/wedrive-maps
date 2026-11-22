@@ -31,6 +31,7 @@ def load(name, file):
 
 ocm = load("charging_ocm_fetch", "charging-ocm-fetch.py")
 ovp = load("charging_osm_overpass", "charging-osm-overpass.py")
+netcheck = load("charging_netcheck", "charging-netcheck.py")
 build = load("charging_build", "charging-build.py")
 cman = load("charging_manifest", "charging-manifest.py")
 CFG = json.load(open(os.path.join(ROOT, "regional.json"), encoding="utf-8"))
@@ -1263,6 +1264,161 @@ class OverpassFetch(unittest.TestCase):
                               fetch=fetch, run=run, log=quiet)
         finally:
             shutil.rmtree(d)
+
+
+class OsmCache(unittest.TestCase):
+    """--cache: a country that succeeded is kept and reused; a damaged entry is fetched again."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.cfg = os.path.join(self.d, "cfg.json")
+        json.dump({"countries": {"MD": CFG["countries"]["MD"], "RO": CFG["countries"]["RO"]}}, open(self.cfg, "w"))
+        self.cache = os.path.join(self.d, "cache")
+        self.calls = []
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def fake_one(self, cc, cfg, out_dir, root):
+        """Writes <CC>.osm (MD, as Overpass) or <CC>.osm.pbf (RO, as Geofabrik) and returns its row."""
+        self.calls.append(cc)
+        name = "%s.osm" % cc if cc == "MD" else "%s.osm.pbf" % cc
+        body = GOOD if cc == "MD" else b"pbf-" + cc.encode()
+        open(os.path.join(out_dir, name), "wb").write(body)
+        return {"name": cc.lower(), "url": "u-" + cc, "md5": "m", "sha256": "source-sha-" + cc, "bytes": len(body),
+                "replication": "2026-11-22T08:00:00Z", "sequence": None, "stations": 3}
+
+    def run_main(self, out, prov, one_fn=None, sleeps=None):
+        import contextlib, io as _io
+        o = _io.StringIO()
+        with contextlib.redirect_stdout(o), contextlib.redirect_stderr(_io.StringIO()):
+            rc = ovp.main([self.cfg, out, prov, "--cache", self.cache], root=ROOT, one_fn=one_fn or self.fake_one,
+                          sleep=(sleeps.append if sleeps is not None else (lambda s: None)))
+        return rc, o.getvalue()
+
+    def rows(self, prov):
+        return [json.loads(l) for l in open(prov, encoding="utf-8") if l.strip()]
+
+    def test_a_successful_fetch_populates_the_cache(self):
+        rc, _ = self.run_main(os.path.join(self.d, "out"), os.path.join(self.d, "p.jsonl"))
+        self.assertEqual(rc, 0)
+        self.assertEqual(sorted(os.listdir(self.cache)), ["MD.json", "MD.osm", "RO.json", "RO.osm.pbf"])
+        md = json.load(open(os.path.join(self.cache, "MD.json")))
+        self.assertEqual(md["file"], "MD.osm")
+        self.assertEqual(md["sha256"], hashlib.sha256(GOOD).hexdigest())        # the FILE's own sha256
+        self.assertEqual(md["row"]["url"], "u-MD")
+        self.assertEqual(open(os.path.join(self.cache, "MD.osm"), "rb").read(), GOOD)
+        self.assertFalse([n for n in os.listdir(self.cache) if n.endswith(".part")])
+
+    def test_reuse_skips_the_network_and_the_pause(self):
+        self.run_main(os.path.join(self.d, "out1"), os.path.join(self.d, "p1.jsonl"))
+        first = self.rows(os.path.join(self.d, "p1.jsonl"))
+        self.calls.clear()
+
+        def no_network(*a, **k):
+            raise AssertionError("fetched a cached country")
+        sleeps = []
+        out2, prov2 = os.path.join(self.d, "out2"), os.path.join(self.d, "p2.jsonl")
+        rc, log = self.run_main(out2, prov2, one_fn=no_network, sleeps=sleeps)
+        self.assertEqual(rc, 0, log)
+        self.assertEqual(sleeps, [])
+        self.assertIn("==> MD: from cache", log)
+        self.assertIn("==> RO: from cache", log)
+        self.assertEqual(self.rows(prov2), first)
+        self.assertEqual(open(os.path.join(out2, "MD.osm"), "rb").read(), GOOD)
+        self.assertEqual(open(os.path.join(out2, "RO.osm.pbf"), "rb").read(), b"pbf-RO")
+
+    def test_a_sha_mismatch_is_fetched_again(self):
+        self.run_main(os.path.join(self.d, "out1"), os.path.join(self.d, "p1.jsonl"))
+        open(os.path.join(self.cache, "MD.osm"), "wb").write(TRUNCATED)       # damaged file
+        os.remove(os.path.join(self.cache, "RO.osm.pbf"))                     # incomplete entry
+        self.calls.clear()
+        sleeps = []
+        out2 = os.path.join(self.d, "out2")
+        rc, log = self.run_main(out2, os.path.join(self.d, "p2.jsonl"), sleeps=sleeps)
+        self.assertEqual(rc, 0, log)
+        self.assertEqual(self.calls, ["MD", "RO"])
+        self.assertNotIn("from cache", log)
+        self.assertEqual(sleeps, [ovp.PAUSE])                                 # between the two fetches only
+        self.assertEqual(open(os.path.join(out2, "MD.osm"), "rb").read(), GOOD)
+        self.assertEqual(open(os.path.join(self.cache, "MD.osm"), "rb").read(), GOOD)   # repaired
+        self.assertTrue(os.path.isfile(os.path.join(self.cache, "RO.osm.pbf")))
+
+    def test_a_failed_run_keeps_what_it_fetched(self):
+        def ro_fails(cc, cfg, out_dir, root):
+            if cc == "RO":
+                raise ovp.Failure("RO: Overpass and Geofabrik both failed")
+            return self.fake_one(cc, cfg, out_dir, root)
+        rc, _ = self.run_main(os.path.join(self.d, "out1"), os.path.join(self.d, "p1.jsonl"), one_fn=ro_fails)
+        self.assertEqual(rc, 1)
+        self.assertEqual(sorted(os.listdir(self.cache)), ["MD.json", "MD.osm"])
+        self.calls.clear()
+        rc, log = self.run_main(os.path.join(self.d, "out2"), os.path.join(self.d, "p2.jsonl"))
+        self.assertEqual(rc, 0)
+        self.assertEqual(self.calls, ["RO"])
+        self.assertIn("==> MD: from cache", log)
+
+    def test_without_cache_nothing_is_kept(self):
+        import contextlib, io as _io
+        with contextlib.redirect_stdout(_io.StringIO()):
+            rc = ovp.main([self.cfg, os.path.join(self.d, "out"), os.path.join(self.d, "p.jsonl")],
+                          root=ROOT, one_fn=self.fake_one, sleep=lambda s: None)
+        self.assertEqual(rc, 0)
+        self.assertFalse(os.path.exists(self.cache))
+
+
+class NetCheck(unittest.TestCase):
+    """The preflight: only a network-level failure of BOTH Hetzner hosts is a bad runner."""
+    OV, PC, GF = netcheck.HOSTS
+
+    def decide(self, down=(), http_error=()):
+        import urllib.error
+        seen = []
+
+        def probe(url):
+            seen.append(url)
+            if url in down:
+                raise urllib.error.URLError(OSError(101, "Network is unreachable"))
+            if url in http_error:
+                raise urllib.error.HTTPError(url, 504, "Gateway Timeout", {}, None)
+            return "HTTP 200"
+        lines = []
+        rc = netcheck.check(probe=probe, tries=2, log=lambda *a, **k: lines.append(" ".join(map(str, a))))
+        return rc, "\n".join(lines), seen
+
+    def test_all_reachable_passes(self):
+        rc, log, _ = self.decide()
+        self.assertEqual(rc, 0)
+        self.assertEqual(log.count(" reachable"), 3)
+
+    def test_an_http_error_counts_as_reachable(self):
+        rc, log, _ = self.decide(http_error=netcheck.HOSTS)
+        self.assertEqual(rc, 0, log)
+        self.assertNotIn("UNREACHABLE", log)
+
+    def test_both_hetzner_hosts_down_is_a_bad_runner(self):
+        rc, log, seen = self.decide(down=(self.OV, self.GF))
+        self.assertEqual(rc, 1)
+        self.assertIn("::error::bad runner", log)
+        self.assertEqual(seen.count(self.OV), 2)                              # tried twice each
+        self.assertEqual(seen.count(self.GF), 2)
+        self.assertIn(self.PC, log)                                           # all three printed
+
+    def test_only_private_coffee_down_passes(self):
+        rc, log, _ = self.decide(down=(self.PC,))
+        self.assertEqual(rc, 0)
+        self.assertIn("UNREACHABLE", log)
+
+    def test_one_hetzner_host_left_passes(self):
+        for gone in (self.OV, self.GF):
+            rc, _, _ = self.decide(down=(gone, self.PC))
+            self.assertEqual(rc, 0, gone)
+
+    def test_a_timeout_is_unreachable(self):
+        def probe(url):
+            raise TimeoutError("timed out")
+        rc = netcheck.check(probe=probe, tries=1, log=quiet)
+        self.assertEqual(rc, 1)
 
 
 class Coverage(unittest.TestCase):
