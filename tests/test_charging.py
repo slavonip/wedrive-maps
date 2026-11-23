@@ -1266,6 +1266,85 @@ class OverpassFetch(unittest.TestCase):
             shutil.rmtree(d)
 
 
+class DeadEndpoint(unittest.TestCase):
+    """An endpoint that cannot be REACHED twice in a row is skipped for the rest of the run."""
+
+    def test_unreachable_twice_retires_the_endpoint_for_later_countries(self):
+        import urllib.error
+        calls = []
+
+        def post(ep, q):
+            calls.append(ep)
+            if ep == "dead":
+                raise urllib.error.URLError(OSError(101, "Network is unreachable"))
+            return GOOD
+        dead, clock = set(), Clock()
+        ep, body, _ = ovp.overpass("MD", "q", endpoints=("dead", "live"), attempts=3, post=post,
+                                   sleep=clock.sleep, log=quiet, dead=dead)
+        self.assertEqual(ep, "live")
+        self.assertEqual(calls, ["dead", "dead", "live"])          # 2 tries, not 3
+        self.assertEqual(dead, {"dead"})
+        calls.clear()
+        ovp.overpass("RO", "q", endpoints=("dead", "live"), attempts=3, post=post, sleep=clock.sleep, log=quiet, dead=dead)
+        self.assertEqual(calls, ["live"])                           # never tried again
+
+    def test_http_answers_never_retire_an_endpoint(self):
+        import urllib.error
+
+        def post(ep, q):
+            raise urllib.error.HTTPError(ep, 504, "busy", {}, None)
+        dead = set()
+        with self.assertRaises(ovp.Failure):
+            ovp.overpass("MD", "q", endpoints=("a",), attempts=3, post=post, sleep=Clock().sleep, log=quiet, dead=dead)
+        self.assertEqual(dead, set())
+
+    def test_a_reached_answer_between_network_errors_resets_the_count(self):
+        import urllib.error
+        seq = [urllib.error.URLError("x"), urllib.error.HTTPError("a", 502, "bad", {}, None), urllib.error.URLError("y")]
+
+        def post(ep, q):
+            raise seq.pop(0)
+        dead = set()
+        with self.assertRaises(ovp.Failure):
+            ovp.overpass("MD", "q", endpoints=("a",), attempts=3, post=post, sleep=Clock().sleep, log=quiet, dead=dead)
+        self.assertEqual(dead, set())
+
+    def test_all_endpoints_dead_fails_fast_to_the_fallback(self):
+        calls = []
+
+        def post(ep, q):
+            calls.append(ep)
+            return GOOD
+        with self.assertRaises(ovp.Failure):
+            ovp.overpass("MD", "q", endpoints=("a", "b"), post=post, sleep=Clock().sleep, log=quiet, dead={"a", "b"})
+        self.assertEqual(calls, [])
+
+
+class CacheAge(unittest.TestCase):
+    """A cached country is reused only while its DATA is younger than CACHE_MAX_AGE_DAYS."""
+
+    def put(self, cache, out, stamp):
+        open(os.path.join(out, "MD.osm"), "wb").write(GOOD)
+        row = {"name": "md", "url": "u", "md5": "m", "sha256": "s", "bytes": len(GOOD),
+               "replication": stamp, "sequence": None, "stations": 3}
+        self.assertTrue(ovp.cache_put(cache, "MD", out, row))
+
+    def test_age_bound(self):
+        import calendar
+        d = tempfile.mkdtemp()
+        try:
+            cache, out = os.path.join(d, "c"), os.path.join(d, "o")
+            os.makedirs(out)
+            self.put(cache, out, "2026-11-22T20:00:00Z")
+            t = calendar.timegm((2026, 11, 22, 20, 0, 0))
+            self.assertIsNotNone(ovp.cache_get(cache, "MD", out, now=t + 3.9 * 86400))
+            self.assertIsNone(ovp.cache_get(cache, "MD", out, now=t + 4.1 * 86400))
+            self.put(cache, out, "not a date")
+            self.assertIsNone(ovp.cache_get(cache, "MD", out, now=t))
+        finally:
+            shutil.rmtree(d)
+
+
 class OsmCache(unittest.TestCase):
     """--cache: a country that succeeded is kept and reused; a damaged entry is fetched again."""
 
@@ -1286,7 +1365,7 @@ class OsmCache(unittest.TestCase):
         body = GOOD if cc == "MD" else b"pbf-" + cc.encode()
         open(os.path.join(out_dir, name), "wb").write(body)
         return {"name": cc.lower(), "url": "u-" + cc, "md5": "m", "sha256": "source-sha-" + cc, "bytes": len(body),
-                "replication": "2026-11-22T08:00:00Z", "sequence": None, "stations": 3}
+                "replication": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "sequence": None, "stations": 3}
 
     def run_main(self, out, prov, one_fn=None, sleeps=None):
         import contextlib, io as _io

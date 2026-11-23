@@ -26,8 +26,14 @@ osm_base or the PBF header's timestamp, stations counts the charging objects the
 sha256 and its provenance row, written atomically), and a country with a complete entry there is
 reused — copied into OUT, its row appended, no network. So a run killed by one country loses none
 of the countries it already had. An entry whose file does not match its recorded sha256, or that
-is incomplete, is ignored and the country fetched again. Freshness is the caller's job: the
-workflow restores only the same UTC day's cache.
+is incomplete, is ignored and the country fetched again. So is an entry whose DATA (its
+replication timestamp) is older than CACHE_MAX_AGE_DAYS: the workflow restores the last few days'
+caches, and a reused entry is saved again under today's key, so without this bound one fetch
+could be carried forward for ever.
+
+An endpoint that cannot be REACHED (a network error, not an HTTP answer) DEAD_AFTER times in a row
+is skipped for the rest of the run: on 2026-11-22 a runner lost its route to overpass-api.de an
+hour in, and every later country spent ~15 min on three tries at a dead host before moving on.
 
 Standard library only; osmium and curl are needed for the Geofabrik fallback alone.
 """
@@ -49,6 +55,9 @@ BACKOFF = 30.0               # seconds before the 2nd try, doubled after each fa
 BACKOFF_MAX = 300.0
 HTTP_TIMEOUT = 660           # the query's own [timeout:600], plus room for the answer to arrive
 PAUSE = 2.0                  # between two countries
+DEAD_AFTER = 2               # consecutive network failures (not HTTP answers) that retire an endpoint
+CACHE_MAX_AGE_DAYS = 4       # data date; a Geofabrik extract is up to a day older than its fetch
+DEAD = set()                 # endpoints retired for the rest of this process
 
 
 class Failure(Exception):
@@ -114,16 +123,34 @@ def http_post(endpoint, q, timeout=HTTP_TIMEOUT):
         return r.read()
 
 
-def overpass(cc, q, endpoints=ENDPOINTS, attempts=ATTEMPTS, post=http_post, sleep=time.sleep, log=print):
-    """-> (endpoint, body, osm_base), or Failure after `attempts` tries on every endpoint."""
+def _network(e):
+    """True when the host was not reached at all (no route, refused, DNS, connect/read timeout) —
+    as opposed to an HTTP answer or a bad body, which prove the host is alive."""
+    if isinstance(e, urllib.error.HTTPError):
+        return False
+    if isinstance(e, urllib.error.URLError):
+        return True
+    return isinstance(e, (OSError, TimeoutError)) and not isinstance(e, Failure)
+
+
+def overpass(cc, q, endpoints=ENDPOINTS, attempts=ATTEMPTS, post=http_post, sleep=time.sleep, log=print, dead=None):
+    """-> (endpoint, body, osm_base), or Failure after `attempts` tries on every live endpoint.
+    `dead` (default: the module's DEAD) collects endpoints that failed DEAD_AFTER times in a row
+    without being reached; they are skipped from then on, by this and every later call."""
+    dead = DEAD if dead is None else dead
     for ep in endpoints:
+        if ep in dead:
+            log("   %s: %s skipped (unreachable earlier in this run)" % (cc, ep), file=sys.stderr)
+            continue
         delay = BACKOFF
+        unreached = 0
         for i in range(1, attempts + 1):
             wait = delay
             try:
                 body = post(ep, q)
                 return ep, body, check_body(body)
             except urllib.error.HTTPError as e:
+                unreached = 0
                 why = "HTTP %s" % e.code
                 ra = (e.headers or {}).get("Retry-After") if e.headers is not None else None
                 if ra and str(ra).strip().isdigit():
@@ -132,11 +159,17 @@ def overpass(cc, q, endpoints=ENDPOINTS, attempts=ATTEMPTS, post=http_post, slee
             # an OSError, and both are the real-world shape of a truncated answer
             except (Failure, urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as e:
                 why = "%s: %s" % (type(e).__name__, e)
+                unreached = unreached + 1 if _network(e) else 0
             log("   %s: %s attempt %d/%d failed: %s" % (cc, ep, i, attempts, why), file=sys.stderr)
+            if unreached >= DEAD_AFTER:
+                dead.add(ep)
+                log("   %s: %s unreachable %d times in a row — skipped for the rest of this run"
+                    % (cc, ep, unreached), file=sys.stderr)
+                break
             if i < attempts:
                 sleep(wait)
                 delay = min(delay * 2, BACKOFF_MAX)
-    raise Failure("%s: Overpass failed %d times on each of %s" % (cc, attempts, ", ".join(endpoints)))
+    raise Failure("%s: Overpass failed on each of %s" % (cc, ", ".join(endpoints)))
 
 
 def count_xml(path):
@@ -273,14 +306,25 @@ def cache_put(cache, cc, out_dir, row):
     return True
 
 
-def cache_get(cache, cc, out_dir):
-    """-> the provenance row of a complete cache entry (its file copied into out_dir), or None."""
+def _age_days(stamp, now):
+    """Days between an OSM replication timestamp ('2026-11-22T20:59:00Z') and `now` (epoch s)."""
+    import calendar
+    t = calendar.timegm(time.strptime(str(stamp).strip(), "%Y-%m-%dT%H:%M:%SZ"))
+    return (now - t) / 86400.0
+
+
+def cache_get(cache, cc, out_dir, now=None, max_age=CACHE_MAX_AGE_DAYS):
+    """-> the provenance row of a complete cache entry (its file copied into out_dir), or None.
+    An entry whose data date is older than `max_age` days, or cannot be read, is not reused."""
     meta = os.path.join(cache, "%s.json" % cc)
+    now = time.time() if now is None else now
     try:
         with open(meta, encoding="utf-8") as f:
             entry = json.load(f)
         name, want, row = entry["file"], entry["sha256"], entry["row"]
         if name not in [n % cc for n in OUTPUTS] or not isinstance(row, dict) or row.get("name") != cc.lower():
+            return None
+        if _age_days(row.get("replication"), now) > max_age:
             return None
         src = os.path.join(cache, name)
         if not os.path.isfile(src) or digest(src)[1] != want:

@@ -80,7 +80,10 @@ jobs:
           echo "CHARGING_OSM_CACHE=$RUNNER_TEMP/charging-osm-cache" >> "$GITHUB_ENV"
       - name: cache day (UTC)
         id: day
-        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+        run: |
+          { echo "date=$(date -u +%F)"
+            echo "d1=$(date -u -d '1 day ago' +%F)"
+            echo "d2=$(date -u -d '2 days ago' +%F)"; } >> "$GITHUB_OUTPUT"
       # The key exists ONLY as the Actions secret. It goes into the X-API-Key header and nowhere
       # else (never a URL, never a log line); add-mask hides it should anything ever print it.
       - name: OCM fetch
@@ -92,13 +95,17 @@ jobs:
           echo "::add-mask::$OCM_API_KEY"
           python3 scripts/charging-ocm-fetch.py regional.json "$WORK/ocm"
           python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("requests", r["requests"], "total", r["total"]); [print("  %-3s %6d  pages %d  ids %s..%s  status %s  provider %s" % (c, v["count"], v["pages"], v["min_id"], v["max_id"], v["status"], v["provider"])) for c, v in sorted(r["countries"].items())]' "$WORK/ocm/report.json"
-      # only the same UTC day's countries come back: an older fetch is not fresh enough
-      - name: restore the per-country OSM cache (same UTC day)
+      # the newest of the last three UTC days' caches comes back; charging-osm-overpass.py itself
+      # refuses an entry whose DATA is older than CACHE_MAX_AGE_DAYS, so re-saving cannot age it for ever
+      - name: restore the per-country OSM cache (last three UTC days)
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/charging-osm-cache
           key: charging-osm-${{ steps.day.outputs.date }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: charging-osm-${{ steps.day.outputs.date }}-
+          restore-keys: |
+            charging-osm-${{ steps.day.outputs.date }}-
+            charging-osm-${{ steps.day.outputs.d1 }}-
+            charging-osm-${{ steps.day.outputs.d2 }}-
       - name: OSM charging stations (Overpass per country, Geofabrik fallback)
         id: osm
         # below the job limit on purpose: a step that hits ITS timeout FAILS, a job that hits its own is
