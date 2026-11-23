@@ -56,6 +56,8 @@ BACKOFF_MAX = 300.0
 HTTP_TIMEOUT = 660           # the query's own [timeout:600], plus room for the answer to arrive
 PAUSE = 2.0                  # between two countries
 DEAD_AFTER = 2               # consecutive network failures (not HTTP answers) that retire an endpoint
+DATA_MAX_AGE_DAYS = 30       # an Overpass answer whose osm_base is older is refused (a mirror that stopped
+                             # replicating: private.coffee served July data in November 2026)
 CACHE_MAX_AGE_DAYS = 4       # data date; a Geofabrik extract is up to a day older than its fetch
 DEAD = set()                 # endpoints retired for the rest of this process
 
@@ -133,22 +135,36 @@ def _network(e):
     return isinstance(e, (OSError, TimeoutError)) and not isinstance(e, Failure)
 
 
-def overpass(cc, q, endpoints=ENDPOINTS, attempts=ATTEMPTS, post=http_post, sleep=time.sleep, log=print, dead=None):
+def overpass(cc, q, endpoints=ENDPOINTS, attempts=ATTEMPTS, post=http_post, sleep=time.sleep, log=print, dead=None,
+             now=None, max_age=None):
     """-> (endpoint, body, osm_base), or Failure after `attempts` tries on every live endpoint.
     `dead` (default: the module's DEAD) collects endpoints that failed DEAD_AFTER times in a row
-    without being reached; they are skipped from then on, by this and every later call."""
+    without being reached; they are skipped from then on, by this and every later call.
+    An answer whose data date (osm_base) is older than `max_age` days is STALE: that endpoint is
+    left at once (retrying a mirror that stopped replicating returns the same old data) and the
+    next one — finally the Geofabrik extract — is tried instead."""
     dead = DEAD if dead is None else dead
+    max_age = DATA_MAX_AGE_DAYS if max_age is None else max_age
     for ep in endpoints:
         if ep in dead:
             log("   %s: %s skipped (unreachable earlier in this run)" % (cc, ep), file=sys.stderr)
             continue
         delay = BACKOFF
         unreached = 0
+        stale = None
         for i in range(1, attempts + 1):
             wait = delay
             try:
                 body = post(ep, q)
-                return ep, body, check_body(body)
+                base = check_body(body)
+                try:
+                    age = _age_days(base, time.time() if now is None else now)
+                except ValueError:
+                    age = None                       # an unreadable date is check_body's business, not ours
+                if age is not None and age > max_age:
+                    stale = "data %s is %.0f days old (limit %d)" % (base, age, max_age)
+                    break
+                return ep, body, base
             except urllib.error.HTTPError as e:
                 unreached = 0
                 why = "HTTP %s" % e.code
@@ -169,6 +185,8 @@ def overpass(cc, q, endpoints=ENDPOINTS, attempts=ATTEMPTS, post=http_post, slee
             if i < attempts:
                 sleep(wait)
                 delay = min(delay * 2, BACKOFF_MAX)
+        if stale:
+            log("   %s: %s refused: %s" % (cc, ep, stale), file=sys.stderr)
     raise Failure("%s: Overpass failed on each of %s" % (cc, ", ".join(endpoints)))
 
 

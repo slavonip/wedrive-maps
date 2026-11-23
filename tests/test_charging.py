@@ -68,6 +68,9 @@ def run_build(out):
 
 # ─────────────────────────────── status, usage, connectors (AC-4, AC-5) ───────────────────────────────
 
+# fixtures carry a fixed osm_base (2026-11-22); tests that check the data-age limit pass it explicitly
+ovp.DATA_MAX_AGE_DAYS = 10 ** 9
+
 class Status(unittest.TestCase):
     def test_every_ocm_status_code(self):
         want = {0: "UNKNOWN", 10: "OPERATIONAL", 20: "OPERATIONAL", 30: "NOT_OPERATIONAL", 50: "OPERATIONAL",
@@ -1264,6 +1267,35 @@ class OverpassFetch(unittest.TestCase):
                               fetch=fetch, run=run, log=quiet)
         finally:
             shutil.rmtree(d)
+
+
+class StaleData(unittest.TestCase):
+    """An answer whose osm_base is older than the limit is refused; the next endpoint is used."""
+    T = 1795392000.0                                  # 2026-11-23T00:00:00Z
+
+    def test_a_stale_mirror_is_left_for_the_next_endpoint_without_retrying(self):
+        old = GOOD.replace(b"2026-11-22T08:00:00Z", b"2026-07-24T11:04:51Z")
+        self.assertNotEqual(old, GOOD)
+        calls = []
+
+        def post(ep, q):
+            calls.append(ep)
+            return old if ep == "mirror" else GOOD
+        ep, body, base = ovp.overpass("SI", "q", endpoints=("mirror", "main"), attempts=3, post=post,
+                                      sleep=Clock().sleep, log=quiet, dead=set(), now=self.T, max_age=30)
+        self.assertEqual((ep, base), ("main", "2026-11-22T08:00:00Z"))
+        self.assertEqual(calls, ["mirror", "main"])                # one try at the stale mirror, not three
+
+    def test_only_stale_answers_fail_to_the_geofabrik_fallback(self):
+        old = GOOD.replace(b"2026-11-22T08:00:00Z", b"2026-07-24T11:04:51Z")
+        with self.assertRaises(ovp.Failure):
+            ovp.overpass("SI", "q", endpoints=("a", "b"), post=lambda ep, q: old, sleep=Clock().sleep,
+                         log=quiet, dead=set(), now=self.T, max_age=30)
+
+    def test_a_fresh_answer_passes(self):
+        ep, _, _ = ovp.overpass("MD", "q", endpoints=("a",), post=lambda ep, q: GOOD, sleep=Clock().sleep,
+                                log=quiet, dead=set(), now=self.T, max_age=30)
+        self.assertEqual(ep, "a")
 
 
 class DeadEndpoint(unittest.TestCase):
