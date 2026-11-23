@@ -4689,5 +4689,440 @@
     ],
     "schema": "protomaps-v4",
     "url": "https://github.com/slavonip/wedrive-maps/releases/download/world-20260927/world.pmtiles"
+  },
+  "charging": {
+    "format": "wedrive-charging/1",
+    "build": "2026-11-23",
+    "bytes": 33013816,
+    "sha256": "a17eb6351af2c2db5e55437ffab60604509d4c27ffb5f1d5004def8cdaf6af55",
+    "sqlite_bytes": 95703040,
+    "sqlite_sha256": "32eb62c0c133b7822d69206274dabed22c552bc943e96d87d2d57983e7a1a069",
+    "counts": {
+      "clusters": 293161,
+      "dropped_licence": 499,
+      "dropped_removed": 307,
+      "ocm": 150377,
+      "ocm_by_country": {
+        "AD": 107,
+        "AL": 15,
+        "AT": 1352,
+        "BA": 47,
+        "BE": 1299,
+        "BG": 157,
+        "BY": 49,
+        "CH": 919,
+        "CY": 94,
+        "CZ": 657,
+        "DE": 24657,
+        "DK": 2585,
+        "EE": 173,
+        "ES": 20725,
+        "FI": 5973,
+        "FO": 5,
+        "FR": 16214,
+        "GB": 27651,
+        "GE": 82,
+        "GR": 295,
+        "HR": 304,
+        "HU": 904,
+        "IE": 2632,
+        "IM": 59,
+        "IS": 932,
+        "IT": 10724,
+        "LI": 17,
+        "LT": 1993,
+        "LU": 91,
+        "LV": 96,
+        "MC": 37,
+        "MD": 46,
+        "ME": 32,
+        "MK": 14,
+        "MT": 57,
+        "NL": 8263,
+        "NO": 4796,
+        "PL": 528,
+        "PT": 3750,
+        "RO": 809,
+        "RS": 126,
+        "RU": 2712,
+        "SE": 4970,
+        "SI": 219,
+        "SK": 291,
+        "TR": 2278,
+        "UA": 578,
+        "XG": 44,
+        "XK": 19
+      },
+      "osm": 177074,
+      "osm_by_country": {
+        "AD": 11,
+        "AL": 78,
+        "AT": 6953,
+        "BA": 191,
+        "BE": 6098,
+        "BG": 941,
+        "BY": 785,
+        "CH": 3750,
+        "CY": 70,
+        "CZ": 3115,
+        "DE": 47867,
+        "DK": 3467,
+        "EE": 525,
+        "ES": 5207,
+        "FI": 1423,
+        "FO": 20,
+        "FR": 21940,
+        "GB": 8290,
+        "GE": 263,
+        "GR": 4570,
+        "HR": 593,
+        "HU": 1916,
+        "IE": 1362,
+        "IM": 60,
+        "IS": 388,
+        "IT": 9884,
+        "LI": 25,
+        "LT": 464,
+        "LU": 570,
+        "LV": 408,
+        "MC": 10,
+        "MD": 68,
+        "ME": 17,
+        "MK": 30,
+        "MT": 44,
+        "NL": 22610,
+        "NO": 2895,
+        "PL": 3143,
+        "PT": 7197,
+        "RO": 763,
+        "RS": 116,
+        "RU": 1677,
+        "SE": 3853,
+        "SI": 536,
+        "SK": 1166,
+        "TR": 727,
+        "UA": 899,
+        "XA": 74,
+        "XG": 7,
+        "XK": 8
+      },
+      "stations": 327451,
+      "status": {
+        "NOT_OPERATIONAL": 2611,
+        "OPERATIONAL": 117337,
+        "PARTLY": 846,
+        "PLANNED": 1985,
+        "UNKNOWN": 204672
+      }
+    },
+    "sources": {
+      "ocm": {
+        "fetched": "2026-11-23T06:36:50Z",
+        "requests": 71
+      },
+      "osm": [
+        {
+          "md5": "d26bc67c9c676c2f9f6bdf0b504a536f",
+          "name": "ad",
+          "replication": "2026-11-22T21:19:51Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "e53465619e69a48e497057e4289f4f8d",
+          "name": "al",
+          "replication": "2026-11-22T21:20:48Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "be1be0a4d54daa6f011c395c00d43cc2",
+          "name": "at",
+          "replication": "2026-11-22T21:21:48Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "ec0445fe43d738711a1010e218a6de01",
+          "name": "ba",
+          "replication": "2026-11-22T21:22:51Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "7ebfa4f52053a232445f18a2922de7ea",
+          "name": "be",
+          "replication": "2026-11-22T21:23:49Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "4beb517525818df3e43bf10bb9dfad09",
+          "name": "bg",
+          "replication": "2026-11-22T21:24:55Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "c4679253b25f713ae6da53dc7f93a7be",
+          "name": "by",
+          "replication": "2026-11-22T21:27:02Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "fe01a32b8e8fc385e8414373efb3edeb",
+          "name": "ch",
+          "replication": "2026-11-22T21:28:02Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "5687a97ed17186a1f8c7415f63b775b5",
+          "name": "cy",
+          "replication": "2026-11-22T21:29:00Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "8eb8c95bb8a9ed2822a539ca37e20105",
+          "name": "cz",
+          "replication": "2026-11-22T21:30:02Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "824be1e56d00522442d0f7c29a1980f9",
+          "name": "de",
+          "replication": "2026-11-22T21:32:01Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "a11cb6625fd44833af3e46dcd071e547",
+          "name": "dk",
+          "replication": "2026-11-22T21:35:06Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "893b5812b3a94da5b82a3161d309ddb9",
+          "name": "ee",
+          "replication": "2026-11-22T21:36:05Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "07d50e20596e5c1164dc7f4a790c7556",
+          "name": "es",
+          "replication": "2026-11-22T21:37:06Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "946b148418615d7bf39685b590eca885",
+          "name": "fi",
+          "replication": "2026-11-22T21:39:05Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "2f9fb624bd38c5a5c242e669e18c4361",
+          "name": "fo",
+          "replication": "2026-11-22T21:40:06Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "49678d2ba7e14372f89b9e4ae9b670f2",
+          "name": "fr",
+          "replication": "2026-11-22T21:41:06Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "1374fcb6f87b8c9c7ec30c024ce5d79f",
+          "name": "gb",
+          "replication": "2026-11-22T21:50:07Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "911dcdec057fe1916b7a45c9fbd85042",
+          "name": "ge",
+          "replication": "2026-11-22T21:53:21Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "9f2c2892c9b80e2effa453658108c88b",
+          "name": "gr",
+          "replication": "2026-11-22T21:56:21Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "205acbc2be5f2d06f77c3ea92f1f5926",
+          "name": "hr",
+          "replication": "2026-11-22T21:57:21Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "ab3982a3026e3c485dd34f10f45c6a31",
+          "name": "hu",
+          "replication": "2026-11-22T21:58:21Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "ff2dcce7842e0956ca5dbb69b6f0b3ab",
+          "name": "ie",
+          "replication": "2026-11-22T21:59:20Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "f08d5a59af2d3bd7d4f51d171287fab1",
+          "name": "im",
+          "replication": "2026-11-21T21:20:51Z",
+          "url": "https://download.geofabrik.de/europe/isle-of-man/isle-of-man-261121.osm.pbf"
+        },
+        {
+          "md5": "f4bffdab086a907c9ea45140d3f8e94f",
+          "name": "is",
+          "replication": "2026-11-23T06:37:48Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "3d817893777d350de5f7c78b8b43c174",
+          "name": "it",
+          "replication": "2026-11-21T21:20:51Z",
+          "url": "https://download.geofabrik.de/europe/italy/italy-261121.osm.pbf"
+        },
+        {
+          "md5": "bed2363667c3bc35a0e0f557a579268e",
+          "name": "li",
+          "replication": "2026-11-23T06:40:58Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "a28af515e991621a3a64e29cd1e4cc66",
+          "name": "lt",
+          "replication": "2026-11-23T06:40:58Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "1f8dad088819eb5cc79f186d18b96c76",
+          "name": "lu",
+          "replication": "2026-11-23T06:41:58Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "e96396a2b99b600a922ce5a48a948fe4",
+          "name": "lv",
+          "replication": "2026-11-23T06:41:58Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "4aa463c341575b6a0c3364865a88f732",
+          "name": "mc",
+          "replication": "2026-11-23T06:43:02Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "bbd170e765e68795cc52738aa8d993d7",
+          "name": "md",
+          "replication": "2026-11-23T06:44:00Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "21b656763876c64c151b6ec43d73d12f",
+          "name": "me",
+          "replication": "2026-11-23T06:46:00Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "59f812c98f009c2b8198c3eba4cecc94",
+          "name": "mk",
+          "replication": "2026-11-23T06:48:01Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "53ec65f2e326d9e4e7031563833dd8d8",
+          "name": "mt",
+          "replication": "2026-11-23T06:51:01Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "0514777ce575e741365d0a23608ec0f9",
+          "name": "nl",
+          "replication": "2026-11-23T06:51:01Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "e3814f92fe2bb147c29d15d373e0c816",
+          "name": "no",
+          "replication": "2026-11-23T06:53:02Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "1d95f4a73620ea9336b4bfd29799bb08",
+          "name": "pl",
+          "replication": "2026-11-23T06:54:02Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "2838ad91c007559b15149d9f7f1a5e8d",
+          "name": "pt",
+          "replication": "2026-11-23T06:56:04Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "95c606fb5ae448b5f8f305cb75c97f4e",
+          "name": "ro",
+          "replication": "2026-11-23T06:57:06Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "e23cc7327a1e2c001b95b27e50df2137",
+          "name": "rs",
+          "replication": "2026-11-23T06:58:04Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "b626c900d6db070009dad1fcd479b58e",
+          "name": "ru",
+          "replication": "2026-11-23T07:01:05Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "997f910c9110ab353fd75f3c40124530",
+          "name": "se",
+          "replication": "2026-11-23T07:02:05Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "6d326f4421dd26f389d82d3c116a39be",
+          "name": "si",
+          "replication": "2026-07-24T11:04:51Z",
+          "url": "https://overpass.private.coffee/api/interpreter"
+        },
+        {
+          "md5": "651550a8fa04e6d3b3c1c4363e7c8724",
+          "name": "sk",
+          "replication": "2026-11-23T07:18:21Z",
+          "url": "https://overpass-api.de/api/interpreter"
+        },
+        {
+          "md5": "e76b8171677b5fffcdade6400ad14544",
+          "name": "tr",
+          "replication": "2026-07-28T02:16:18Z",
+          "url": "https://overpass.private.coffee/api/interpreter"
+        },
+        {
+          "md5": "3efd92ce0323e6fc5bbab545c2fe02ee",
+          "name": "ua",
+          "replication": "2026-07-15T15:22:01Z",
+          "url": "https://overpass.private.coffee/api/interpreter"
+        },
+        {
+          "md5": "fc7b832dd717dfe07cb1b3fb9318af61",
+          "name": "xa",
+          "replication": "2026-11-21T21:20:51Z",
+          "url": "https://download.geofabrik.de/europe/azores/azores-261121.osm.pbf"
+        },
+        {
+          "md5": "813caa06cb8914cee8fcc2f7e6482bf2",
+          "name": "xg",
+          "replication": "2026-11-21T21:20:51Z",
+          "url": "https://download.geofabrik.de/europe/guernsey-jersey/guernsey-jersey-261121.osm.pbf"
+        },
+        {
+          "md5": "beef6f60f0c7961188950d51b64638a4",
+          "name": "xk",
+          "replication": "2026-11-21T21:20:51Z",
+          "url": "https://download.geofabrik.de/europe/kosovo/kosovo-261121.osm.pbf"
+        }
+      ]
+    },
+    "url": "https://github.com/slavonip/wedrive-maps/releases/download/charging-2026-11-23/charging.sqlite.gz"
   }
 }
