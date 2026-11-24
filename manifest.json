@@ -4692,16 +4692,16 @@
   },
   "charging": {
     "format": "wedrive-charging/1",
-    "build": "2026-11-23",
-    "bytes": 33013816,
-    "sha256": "a17eb6351af2c2db5e55437ffab60604509d4c27ffb5f1d5004def8cdaf6af55",
-    "sqlite_bytes": 95703040,
-    "sqlite_sha256": "32eb62c0c133b7822d69206274dabed22c552bc943e96d87d2d57983e7a1a069",
+    "build": "2026-11-24",
+    "bytes": 33025808,
+    "sha256": "8a9b12d7954d59527024a914ffbe345af69ff73278b5ff6bbe3be682209bb123",
+    "sqlite_bytes": 95723520,
+    "sqlite_sha256": "89e963b663031d0bee1af09c1f9031fe0aaedb583dfdc88f352dd5dc58f7b5ed",
     "counts": {
-      "clusters": 293161,
+      "clusters": 293208,
       "dropped_licence": 499,
       "dropped_removed": 307,
-      "ocm": 150377,
+      "ocm": 150378,
       "ocm_by_country": {
         "AD": 107,
         "AL": 15,
@@ -4730,7 +4730,7 @@
         "IS": 932,
         "IT": 10724,
         "LI": 17,
-        "LT": 1993,
+        "LT": 1990,
         "LU": 91,
         "LV": 96,
         "MC": 37,
@@ -4744,7 +4744,7 @@
         "PT": 3750,
         "RO": 809,
         "RS": 126,
-        "RU": 2712,
+        "RU": 2716,
         "SE": 4970,
         "SI": 219,
         "SK": 291,
@@ -4753,14 +4753,14 @@
         "XG": 44,
         "XK": 19
       },
-      "osm": 177074,
+      "osm": 177122,
       "osm_by_country": {
         "AD": 11,
         "AL": 78,
-        "AT": 6953,
+        "AT": 6952,
         "BA": 191,
         "BE": 6098,
-        "BG": 941,
+        "BG": 939,
         "BY": 785,
         "CH": 3750,
         "CY": 70,
@@ -4775,12 +4775,12 @@
         "GB": 8290,
         "GE": 263,
         "GR": 4570,
-        "HR": 593,
+        "HR": 592,
         "HU": 1916,
         "IE": 1362,
         "IM": 60,
         "IS": 388,
-        "IT": 9884,
+        "IT": 9876,
         "LI": 25,
         "LT": 464,
         "LU": 570,
@@ -4794,30 +4794,30 @@
         "NO": 2895,
         "PL": 3143,
         "PT": 7197,
-        "RO": 763,
+        "RO": 761,
         "RS": 116,
         "RU": 1677,
         "SE": 3853,
-        "SI": 536,
+        "SI": 531,
         "SK": 1166,
-        "TR": 727,
-        "UA": 899,
+        "TR": 770,
+        "UA": 923,
         "XA": 74,
         "XG": 7,
         "XK": 8
       },
-      "stations": 327451,
+      "stations": 327500,
       "status": {
         "NOT_OPERATIONAL": 2611,
-        "OPERATIONAL": 117337,
-        "PARTLY": 846,
-        "PLANNED": 1985,
-        "UNKNOWN": 204672
+        "OPERATIONAL": 117347,
+        "PARTLY": 837,
+        "PLANNED": 1984,
+        "UNKNOWN": 204721
       }
     },
     "sources": {
       "ocm": {
-        "fetched": "2026-11-23T06:36:50Z",
+        "fetched": "2026-11-24T05:11:01Z",
         "requests": 71
       },
       "osm": [
@@ -5080,10 +5080,10 @@
           "url": "https://overpass-api.de/api/interpreter"
         },
         {
-          "md5": "6d326f4421dd26f389d82d3c116a39be",
+          "md5": "47ee348a2248283a2888cbf69e9fce08",
           "name": "si",
-          "replication": "2026-07-24T11:04:51Z",
-          "url": "https://overpass.private.coffee/api/interpreter"
+          "replication": "2026-11-23T20:40:06Z",
+          "url": "https://overpass-api.de/api/interpreter"
         },
         {
           "md5": "651550a8fa04e6d3b3c1c4363e7c8724",
@@ -5092,16 +5092,16 @@
           "url": "https://overpass-api.de/api/interpreter"
         },
         {
-          "md5": "e76b8171677b5fffcdade6400ad14544",
+          "md5": "4331e3e9930f578d3f59b169c41c2d53",
           "name": "tr",
-          "replication": "2026-07-28T02:16:18Z",
-          "url": "https://overpass.private.coffee/api/interpreter"
+          "replication": "2026-11-23T20:41:03Z",
+          "url": "https://overpass-api.de/api/interpreter"
         },
         {
-          "md5": "3efd92ce0323e6fc5bbab545c2fe02ee",
+          "md5": "0684bd7e062382204e2b2db548ded8ce",
           "name": "ua",
-          "replication": "2026-07-15T15:22:01Z",
-          "url": "https://overpass.private.coffee/api/interpreter"
+          "replication": "2026-11-22T21:20:48Z",
+          "url": "https://download.geofabrik.de/europe/ukraine/ukraine-261122.osm.pbf"
         },
         {
           "md5": "fc7b832dd717dfe07cb1b3fb9318af61",
@@ -5123,6 +5123,6 @@
         }
       ]
     },
-    "url": "https://github.com/slavonip/wedrive-maps/releases/download/charging-2026-11-23/charging.sqlite.gz"
+    "url": "https://github.com/slavonip/wedrive-maps/releases/download/charging-2026-11-24/charging.sqlite.gz"
   }
 }
