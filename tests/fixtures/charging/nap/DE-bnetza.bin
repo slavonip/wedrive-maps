@@ -1,0 +1,17 @@
+Lades‰ulenregister der Bundesnetzagentur
+Stand: 12.11.2026
+
+
+
+
+
+
+
+
+Ladeeinrichtungs-ID;Betreiber;Anzeigename (Karte);Status;Art der Ladeeinrichtung;Anzahl Ladepunkte;Nennleistung Ladeeinrichtung [kW];Inbetriebnahmedatum;Straﬂe;Hausnummer;Adresszusatz;Postleitzahl;Ort;Kreis/kreisfreie Stadt;Bundesland;Breitengrad;L‰ngengrad;Standortbezeichnung;Informationen zum Parkraum;Bezahlsysteme;÷ffnungszeiten;÷ffnungszeiten: Wochentage;÷ffnungszeiten: Tageszeiten;Steckertypen1;Nennleistung Stecker1;EVSE-ID1;Public Key1;Steckertypen2;Nennleistung Stecker2;EVSE-ID2;Public Key2;Steckertypen3;Nennleistung Stecker3;EVSE-ID3;Public Key3;Steckertypen4;Nennleistung Stecker4;EVSE-ID4;Public Key4;Steckertypen5;Nennleistung Stecker5;EVSE-ID5;Public Key5;Steckertypen6;Nennleistung Stecker6;EVSE-ID6;Public Key6
+1000001;IONITY GmbH;IONITY GmbH;In Betrieb;Schnellladeeinrichtung;1;300;01.01.2024;Hauptstraﬂe;1;;60311;Frankfurt;Frankfurt;Hessen;50,110000;8,682000;;;;;;;"DC Fahrzeugkupplung Typ Combo 2 (CCS); DC Fahrzeugkupplung Typ Combo 2 (CCS)";300;DE*ION*E12345;;;;;;;;;;;;;;;;;;;;;
+1000002;;;In Betrieb;Schnellladeeinrichtung;2;300;01.01.2024;Hauptstraﬂe;1;;60311;Frankfurt;Frankfurt;Hessen;49,194600;8,112961;;;;;;;AC Typ 2 Steckdose;22;DEABCE000001;;AC Typ 2 Steckdose;22;DEABCE000002;;;;;;;;;;;;;;;;;
+1000003;Izivia;Izivia;In Betrieb;Schnellladeeinrichtung;1;300;01.01.2024;Hauptstraﬂe;1;;60311;Frankfurt;Frankfurt;Hessen;52,000000;13,000000;;;;;;;AC Typ 2 Steckdose;22;DEIZVE000001;;;;;;;;;;;;;;;;;;;;;
+1000004;IZIVIA ;IZIVIA ;In Betrieb;Schnellladeeinrichtung;1;300;01.01.2024;Hauptstraﬂe;1;;60311;Frankfurt;Frankfurt;Hessen;52,000090;13,000000;;;;;;;AC Typ 2 Steckdose;22;DEIZVE000002;;;;;;;;;;;;;;;;;;;;;
+1000005;Ze-Watt;Ze-Watt;In Betrieb;Schnellladeeinrichtung;1;300;01.01.2024;Hauptstraﬂe;1;;60311;Frankfurt;Frankfurt;Hessen;52,000135;13,000000;;;;;;;"AC Typ 2 Steckdose; AC Schuko";11;DEZEWE000001;;;;;;;;;;;;;;;;;;;;;
+1000006;Other GmbH;Other GmbH;Auﬂer Betrieb;Schnellladeeinrichtung;1;300;01.01.2024;Hauptstraﬂe;1;;60311;Frankfurt;Frankfurt;Hessen;53,550000;9,990000;;;;;;;AC Typ 2 Steckdose;22;DEABCE000001;;;;;;;;;;;;;;;;;;;;;

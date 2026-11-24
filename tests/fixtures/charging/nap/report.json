@@ -1,0 +1,59 @@
+{
+  "fetched": "2026-11-24T05:00:00Z",
+  "sources": {
+    "CH-bfe": {
+      "bytes": 365,
+      "etag": null,
+      "http": 200,
+      "last_modified": null,
+      "ok": true,
+      "sha256": "7c075cc4ee3018f441ac7112a5c85db206d8e64dcf362d8fc8ac452a173a9193",
+      "url": "https://example.invalid/CH-bfe"
+    },
+    "DE-bnetza": {
+      "bytes": 2133,
+      "etag": null,
+      "http": 200,
+      "last_modified": null,
+      "ok": true,
+      "sha256": "d57ce7f53e4397437bff3bc4612d2a6cba84f34bac8811c7a265c4dfb41138b3",
+      "url": "https://example.invalid/DE-bnetza"
+    },
+    "FI-digitraffic": {
+      "bytes": 711,
+      "etag": null,
+      "http": 200,
+      "last_modified": null,
+      "ok": true,
+      "sha256": "41a40cd5aa2923132d3f35a209c3d5d341895643b80c6ae8051053e832907167",
+      "url": "https://example.invalid/FI-digitraffic"
+    },
+    "FR-irve": {
+      "bytes": 1521,
+      "etag": null,
+      "http": 200,
+      "last_modified": null,
+      "ok": true,
+      "sha256": "97b6e0deae71bb3665918f5308db1ee64de88c59ccf427e6c07ebcb3abaedd39",
+      "url": "https://example.invalid/FR-irve"
+    },
+    "LT-viali": {
+      "bytes": 1531,
+      "etag": null,
+      "http": 200,
+      "last_modified": null,
+      "ok": true,
+      "sha256": "60e91253685c701b381e46e7d89848883a52a5530290e4f09f9d26ba666c512b",
+      "url": "https://example.invalid/LT-viali"
+    },
+    "NL-ndw": {
+      "bytes": 351,
+      "etag": null,
+      "http": 200,
+      "last_modified": null,
+      "ok": true,
+      "sha256": "0d9e981d8ecf65ccdd18d30bc41ffc2f47fbd608442a3fec707f081e21c31ac2",
+      "url": "https://example.invalid/NL-ndw"
+    }
+  }
+}

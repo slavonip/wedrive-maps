@@ -17,6 +17,13 @@
 #            publish: publish -> manifest.json "charging" -> push, 3 rebase retries)
 #   report:  an issue when a scheduled or publish run fails — not when a bad runner was redispatched
 #
+# wedrive-charging/2 (2026-11-24) is built in the same run and published BESIDE /1, as a second asset
+# (charging-v2.sqlite.gz) described by manifest.json "charging"."v2": /1 plus the national access
+# points (charging/nap-sources.json: FR IRVE, DE BNetzA, NL NDW, FI Digitraffic, CH BFE, LT Via
+# Lietuva — keyless static files) and their physical EVSEs with ids. An app that reads only /1 keeps
+# reading the top-level block; a registry that fails to download is reported, and the gate against
+# the previous release decides whether the catalogue may still be published.
+#
 # One file for Europe, not one per country: the EV planner needs chargers in countries the car has
 # not installed, and deleting a country must not take its chargers away. OCM changes on its own
 # schedule, so this workflow is independent of the map and graph factories: a charging failure
@@ -123,11 +130,16 @@ jobs:
         with:
           path: ${{ runner.temp }}/charging-osm-cache
           key: charging-osm-${{ steps.day.outputs.date }}-${{ github.run_id }}-${{ github.run_attempt }}
+      # national registries (wedrive-charging/2): a failing source is a warning, not a failed run
+      - name: national registries (NAP)
+        run: |
+          set -euo pipefail
+          python3 scripts/charging-nap-fetch.py "$WORK/nap"
       - name: build
         id: build
         run: |
           set -euo pipefail
-          python3 scripts/charging-build.py build regional.json "$WORK/ocm" "$WORK/osm" "$WORK/out"
+          python3 scripts/charging-build.py build regional.json "$WORK/ocm" "$WORK/osm" "$WORK/out" "$WORK/nap"
           echo "build=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["build"])' "$WORK/out/charging.json")" >> "$GITHUB_OUTPUT"
           cat "$WORK/out/charging.json"
       - name: gates (against the release in manifest.json now)
@@ -143,6 +155,8 @@ jobs:
           retention-days: 7
           path: |
             ${{ env.WORK }}/out/charging.sqlite.gz
+            ${{ env.WORK }}/out/charging-v2.sqlite.gz
+            ${{ env.WORK }}/nap/report.json
             ${{ env.WORK }}/out/charging.json
             ${{ env.WORK }}/out/report.json
             ${{ env.WORK }}/ocm/*.jsonl.gz
@@ -176,20 +190,24 @@ jobs:
           [ "$MODE" = verify ] && TAG="$TAG-verify-$GITHUB_RUN_ID"
           sha=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["sha256"])' "$OUT/charging.json")
           size=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["bytes"])' "$OUT/charging.json")
+          sha2=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["v2"]["sha256"])' "$OUT/charging.json")
+          size2=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["v2"]["bytes"])' "$OUT/charging.json")
           [ "$(sha256sum "$OUT/charging.sqlite.gz" | cut -d' ' -f1)" = "$sha" ] || { echo "::error::artifact does not match charging.json"; exit 1; }
+          [ "$(sha256sum "$OUT/charging-v2.sqlite.gz" | cut -d' ' -f1)" = "$sha2" ] || { echo "::error::v2 artifact does not match charging.json"; exit 1; }
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::release $TAG already exists — a catalogue is never replaced under the same tag"; exit 1
           fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --latest=false \
             --title "Charging catalogue $BUILD" \
-            --notes "wedrive-charging/1. Charging stations © OpenStreetMap contributors (ODbL 1.0) and Open Charge Map (openchargemap.org) contributors and data providers — CC BY 4.0 and each provider's own licence (charging/providers.json; the licence of every record is on its own source row)."
-          gh release upload "$TAG" "$OUT/charging.sqlite.gz" --repo "$GITHUB_REPOSITORY"
-          # the uploaded asset must be what was built, byte for byte, before anything moves
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p charging.sqlite.gz -D "$RUNNER_TEMP/back"
+            --notes "charging.sqlite.gz = wedrive-charging/1; charging-v2.sqlite.gz = wedrive-charging/2 (/1 plus national registries and physical EVSEs). Charging stations © OpenStreetMap contributors (ODbL 1.0) and Open Charge Map (openchargemap.org) contributors and data providers — CC BY 4.0 and each provider's own licence (charging/providers.json). /2 also: data.gouv.fr — Base nationale des IRVE (Licence Ouverte 2.0); Bundesnetzagentur.de Ladesäulenregister (CC BY 4.0); Bron: NDW; Fintraffic / digitraffic.fi (CC BY 4.0); BFE / ich-tanke-strom.ch (opendata.swiss); AB Via Lietuva (CC BY 4.0) — charging/nap-sources.json. The licence of every record is on its own source row."
+          gh release upload "$TAG" "$OUT/charging.sqlite.gz" "$OUT/charging-v2.sqlite.gz" --repo "$GITHUB_REPOSITORY"
+          # the uploaded assets must be what was built, byte for byte, before anything moves
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p 'charging*.sqlite.gz' -D "$RUNNER_TEMP/back"
           got=$(sha256sum "$RUNNER_TEMP/back/charging.sqlite.gz" | cut -d' ' -f1)
-          if [ "$got" != "$sha" ]; then
+          got2=$(sha256sum "$RUNNER_TEMP/back/charging-v2.sqlite.gz" | cut -d' ' -f1)
+          if [ "$got" != "$sha" ] || [ "$got2" != "$sha2" ]; then
             gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes || true
-            echo "::error::uploaded asset sha256 $got, built $sha — draft deleted, manifest NOT moved"; exit 1
+            echo "::error::uploaded assets sha256 $got / $got2, built $sha / $sha2 — draft deleted, manifest NOT moved"; exit 1
           fi
           if [ "$MODE" = verify ]; then
             gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes
@@ -197,10 +215,13 @@ jobs:
           fi
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
           URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/charging.sqlite.gz"
+          URL2="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/charging-v2.sqlite.gz"
           gotsize=$(curl -sfIL "$URL" | awk 'tolower($1)=="content-length:"{v=$2} END{gsub("\r","",v); print v}')
           [ "$gotsize" = "$size" ] || { echo "::error::$URL: size $gotsize, expected $size — manifest NOT moved"; exit 1; }
+          gotsize2=$(curl -sfIL "$URL2" | awk 'tolower($1)=="content-length:"{v=$2} END{gsub("\r","",v); print v}')
+          [ "$gotsize2" = "$size2" ] || { echo "::error::$URL2: size $gotsize2, expected $size2 — manifest NOT moved"; exit 1; }
           python3 scripts/live-manifest.py "$GITHUB_REPOSITORY" manifest.json
-          python3 scripts/charging-manifest.py manifest.json "$OUT/charging.json" "$URL"
+          python3 scripts/charging-manifest.py manifest.json "$OUT/charging.json" "$URL" "$URL2"
           git add manifest.json
           git -c user.name="wedrive-factory" -c user.email="factory@users.noreply.github.com" \
               commit -q -m "Charging catalogue -> $TAG ($size bytes)"

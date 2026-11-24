@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<d2:payload xmlns:d2="https://datex2.eu/schema/3/d2Payload" xmlns:egi="https://datex2.eu/schema/3/energyInfrastructure" xmlns:fac="https://datex2.eu/schema/3/facilities">
+  <egi:energyInfrastructureSiteStatus id="EGI-S-258" version="v1">
+    <fac:lastUpdated>2026-11-23T23:00:46+02:00</fac:lastUpdated>
+    <egi:energyInfrastructureStationStatus id="EGI-ST-258" version="v1">
+      <egi:refillPointStatus id="0" connectorIndex="1"><egi:status>AVAILABLE</egi:status></egi:refillPointStatus>
+      <egi:refillPointStatus id="1" connectorIndex="2"><egi:status>CHARGING</egi:status></egi:refillPointStatus>
+      <egi:refillPointStatus id="2" connectorIndex="3"><egi:status>REMOVED</egi:status></egi:refillPointStatus>
+    </egi:energyInfrastructureStationStatus>
+  </egi:energyInfrastructureSiteStatus>
+</d2:payload>

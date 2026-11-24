@@ -246,7 +246,7 @@ def normalise(poi, ref, connectors, country, stats):
     usage = USAGE.get(poi.get("UsageTypeID"), "UNKNOWN")
     if op_id == PRIVATE_RESIDENCE and usage == "UNKNOWN":
         usage = "PRIVATE"
-    conns, evse = [], set()
+    conns, evse, evse_raw = [], set(), {}
     for c in poi.get("Connections") or []:
         stats["connectors_in"] = stats.get("connectors_in", 0) + 1
         cstatus = None
@@ -277,6 +277,7 @@ def normalise(poi, ref, connectors, country, stats):
         e = cdb.evse_id(c.get("Reference"))
         if e:
             evse.add(e)
+            evse_raw.setdefault(e, c.get("Reference").strip())
         conns.append({"standard": std, "current": cur, "kw": kw, "qty": qty, "status": cstatus})
     # an operational station whose every connector is broken does not work (owner, 2026-11-21);
     # only some broken -> PARTLY
@@ -298,7 +299,10 @@ def normalise(poi, ref, connectors, country, stats):
         "max_kw": max(kws) if kws else None,
         "has_dc": int(any(c["current"] == "DC" for c in conns)),
         "cost": (poi.get("UsageCost") or "").strip() or None, "opening_hours": None,
-        "evse_ids": sorted(evse), "connectors": conns}
+        "evse_ids": sorted(evse), "evse_raw": evse_raw,
+        "provider_ref": (str(poi.get("DataProvidersReference")).strip() or None)
+        if poi.get("DataProvidersReference") is not None else None,
+        "connectors": conns}
 
 
 def main():

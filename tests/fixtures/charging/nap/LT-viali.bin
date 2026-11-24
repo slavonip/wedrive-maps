@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<d2:payload xmlns:d2="https://datex2.eu/schema/3/d2Payload" xmlns:egi="https://datex2.eu/schema/3/energyInfrastructure" xmlns:fac="https://datex2.eu/schema/3/facilities" xmlns:loc="https://datex2.eu/schema/3/locationReferencing" xmlns:com="https://datex2.eu/schema/3/common" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <egi:energyInfrastructureTable>
+    <egi:energyInfrastructureSite id="EGI-S-258" version="v1">
+      <egi:energyInfrastructureStation id="EGI-ST-258" version="v1">
+        <egi:energyProvider xsi:type="fac:OrganisationSpecification">
+          <fac:name><com:values><com:value lang="lt">In Balance grid, UAB</com:value></com:values></fac:name>
+        </egi:energyProvider>
+        <egi:siteLocation xsi:type="loc:LocationReference"><loc:pointByCoordinates><loc:pointCoordinates>
+          <loc:latitude>54.6745570</loc:latitude><loc:longitude>25.2243550</loc:longitude>
+        </loc:pointCoordinates></loc:pointByCoordinates></egi:siteLocation>
+        <egi:refillPoint xsi:type="egi:ElectricChargingPoint" id="LT-IBG-P-A9MY" version="v1">
+          <egi:connector><egi:connectorType>Type 2</egi:connectorType><egi:maxPowerAtSocket>22</egi:maxPowerAtSocket></egi:connector>
+          <egi:connector><egi:connectorType>CCS</egi:connectorType><egi:maxPowerAtSocket>60</egi:maxPowerAtSocket></egi:connector>
+        </egi:refillPoint>
+      </egi:energyInfrastructureStation>
+    </egi:energyInfrastructureSite>
+  </egi:energyInfrastructureTable>
+</d2:payload>

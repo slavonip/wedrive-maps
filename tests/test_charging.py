@@ -10,6 +10,9 @@ broken connector, an unknown connection type, an EVSE id), and a referencedata.j
 what they use; tests/fixtures/charging/osm/ — every Moldovan charging station of the Geofabrik
 extract of 2026-11-20 (68) plus hand-made lifecycle, socket:* and EVSE records;
 dedup-reference.json — 30 hand-checked MD (OCM, OSM) pairs; gate-*.json — previous-release counts.
+tests/fixtures/charging/nap/ — one small hand-made file per national registry in its real format
+(FR IRVE CSV, DE BNetzA CSV with preamble, NL NDW OCPI gz, FI Digitraffic GeoJSON, CH BFE OICP gz,
+LT DATEX table + status) and a fetch report.json: wedrive-charging/2.
 """
 import gzip, hashlib, http.server, importlib.util, json, os, shutil, socket, sqlite3, subprocess, sys, tempfile, threading, time, unittest
 import urllib.parse
@@ -1604,6 +1607,420 @@ class OsmGate(unittest.TestCase):
             self.assertIn("MD: %d OSM stations" % cur["osm_by_country"]["MD"], outs["halved"][1])
         finally:
             shutil.rmtree(d)
+
+
+# ─────────────────────────────── wedrive-charging/2: national registries, EVSEs ───────────────────────────────
+
+nap = load("charging_nap_mod", "charging_nap.py")
+napfetch = load("charging_nap_fetch", "charging-nap-fetch.py")
+NAPFX = os.path.join(FX, "nap")
+NAP_SOURCES = {s["id"]: s for s in json.load(open(os.path.join(ROOT, "charging", "nap-sources.json"), encoding="utf-8"))["sources"]}
+ALIASES = cdb.load_aliases(os.path.join(ROOT, "charging", "operators.json"))
+
+
+def run_build2(out, nap_dir=NAPFX):
+    return build.build(os.path.join(ROOT, "regional.json"), os.path.join(FX, "ocm"), os.path.join(FX, "osm"), out, nap_dir)
+
+
+def nap_load(sid):
+    data = open(os.path.join(NAPFX, sid + ".bin"), "rb").read()
+    st = os.path.join(NAPFX, sid + ".status.bin")
+    rep = {}
+    return nap.load(NAP_SOURCES[sid], data, ALIASES, rep, open(st, "rb").read() if os.path.exists(st) else None), rep
+
+
+class NapReaders(unittest.TestCase):
+    def test_fr_one_station_per_itinerance_id_with_its_points(self):
+        recs, _ = nap_load("FR-irve")
+        by = {r["src_id"]: r for r in recs}
+        self.assertEqual(sorted(by), ["FR*S12*P12148*001", "FRIZVP9000001"])
+        s = by["FR*S12*P12148*001"]
+        self.assertEqual([e["raw"] for e in s["evses"]], ["FR*S12*E12148*0011", "FR*S12*E12148*0012"])
+        self.assertEqual(s["evse_ids"], ["FRS12E121480011", "FRS12E121480012"])
+        self.assertEqual(s["max_kw"], 150.0)                    # 150000 (watts) read as 150 kW
+        self.assertEqual(s["refs"], [("FR-station", "FRS12P12148001")])
+        self.assertEqual(by["FRIZVP9000001"]["usage"], "CUSTOMERS")   # Accès réservé
+
+    def test_de_groups_devices_of_one_operator_at_one_car_park(self):
+        recs, rep = nap_load("DE-bnetza")
+        by = {r["src_id"]: r for r in recs}
+        # Izivia and IZIVIA 10 m apart: one site, two EVSEs; Ze-Watt 15 m away: its own site
+        self.assertEqual(len(by["1000003"]["evses"]), 2)
+        self.assertNotIn("1000004", by)
+        self.assertEqual(len(by["1000005"]["evses"]), 1)
+        self.assertEqual(sorted(c["standard"] for c in by["1000005"]["connectors"]), ["SCHUKO", "TYPE2"])
+        self.assertEqual(by["1000001"]["connectors"][0]["standard"], "CCS2")   # two CCS sockets named on ONE point: one
+        self.assertEqual(by["1000001"]["connectors"][0]["qty"], 1)
+        self.assertEqual(by["1000006"]["status"], "NOT_OPERATIONAL")
+        # the same EVSE id on a second site of the same registry: only the first keeps it
+        self.assertEqual(by["1000006"]["evses"], [])
+        self.assertEqual(rep["nap_evse_on_two_sites"], 1)
+
+    def test_nl_drops_removed_evses(self):
+        recs, _ = nap_load("NL-ndw")
+        self.assertEqual([e["raw"] for e in recs[0]["evses"]], ["NL*ALL*E0001*1"])
+        self.assertEqual(recs[0]["connectors"], [{"standard": "CCS2", "current": "DC", "kw": 50.0, "qty": 1, "status": None}])
+
+    def test_fi_and_ch(self):
+        fi, _ = nap_load("FI-digitraffic")
+        self.assertEqual(len(fi), 1)
+        self.assertEqual(fi[0]["evse_ids"], ["FI911EPDCFI10000610000001", "FI911EPDCFI10002440000001"])
+        ch, _ = nap_load("CH-bfe")               # gzipped body, three EVSEs, two operators
+        self.assertEqual(sorted(len(r["evses"]) for r in ch), [1, 2])
+        sw = [r for r in ch if r["operator"] == "Swisscharge"][0]
+        self.assertEqual(sorted(c["standard"] for c in sw["connectors"]), ["CCS2", "TYPE2"])
+
+    def test_lt_live_keys_come_from_the_status_publication(self):
+        recs, _ = nap_load("LT-viali")
+        self.assertEqual(recs[0]["live_keys"], ["EGI-S-258#1", "EGI-S-258#2"])      # REMOVED #3 left out
+        self.assertEqual([e["raw"] for e in recs[0]["evses"]], ["LT-IBG-P-A9MY"])
+        self.assertEqual(recs[0]["evse_ids"], [])                                    # not an eMI3 id
+        self.assertEqual(recs[0]["refs"], [("LT-site", "258")])
+
+    def test_plug_names(self):
+        for text, want in (("AC Typ 2 Steckdose", ("TYPE2", "AC")), ("DC Kupplung Combo", ("CCS2", "DC")),
+                           ("DC CHAdeMO", ("CHADEMO", "DC")), ("AC Schuko", ("SCHUKO", "AC")),
+                           ("AC Typ 2 Fahrzeugkupplung", ("TYPE2_TETHERED", "AC")), ("Type 2 Outlet", ("TYPE2", "AC")),
+                           ("CCS Combo 2 Plug (Cable Attached)", ("CCS2", "DC")), ("", (None, None))):
+            self.assertEqual(nap.text_standard(text), want, text)
+
+    def test_evse_key_is_the_apps_normalisation(self):
+        self.assertEqual(cdb.evse_key("DE*ION*E12345"), "DEIONE12345")
+        self.assertEqual(cdb.evse_key("fi*911*e*pdc*1"), "FI911EPDC1")
+        self.assertEqual(cdb.evse_key("EGI-S-258#2"), "EGIS258#2")
+        self.assertIsNone(cdb.evse_key(" - "))
+
+
+class Aliases(unittest.TestCase):
+    def test_spellings(self):
+        k = lambda t: cdb.operator_key(t, ALIASES)
+        self.assertEqual(k("Izivia"), k("\tIZIVIA"))
+        self.assertEqual(k("In Balance grid, UAB"), k("Inbalance grid"))
+        self.assertEqual(k("In Balance grid, UAB"), k("Inbalance grid (LT)"))      # OCM appends the country
+        self.assertEqual(k("TotalEnergies"), k("Total"))
+        self.assertEqual(k("E.ON Drive"), k("EON"))
+        self.assertNotEqual(k("Izivia"), k("Ze-Watt"))
+        self.assertNotEqual(k("Allego"), k("Fastned"))
+
+
+class NapDedup(unittest.TestCase):
+    """Synthetic records, metres apart along a meridian (as Dedup)."""
+
+    def setUp(self):
+        self.old = cdb.ALIASES
+        cdb.ALIASES = ALIASES
+
+    def tearDown(self):
+        cdb.ALIASES = self.old
+
+    @staticmethod
+    def s(i, kind, metres, operator=None, conns=(), evse=(), refs=(), name=None):
+        r = Dedup.s(i, kind, metres, operator, conns, name, evse)
+        r["refs"] = list(refs)
+        return r
+
+    def test_evse_id_first(self):
+        stats = {}
+        c = cdb.cluster([self.s(1, "osm", 0, evse=["DEIONE1"]), self.s(2, "nap", 3000, evse=["DEIONE1"])], stats=stats)
+        self.assertEqual(c[1], c[2])
+        self.assertEqual(stats["nap_matched_evse"], 1)
+
+    def test_registry_id_second(self):
+        stats = {}
+        c = cdb.cluster([self.s(1, "ocm", 0, refs=[("LT-site", "258")]), self.s(2, "nap", 400, refs=[("LT-site", "258")]),
+                         self.s(3, "osm", 405)], stats=stats)
+        self.assertEqual(c[1], c[2]); self.assertNotEqual(c[3], c[2])
+        self.assertEqual(stats["nap_matched_ref"], 1)
+
+    def test_position_third_with_the_osm_ocm_rules(self):
+        self.assertEqual(len(set(cdb.cluster([self.s(1, "osm", 0), self.s(2, "nap", 40)]).values())), 1)
+        self.assertEqual(len(set(cdb.cluster([self.s(1, "osm", 0), self.s(2, "nap", 60)]).values())), 2)
+        self.assertEqual(len(set(cdb.cluster([self.s(1, "osm", 0, "Ionity"), self.s(2, "nap", 80, "IONITY GmbH")]).values())), 1)
+
+    def test_aliased_operators_at_zero_metres_are_one_place(self):
+        c = cdb.cluster([self.s(1, "ocm", 0, "Izivia", ["TYPE2"]), self.s(2, "nap", 0, "\tIZIVIA", ["TYPE2"])])
+        self.assertEqual(c[1], c[2])
+
+    def test_two_operators_15_m_apart_are_two_places(self):
+        c = cdb.cluster([self.s(1, "ocm", 0, "Izivia", ["TYPE2"]), self.s(2, "nap", 15, "Ze-Watt", ["TYPE2"])])
+        self.assertNotEqual(c[1], c[2])
+
+    def test_one_nap_per_cluster_the_nearest_wins_and_nap_never_joins_nap(self):
+        c = cdb.cluster([self.s(1, "osm", 0), self.s(2, "nap", 30), self.s(3, "nap", 10)])
+        self.assertEqual(c[1], c[3]); self.assertNotEqual(c[2], c[1])
+        c = cdb.cluster([self.s(1, "nap", 0, evse=["DEIONE1"]), self.s(2, "nap", 1, evse=["DEIONE1"])])
+        self.assertNotEqual(c[1], c[2])
+        # an EVSE-joined cluster takes no second NAP by position
+        c = cdb.cluster([self.s(1, "osm", 0, evse=["DEIONE1"]), self.s(2, "nap", 3000, evse=["DEIONE1"]),
+                         self.s(3, "nap", 5)])
+        self.assertEqual(c[1], c[2]); self.assertNotEqual(c[3], c[1])
+
+    def test_osm_ocm_clusters_are_kept(self):
+        # adding NAP records never splits what OSM-OCM made, and never joins two OSM-OCM clusters
+        base = [self.s(1, "osm", 0), self.s(2, "ocm", 20), self.s(3, "osm", 2000), self.s(4, "ocm", 2010)]
+        c1 = cdb.cluster([dict(x) for x in base])
+        c2 = cdb.cluster([dict(x) for x in base] + [self.s(5, "nap", 1000, evse=[]), self.s(6, "nap", 5)])
+        for i in (1, 2, 3, 4):
+            for j in (1, 2, 3, 4):
+                self.assertEqual(c1[i] == c1[j], c2[i] == c2[j], (i, j))
+
+    def test_one_evse_id_in_one_cluster_only(self):
+        # an id held by two clusters: the NAP's cluster keeps it, the other row keeps its raw id only
+        st = [dict(self.s(1, "osm", 0, evse=["DEIONE1"]), evse_raw={"DEIONE1": "DE*ION*E1"}),
+              dict(self.s(2, "ocm", 9000, evse=["DEIONE1"])),
+              dict(self.s(3, "nap", 20000, evse=["DEIONE1"]), evses=[{"raw": "DE*ION*E1", "standards": [], "current": None, "kw": None}])]
+        clusters = {1: 1, 2: 2, 3: 3}
+        rep = {}
+        rows = cdb.evse_rows(st, clusters, rep)
+        held = [(r[0], r[2]) for r in rows]
+        self.assertEqual(held, [(1, None), (2, None), (3, "DEIONE1")])
+        # the original id is kept where it differs from the normalised one
+        self.assertEqual([r[1] for r in rows], ["DE*ION*E1", None, "DE*ION*E1"])
+        self.assertEqual(rep["evse_conflicts"], 2)
+
+
+class BuiltV2(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.d, cls.d1 = tempfile.mkdtemp(), tempfile.mkdtemp()
+        cls.desc, cls.rep = run_build2(cls.d)
+        cls.desc1, _ = run_build(cls.d1)
+        cls.db = sqlite3.connect(os.path.join(cls.d, "charging-v2.sqlite"))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.close()
+        shutil.rmtree(cls.d); shutil.rmtree(cls.d1)
+
+    def q(self, sql, *a):
+        return self.db.execute(sql, a).fetchall()
+
+    def cl(self, src_id):
+        return self.q("SELECT cluster FROM station WHERE src_id=?", src_id)[0][0]
+
+    def test_the_v1_file_is_the_build_without_registries(self):
+        for f in ("charging.sqlite", "charging.sqlite.gz"):
+            self.assertEqual(sha(os.path.join(self.d, f)), sha(os.path.join(self.d1, f)), f)
+        self.assertEqual({k: v for k, v in self.desc.items() if k != "v2"}, self.desc1)
+
+    def test_v1_tables_are_unchanged_in_v2(self):
+        v1 = sqlite3.connect(os.path.join(self.d, "charging.sqlite"))
+        try:
+            for (t,) in v1.execute("SELECT name FROM sqlite_master WHERE type='table'"):
+                self.assertEqual(v1.execute("PRAGMA table_info(%s)" % t).fetchall(),
+                                 self.q("PRAGMA table_info(%s)" % t), t)
+            # every /1 record is in /2 with the same id and fields
+            a = v1.execute("SELECT * FROM station ORDER BY id").fetchall()
+            b = self.q("SELECT * FROM station WHERE source < 1000 ORDER BY id")
+            self.assertEqual([r[:1] + r[2:] for r in a], [r[:1] + r[2:] for r in b])
+        finally:
+            v1.close()
+        self.assertEqual(dict(self.q("SELECT key, value FROM meta"))["format"], "wedrive-charging/2")
+
+    def test_the_old_apps_query_reads_v2(self):
+        # ChargingDb.kt /1: positions, then the cluster's records joined to their source
+        rows = self.q("SELECT s.id, s.cluster, src.kind, s.lat, s.lon, s.name, s.operator, s.usage, s.status, s.evse_ids "
+                      "FROM station s JOIN source src ON src.id = s.source WHERE s.lat BETWEEN 50 AND 51")
+        self.assertTrue(rows)
+
+    def test_evse_then_registry_then_position(self):
+        # BNetzA DE*ION*E12345 joins the OSM+OCM pair that already shared it
+        self.assertEqual(self.cl("1000001"), self.cl("9000300"))
+        self.assertEqual(self.cl("1000001"), self.cl("n9100000030"))
+        # an unnamed BNetzA device 8 m from OCM 176366
+        self.assertEqual(self.cl("1000002"), self.cl("176366"))
+        # FR, FI, CH, LT have no OSM/OCM record nearby in the fixtures: their own clusters
+        for sid in ("FR*S12*P12148*001", "EGI-S-258"):
+            self.assertEqual(self.q("SELECT count(*) FROM station WHERE cluster=?", self.cl(sid)), [(1,)])
+
+    def test_evse_rows_keep_original_ids_and_their_source(self):
+        rows = self.q("SELECT e.evse_id, e.evse_norm, o.kind FROM evse e JOIN station s ON s.id = e.station "
+                      "JOIN source o ON o.id = s.source WHERE e.evse_id LIKE 'DE%ION%' ORDER BY o.kind")
+        # the OCM record, the OSM record and the BNetzA device all carry it; ONE cluster holds them
+        self.assertEqual(sorted(r[2] for r in rows), ["nap", "ocm", "osm"])
+        self.assertIn(("DE*ION*E12345", "DEIONE12345", "nap"), rows)
+        n = self.q("SELECT count(*) FROM (SELECT e.evse_norm FROM evse e JOIN station s ON s.id=e.station "
+                   "WHERE e.evse_norm IS NOT NULL GROUP BY 1 HAVING count(DISTINCT s.cluster) > 1)")
+        self.assertEqual(n, [(0,)])
+
+    def test_physical_points_without_an_id_are_rows(self):
+        lt = self.q("SELECT e.evse_id, e.evse_norm, e.standards, e.max_kw FROM evse e JOIN station s ON s.id = e.station "
+                    "WHERE s.src_id = 'EGI-S-258'")
+        self.assertEqual(lt, [("LT-IBG-P-A9MY", None, "CCS2,TYPE2", 60.0)])
+        self.assertEqual(self.q("SELECT k.source, k.key FROM live_key k JOIN station s ON s.id = k.station "
+                                "WHERE s.src_id = 'EGI-S-258' ORDER BY key"),
+                         [("LT-viali-datex", "EGI-S-258#1"), ("LT-viali-datex", "EGI-S-258#2")])
+
+    def test_sources_and_registry_carry_licences(self):
+        nap_src = self.q("SELECT id, name, licence, attribution FROM source WHERE kind='nap' ORDER BY id")
+        self.assertEqual([r[0] for r in nap_src], [1001, 1002, 1003, 1004, 1005, 1006])
+        self.assertTrue(all(r[2] and r[3] for r in nap_src))
+        reg = self.q("SELECT source, kind, country, licence, attribution FROM source_registry ORDER BY source, kind")
+        self.assertEqual(len(reg), 12)
+        self.assertEqual(sorted(r[0] for r in reg if r[1] == "live"),
+                         ["CH-bfe-oicp", "DE-ocpdb", "FI-digitraffic", "FR-irve-dyn", "LT-viali-datex", "NL-ndw"])
+        self.assertTrue(all(r[3] and r[4] for r in reg))
+        self.assertEqual(self.q("SELECT record_count FROM source_registry WHERE source='DE-bnetza'"), [(5,)])
+
+    def test_descriptor_and_gates(self):
+        v2 = self.desc["v2"]
+        self.assertEqual(v2["format"], "wedrive-charging/2")
+        self.assertEqual(v2["build"], self.desc["build"])
+        self.assertEqual(v2["sha256"], sha(os.path.join(self.d, "charging-v2.sqlite.gz")))
+        self.assertEqual(v2["sqlite_sha256"], sha(os.path.join(self.d, "charging-v2.sqlite")))
+        c = v2["counts"]
+        self.assertEqual(c["nap_by_source"], {"FR-irve": 2, "DE-bnetza": 5, "NL-ndw": 1, "FI-digitraffic": 1,
+                                              "CH-bfe": 2, "LT-viali": 1})
+        self.assertEqual(c["stations"], self.desc["counts"]["stations"] + 12)
+        self.assertEqual(c["evse_ids_by_country"]["DE"], 8)
+        self.assertEqual(c["live_keys_by_country"], {"LT": 2})
+        self.assertEqual(c["evse_conflicts"], 0)
+        self.assertEqual(json.loads(dict(self.q("SELECT key, value FROM meta"))["counts"]), c)
+        p, _ = cdb.validate2(os.path.join(self.d, "charging-v2.sqlite"), os.path.join(self.d, "charging-v2.sqlite.gz"), CFG)
+        self.assertEqual(p, [])
+
+    def test_two_builds_are_the_same_bytes(self):
+        d = tempfile.mkdtemp()
+        try:
+            with mock.patch("time.time", lambda: 4e9):
+                run_build2(d)
+            for f in ("charging-v2.sqlite", "charging-v2.sqlite.gz"):
+                self.assertEqual(sha(os.path.join(d, f)), sha(os.path.join(self.d, f)), f)
+        finally:
+            shutil.rmtree(d)
+
+
+class NapFailure(unittest.TestCase):
+    def test_a_failed_registry_is_left_out_and_the_previous_release_gate_stops_it(self):
+        d, n = tempfile.mkdtemp(), tempfile.mkdtemp()
+        try:
+            for f in os.listdir(NAPFX):
+                shutil.copy(os.path.join(NAPFX, f), n)
+            rep = json.load(open(os.path.join(n, "report.json")))
+            rep["sources"]["DE-bnetza"] = {"ok": False, "error": "HTTP 503"}
+            json.dump(rep, open(os.path.join(n, "report.json"), "w"))
+            desc, report = run_build2(d, n)
+            self.assertEqual(desc["v2"]["counts"]["nap_failed"], ["DE-bnetza"])
+            self.assertEqual(desc["v2"]["counts"]["nap_by_source"]["DE-bnetza"], 0)
+            sq, gz = os.path.join(d, "charging-v2.sqlite"), os.path.join(d, "charging-v2.sqlite.gz")
+            self.assertEqual(cdb.validate2(sq, gz, CFG, None)[0], [])
+            p, _ = cdb.validate2(sq, gz, CFG, {"DE-bnetza": 60000, "FR-irve": 2})
+            self.assertTrue(any(x.startswith("DE-bnetza: 0 national") for x in p), p)
+            # and through the CLI, reading the previous manifest's v2 counts
+            prev = os.path.join(d, "prev.json")
+            json.dump({"charging": {"counts": desc["counts"], "v2": {"counts": {"nap_by_source": {"DE-bnetza": 60000}}}}},
+                      open(prev, "w"))
+            r = subprocess.run([sys.executable, os.path.join(S, "charging-build.py"), "validate", d,
+                                os.path.join(ROOT, "regional.json"), prev, "--no-min-ocm"],
+                               capture_output=True, text=True)
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("/2: DE-bnetza: 0 national registry stations", r.stdout)
+        finally:
+            shutil.rmtree(d); shutil.rmtree(n)
+
+    def test_size_gate_of_v2(self):
+        d = tempfile.mkdtemp()
+        old = cdb.MAX_GZ2
+        try:
+            run_build2(d)
+            cdb.MAX_GZ2 = 10
+            p, _ = cdb.validate2(os.path.join(d, "charging-v2.sqlite"), os.path.join(d, "charging-v2.sqlite.gz"), CFG)
+            self.assertTrue(any(x.startswith("STOP") for x in p), p)
+        finally:
+            cdb.MAX_GZ2 = old
+            shutil.rmtree(d)
+
+    def test_the_gz_gate_is_70_mb(self):
+        self.assertEqual(cdb.MAX_GZ2, 70 * 1024 * 1024)
+        self.assertEqual(cdb.MAX_GZ, 60 * 1024 * 1024)
+
+
+class NapFetch(unittest.TestCase):
+    class Resp:
+        def __init__(self, status, body, headers=None):
+            self.status, self._b, self.headers = status, body, headers or {}
+
+        def read(self):
+            return self._b
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def test_a_failing_source_is_reported_not_raised(self):
+        def opener(req, timeout=None):
+            raise OSError("connection refused")
+        d = tempfile.mkdtemp()
+        try:
+            rep = {"sources": {}}
+            r = napfetch.fetch_one(NAP_SOURCES["CH-bfe"], d, rep, opener=opener, sleep=lambda s: None)
+            self.assertFalse(r["ok"]); self.assertIn("connection refused", r["error"])
+            self.assertFalse(os.path.exists(os.path.join(d, "CH-bfe.bin")))
+        finally:
+            shutil.rmtree(d)
+
+    def test_an_unreadable_answer_fails_the_source(self):
+        d = tempfile.mkdtemp()
+        try:
+            rep = {"sources": {}}
+            r = napfetch.fetch_one(NAP_SOURCES["FI-digitraffic"], d, rep,
+                                   opener=lambda req, timeout=None: self.Resp(200, b"<html>maintenance</html>"),
+                                   sleep=lambda s: None)
+            self.assertFalse(r["ok"])
+        finally:
+            shutil.rmtree(d)
+
+    def test_bnetza_url_is_read_from_its_page_newest_first(self):
+        page = (b'<a href="https://data.bundesnetzagentur.de/x/Ladesaeulenregister_BNetzA_2026-10-01.csv">old</a>'
+                b'<a href="https://data.bundesnetzagentur.de/x/Ladesaeulenregister_BNetzA_2026-11-12.csv">new</a>'
+                b'<a href="https://data.bundesnetzagentur.de/x/Ladesaeulenregister_BNetzA_2026-11-12.xlsx">x</a>')
+        body = open(os.path.join(NAPFX, "DE-bnetza.bin"), "rb").read()
+        seen = []
+
+        def opener(req, timeout=None):
+            seen.append((req.full_url, req.get_header("User-agent")))
+            return self.Resp(200, page if req.full_url.endswith("start.html") else body)
+        d = tempfile.mkdtemp()
+        try:
+            rep = {"sources": {}}
+            r = napfetch.fetch_one(NAP_SOURCES["DE-bnetza"], d, rep, opener=opener, sleep=lambda s: None)
+            self.assertTrue(r["ok"], r)
+            self.assertEqual(r["url"], "https://data.bundesnetzagentur.de/x/Ladesaeulenregister_BNetzA_2026-11-12.csv")
+            self.assertTrue(all(ua.startswith("Mozilla/5.0") for _, ua in seen))
+            self.assertEqual(open(os.path.join(d, "DE-bnetza.bin"), "rb").read(), body)
+        finally:
+            shutil.rmtree(d)
+
+
+class ManifestV2(unittest.TestCase):
+    V2 = dict(Manifest.DESC, format="wedrive-charging/2", file="charging-v2.sqlite.gz",
+              counts={"stations": 2, "evse_ids": 1})
+    URL = "https://github.com/o/r/releases/download/charging-2026-12-06/charging.sqlite.gz"
+    URL2 = "https://github.com/o/r/releases/download/charging-2026-12-06/charging-v2.sqlite.gz"
+
+    def test_v2_is_nested_and_v1_stays_on_top(self):
+        m = {"kind": "regional", "tag": "regional-x"}
+        out = cman.apply(m, dict(Manifest.DESC, v2=self.V2), self.URL, self.URL2)
+        self.assertEqual(out["charging"]["format"], "wedrive-charging/1")
+        self.assertEqual(out["charging"]["url"], self.URL)
+        self.assertEqual(out["charging"]["v2"]["format"], "wedrive-charging/2")
+        self.assertEqual(out["charging"]["v2"]["url"], self.URL2)
+        self.assertEqual(sorted(out["charging"]["v2"]), sorted(list(cman.REQUIRED) + ["url"]))
+
+    def test_v2_needs_its_url_its_format_and_the_same_build(self):
+        m = {"kind": "regional"}
+        with self.assertRaises(SystemExit):
+            cman.apply(dict(m), dict(Manifest.DESC, v2=self.V2), self.URL)
+        with self.assertRaises(SystemExit):
+            cman.apply(dict(m), Manifest.DESC, self.URL, self.URL2)
+        with self.assertRaises(SystemExit):
+            cman.apply(dict(m), dict(Manifest.DESC, v2=dict(self.V2, format="wedrive-charging/1")), self.URL, self.URL2)
+        with self.assertRaises(SystemExit):
+            cman.apply(dict(m), dict(Manifest.DESC, v2=dict(self.V2, build="2026-01-01")), self.URL, self.URL2)
+        with self.assertRaises(SystemExit):
+            cman.apply(dict(m), dict(Manifest.DESC, v2=self.V2), self.URL, "http://x")
 
 
 if __name__ == "__main__":
