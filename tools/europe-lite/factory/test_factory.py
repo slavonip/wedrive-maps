@@ -293,6 +293,55 @@ class Manifest(unittest.TestCase):
         m["graph"]["file"] = "europe_lite-2026-09-21.tar.gz"
         self.assertTrue(any("contract" in p for p in lite_manifest.validate(m)))
 
+    OVERLAY = {
+        "overview": {"file": "overview.pmtiles", "bytes": 98400000, "sha256": "c" * 64, "release": "lite-overlay-2026-11-25",
+                     "url": "https://github.com/slavonip/wedrive-maps/releases/download/lite-overlay-2026-11-25/overview.pmtiles",
+                     "maxzoom": 9, "layers": ["boundaries", "earth", "places", "roads", "water"]},
+        "places": {"format": "wedrive-lite-places/1", "file": "places.sqlite.gz", "bytes": 28013979, "sha256": "d" * 64,
+                   "sqlite_bytes": 56709120, "sqlite_sha256": "e" * 64, "release": "lite-overlay-2026-11-25",
+                   "url": "https://github.com/slavonip/wedrive-maps/releases/download/lite-overlay-2026-11-25/places.sqlite.gz",
+                   "rows": 365675, "counts": {"MD": 1681}, "kinds": {"city": 1}, "excluded": ["RU"]},
+    }
+
+    def make_with_previous(self, previous):
+        prev = os.path.join(self.d, "pointer.json")
+        json.dump(previous, open(prev, "w"))
+        args = ["make", "--repo", "slavonip/wedrive-maps", "--dir", self.d, "--source", self.source,
+                "--gates", self.gates, "--lite-image", "ghcr.io/x/lite@sha256:" + "b" * 64,
+                "--tiles", "1", "--tar-bytes", "1", "--run-id", "42", "--run-url", "u",
+                "--previous", prev, "--out", self.out]
+        return subprocess.run([sys.executable, os.path.join(HERE, "lite_manifest.py")] + args, capture_output=True, text=True)
+
+    def test_a_new_graph_carries_the_overlay_forward_unchanged(self):
+        prev = {"kind": "europe-lite", "tag": "europe-lite-2026-09-25", "graph": {"sha256": "f" * 64}}
+        prev.update(json.loads(json.dumps(self.OVERLAY)))
+        r = self.make_with_previous(prev)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        m = json.load(open(self.out))
+        self.assertEqual(m["overview"], self.OVERLAY["overview"])
+        self.assertEqual(m["places"], self.OVERLAY["places"])
+        # the overlay's files are NOT this release's: publish.sh must not look for them here
+        self.assertNotIn("overview.pmtiles", self.files())
+        self.assertNotIn("places.sqlite.gz", self.files())
+        self.assertEqual(lite_manifest.validate(m, self.d), [])
+
+    def test_without_an_overlay_in_the_pointer_none_appears(self):
+        r = self.make_with_previous({"kind": "europe-lite", "tag": "europe-lite-2026-09-25"})
+        self.assertEqual(r.returncode, 0, r.stdout)
+        m = json.load(open(self.out))
+        self.assertNotIn("overview", m)
+        self.assertNotIn("places", m)
+
+    def test_an_overlay_pointing_into_the_lite_release_is_refused(self):
+        self.make()
+        m = json.load(open(self.out))
+        m.update(json.loads(json.dumps(self.OVERLAY)))
+        self.assertEqual(lite_manifest.validate(m), [])
+        m["places"]["url"] = "https://github.com/slavonip/wedrive-maps/releases/download/europe-lite-2026-09-21/places.sqlite.gz"
+        self.assertTrue(any("places.url" in p for p in lite_manifest.validate(m)))
+        m["overview"]["sha256"] = "nope"
+        self.assertTrue(any("overview.sha256" in p for p in lite_manifest.validate(m)))
+
     def test_check_catches_tag_version_mismatch(self):
         self.make()
         m = json.load(open(self.out))

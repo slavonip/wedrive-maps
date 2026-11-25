@@ -1,0 +1,173 @@
+# The Europe Lite OVERLAY (owner, 2026-11-25): what a car sees and finds in a country it drives on
+# Europe Lite alone, with no full package —
+#
+#   overview.pmtiles   z0-9 of the Lite polygon, earth/water/boundaries/places/roads (no landuse):
+#                      roads down to secondary and the names of cities, towns and villages
+#   places.sqlite.gz   the cities, towns and villages of every published country except RU, from
+#                      the published search databases (their addr_locality), searchable by name
+#
+#   overview ─┐
+#             ├─> publish: draft -> upload -> download and verify -> publish -> public URLs
+#   places  ──┘            -> europe-lite.json "overview"/"places" (the Android pointer)
+#
+# Its own release `lite-overlay-<date>` (never overwritten: a second run on one day gets -2, -3 …).
+# The Lite graph's release is not touched; the Lite factory carries the two sections forward
+# (tools/europe-lite/factory/lite_manifest.py) when it publishes a new graph. A failure anywhere
+# before the pointer commit leaves europe-lite.json as it was.
+name: lite-overlay
+
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        description: "Protomaps build key (YYYYMMDD); empty = the newest"
+        required: false
+        default: ""
+      publish:
+        description: "publish the release and move europe-lite.json (false = build and check only)"
+        type: boolean
+        default: false
+
+# SAME group as the Lite factory: both commit europe-lite.json, and one must never rebase its
+# pointer over the other's in the middle of a run.
+concurrency:
+  group: europe-lite-factory
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  overview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TIPPECANOE_VERSION: "2.79.0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: tippecanoe (tile-join)
+        run: |
+          set -euo pipefail
+          sudo apt-get -qq update && sudo apt-get -qq install -y build-essential libsqlite3-dev zlib1g-dev >/dev/null
+          git clone -q --depth 1 --branch "$TIPPECANOE_VERSION" https://github.com/felt/tippecanoe.git "$RUNNER_TEMP/tippecanoe"
+          make -s -C "$RUNNER_TEMP/tippecanoe" -j"$(nproc)" tile-join >/dev/null
+          echo "$RUNNER_TEMP/tippecanoe" >> "$GITHUB_PATH"
+      - name: build and check overview.pmtiles
+        env:
+          BUILD: ${{ inputs.build }}
+        run: |
+          set -euo pipefail
+          [ -n "${BUILD:-}" ] || unset BUILD
+          WORK="$RUNNER_TEMP/work" bash scripts/lite-overview.sh "$RUNNER_TEMP/out"
+          cat "$RUNNER_TEMP/out/overview.json"
+          # the PMTiles contract the app holds every archive to (its parallel reader serves this one)
+          python3 scripts/pmtiles_contract.py "$RUNNER_TEMP/out/overview.pmtiles" --maxzoom 9
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lite-overview
+          retention-days: 7
+          compression-level: 0
+          path: |
+            ${{ runner.temp }}/out/overview.pmtiles
+            ${{ runner.temp }}/out/overview.json
+
+  places:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: tests
+        run: python3 tests/test_lite_overlay.py
+      - name: build and gate places.sqlite (from the published search databases)
+        run: |
+          set -euo pipefail
+          df -h /
+          python3 scripts/lite-places.py build --manifest manifest.json --previous europe-lite.json \
+            --out "$RUNNER_TEMP/places"
+          ls -l "$RUNNER_TEMP/places"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lite-places
+          retention-days: 7
+          compression-level: 0
+          path: |
+            ${{ runner.temp }}/places/places.sqlite.gz
+            ${{ runner.temp }}/places/places.json
+
+  publish:
+    needs: [overview, places]
+    if: inputs.publish == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: lite-overview
+          path: ${{ runner.temp }}/rel
+      - uses: actions/download-artifact@v4
+        with:
+          name: lite-places
+          path: ${{ runner.temp }}/rel
+      - name: draft -> upload -> verify -> publish -> pointer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          R="$RUNNER_TEMP/rel"; cd "$R"
+          ov_sha=$(python3 -c 'import json;print(json.load(open("overview.json"))["sha256"])')
+          pl_sha=$(python3 -c 'import json;print(json.load(open("places.json"))["sha256"])')
+          [ "$(sha256sum overview.pmtiles | cut -d' ' -f1)" = "$ov_sha" ] || { echo "::error::overview.pmtiles != overview.json"; exit 1; }
+          [ "$(sha256sum places.sqlite.gz | cut -d' ' -f1)" = "$pl_sha" ] || { echo "::error::places.sqlite.gz != places.json"; exit 1; }
+          sha256sum overview.pmtiles places.sqlite.gz overview.json places.json > SHA256SUMS
+          FILES=(overview.pmtiles places.sqlite.gz overview.json places.json SHA256SUMS)
+          # a NEW release, never an overwrite
+          base="lite-overlay-$(date -u +%F)"; TAG="$base"; n=1
+          while gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; do n=$((n + 1)); TAG="$base-$n"; done
+          echo "release $TAG"
+          PUBLISHED=0
+          cleanup() { [ "$PUBLISHED" = 1 ] || gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          python3 - > notes.md <<'PY'
+          import json
+          o = json.load(open("overview.json")); p = json.load(open("places.json"))
+          print("Europe Lite overlay: what a car sees and finds in a country it drives on Europe Lite alone.\n")
+          print("- overview.pmtiles: Protomaps build %s, z0-%d, layers %s, %.1f MB" % (o["build"], o["maxzoom"], "/".join(o["layers"]), o["size"] / 1e6))
+          print("- places.sqlite.gz: %d settlements (%s) of %d countries, excluded %s; %.1f MB (%.1f MB unpacked)" % (
+              p["rows"], ", ".join("%s %d" % kv for kv in sorted(p["kinds"].items())), len(p["counts"]), p["excluded"],
+              p["bytes"] / 1e6, p["sqlite_bytes"] / 1e6))
+          print("- from the search databases of %s" % p["source"]["manifest_tag"])
+          print("\nMap data © OpenStreetMap contributors (ODbL), Protomaps.")
+          PY
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --latest=false \
+            --title "Europe Lite overlay $(date -u +%F)" --notes-file notes.md
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "${FILES[@]}"
+          CHK="$(mktemp -d)"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$CHK"
+          ( cd "$CHK" && sha256sum -c SHA256SUMS && cmp SHA256SUMS "$R/SHA256SUMS" )
+          [ "$(ls "$CHK" | wc -l)" = "${#FILES[@]}" ] || { echo "::error::the draft has $(ls "$CHK" | wc -l) assets"; exit 1; }
+          rm -rf "$CHK"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
+          PUBLISHED=1
+          for f in "${FILES[@]}"; do
+            want=$(stat -c %s "$f")
+            got=$(curl -sfIL "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$f" | awk 'tolower($1)=="content-length:"{v=$2} END{gsub("\r","",v); print v}')
+            [ "$got" = "$want" ] || { echo "::error::public $f: size $got, expected $want — pointer NOT moved"; exit 1; }
+          done
+          cd "$GITHUB_WORKSPACE"
+          for i in 1 2 3; do
+            git pull -q --rebase --autostash
+            python3 scripts/lite-overlay-manifest.py europe-lite.json "$R/overview.json" "$R/places.json" "$GITHUB_REPOSITORY" "$TAG"
+            python3 tools/europe-lite/factory/lite_manifest.py check europe-lite.json
+            git add europe-lite.json
+            git -c user.name="lite-overlay" -c user.email="actions@users.noreply.github.com" \
+                commit -q -m "Europe Lite overlay -> $TAG (overview $(stat -c %s "$R/overview.pmtiles") bytes, places $(stat -c %s "$R/places.sqlite.gz") bytes)"
+            git push -q && { echo "europe-lite.json overview/places -> $TAG"; exit 0; }
+            git reset -q --hard HEAD~1
+            sleep 5
+          done
+          echo "::error::pointer push failed three times: $TAG is published, europe-lite.json unchanged"; exit 1

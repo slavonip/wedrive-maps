@@ -3,13 +3,19 @@
 
     lite_manifest.py make  --repo OWNER/REPO --dir DIR --source source.json --gates gates.json \
                            --lite-image REF --tiles N --tar-bytes N [--run-id ID --run-url URL] \
-                           [--factory-commit SHA] --out europe-lite.json
+                           [--factory-commit SHA] [--previous europe-lite.json] --out europe-lite.json
     lite_manifest.py check europe-lite.json [--dir DIR]
 
 `make` hashes the two published files in DIR (europe_lite.tar.gz, europe_lite.osm.pbf), which are
 already under their stable names; the version is the UTC date of the source's replication
 timestamp and the release tag is europe-lite-<version>. `check` validates a manifest and, with
 --dir, that every file it names in DIR has the bytes and sha256 it states. Exit code 0 / 1.
+
+THE OVERLAY IS CARRIED FORWARD: `overview` and `places` (the Europe Lite overview map and the
+settlements catalogue, scripts/lite-overlay-manifest.py) live in their own `lite-overlay-<date>`
+release, not in this one, so `make` copies both sections verbatim from --previous (default: the
+current pointer, europe-lite.json at the repository root). A new graph never drops them; a new
+overlay replaces them through lite-overlay.yml. They are not files of THIS release.
 
 Asset names are a CONTRACT and never carry the version: every release has europe_lite.tar.gz,
 europe_lite.osm.pbf, SHA256SUMS, europe-lite.json and gates.json. The version lives in the tag
@@ -26,6 +32,9 @@ PATCHES = {"B2": "valhalla-3.6.3-ferry-first-edge.patch",
            "C": "valhalla-3.6.3-border-control-contract.patch"}
 VALHALLA = {"version": "3.6.3", "commit": "e2f017b16080f49203de245a211b09efab09cf72"}
 SHA = re.compile(r"^[0-9a-f]{64}$")
+# sections of another release (lite-overlay-<date>) that a new graph carries forward unchanged
+CARRIED = ("overview", "places")
+OVERLAY_FILES = {"overview": "overview.pmtiles", "places": "places.sqlite.gz"}
 
 
 def sha256(path):
@@ -116,6 +125,14 @@ def make(a):
     if os.path.exists(os.path.join(a.dir, FEATURES)):
         m["features"] = dict(entry(a.repo, tag, a.dir, FEATURES), format="wedrive-features/1",
                              counts=features_counts(os.path.join(a.dir, FEATURES)))
+    # the overlay of the current pointer rides on, untouched (its files are in their own release)
+    prev = a.previous if a.previous is not None else os.path.join(os.path.dirname(os.path.dirname(LITE)), "europe-lite.json")
+    if prev and os.path.exists(prev):
+        old = json.load(open(prev, encoding="utf-8"))
+        for k in CARRIED:
+            if k in old:
+                m[k] = old[k]
+                print("carried forward from %s: %s (%s)" % (prev, k, old[k].get("release")))
     with open(a.out, "w", encoding="utf-8") as f:
         json.dump(m, f, indent=1, sort_keys=True)
         f.write("\n")
@@ -165,6 +182,17 @@ def validate(m, d=None):
         fe = m["features"]
         if fe.get("format") != "wedrive-features/1": p.append("features.format is %r" % fe.get("format"))
         if not isinstance(fe.get("counts"), dict) or not fe["counts"]: p.append("features.counts missing")
+    for k in CARRIED:
+        if k not in m:
+            continue
+        x, name = m[k], OVERLAY_FILES[k]
+        rel = str(x.get("release", ""))
+        if x.get("file") != name: p.append("%s.file is %r, the contract says %r" % (k, x.get("file"), name))
+        if not rel.startswith("lite-overlay-"): p.append("%s.release %r is not a lite-overlay release" % (k, rel))
+        if not str(x.get("url", "")).endswith("/releases/download/%s/%s" % (rel, name)):
+            p.append("%s.url does not point at %s/%s" % (k, rel, name))
+        if not isinstance(x.get("bytes"), int) or x["bytes"] <= 0: p.append("%s.bytes invalid" % k)
+        if not SHA.match(str(x.get("sha256", ""))): p.append("%s.sha256 malformed" % k)
     g = m["gates"]
     if g.get("verdict") != "PASS": p.append("gates verdict is %r" % g.get("verdict"))
     for k in ("struct", "transit", "routes"):
@@ -197,6 +225,9 @@ def main():
     mk.add_argument("--run-url")
     mk.add_argument("--run-note", default="")
     mk.add_argument("--factory-commit", default="")
+    mk.add_argument("--previous", default=None,
+                    help="the current pointer whose overview/places are carried forward (default: the repository's "
+                         "europe-lite.json; '' = none)")
     mk.add_argument("--out", required=True)
     ck = sub.add_parser("check")
     ck.add_argument("manifest")
