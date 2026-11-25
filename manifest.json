@@ -4692,16 +4692,16 @@
   },
   "charging": {
     "format": "wedrive-charging/1",
-    "build": "2026-11-24",
-    "bytes": 33025808,
-    "sha256": "8a9b12d7954d59527024a914ffbe345af69ff73278b5ff6bbe3be682209bb123",
-    "sqlite_bytes": 95723520,
-    "sqlite_sha256": "89e963b663031d0bee1af09c1f9031fe0aaedb583dfdc88f352dd5dc58f7b5ed",
+    "build": "2026-11-25",
+    "bytes": 33029169,
+    "sha256": "e50679c3fdeeba5a46d100665c33e3d837ca0882c4c80d57f953eb5847769805",
+    "sqlite_bytes": 95727616,
+    "sqlite_sha256": "a8a0984dc0f11856079a5d783d3084befb41437e97211ac4e74639fb32fbf9c6",
     "counts": {
-      "clusters": 293208,
+      "clusters": 292832,
       "dropped_licence": 499,
       "dropped_removed": 307,
-      "ocm": 150378,
+      "ocm": 150404,
       "ocm_by_country": {
         "AD": 107,
         "AL": 15,
@@ -4716,16 +4716,16 @@
         "DE": 24657,
         "DK": 2585,
         "EE": 173,
-        "ES": 20725,
-        "FI": 5973,
+        "ES": 20741,
+        "FI": 5979,
         "FO": 5,
         "FR": 16214,
-        "GB": 27651,
+        "GB": 27652,
         "GE": 82,
         "GR": 295,
         "HR": 304,
         "HU": 904,
-        "IE": 2632,
+        "IE": 2633,
         "IM": 59,
         "IS": 932,
         "IT": 10724,
@@ -4740,9 +4740,9 @@
         "MT": 57,
         "NL": 8263,
         "NO": 4796,
-        "PL": 528,
+        "PL": 529,
         "PT": 3750,
-        "RO": 809,
+        "RO": 810,
         "RS": 126,
         "RU": 2716,
         "SE": 4970,
@@ -4806,18 +4806,18 @@
         "XG": 7,
         "XK": 8
       },
-      "stations": 327500,
+      "stations": 327526,
       "status": {
-        "NOT_OPERATIONAL": 2611,
-        "OPERATIONAL": 117347,
-        "PARTLY": 837,
+        "NOT_OPERATIONAL": 2602,
+        "OPERATIONAL": 117384,
+        "PARTLY": 835,
         "PLANNED": 1984,
         "UNKNOWN": 204721
       }
     },
     "sources": {
       "ocm": {
-        "fetched": "2026-11-24T05:11:01Z",
+        "fetched": "2026-11-25T00:02:28Z",
         "requests": 71
       },
       "osm": [
@@ -5123,6 +5123,128 @@
         }
       ]
     },
-    "url": "https://github.com/slavonip/wedrive-maps/releases/download/charging-2026-11-24/charging.sqlite.gz"
+    "url": "https://github.com/slavonip/wedrive-maps/releases/download/charging-2026-11-25/charging.sqlite.gz",
+    "v2": {
+      "format": "wedrive-charging/2",
+      "build": "2026-11-25",
+      "bytes": 64364495,
+      "sha256": "4bedcbef2e2208ed593c080bc343a56f1bc5766e2ac1272b9280581c76746ac4",
+      "sqlite_bytes": 200769536,
+      "sqlite_sha256": "861d63ad772aded261ce354b031494611f8eefdc77543f1d6ae6a4e86b200046",
+      "counts": {
+        "clusters": 438855,
+        "evse_conflicts": 824,
+        "evse_ids": 530707,
+        "evse_ids_by_country": {
+          "AT": 2864,
+          "BA": 3,
+          "BE": 134,
+          "BG": 4,
+          "CH": 19593,
+          "CY": 4,
+          "CZ": 317,
+          "DE": 72330,
+          "DK": 34,
+          "EE": 128,
+          "ES": 26,
+          "FI": 20434,
+          "FR": 180086,
+          "GB": 7879,
+          "GR": 6758,
+          "HR": 39,
+          "HU": 31,
+          "IE": 39,
+          "IT": 262,
+          "LI": 2,
+          "NL": 209071,
+          "PL": 105,
+          "PT": 10349,
+          "RO": 1,
+          "RU": 1,
+          "SE": 55,
+          "SI": 12,
+          "SK": 5,
+          "TR": 1,
+          "XA": 140
+        },
+        "evse_rows": 699632,
+        "live_keys_by_country": {
+          "LT": 15068
+        },
+        "nap": 198827,
+        "nap_by_source": {
+          "CH-bfe": 6581,
+          "DE-bnetza": 65916,
+          "FI-digitraffic": 3762,
+          "FR-irve": 39744,
+          "LT-viali": 3000,
+          "NL-ndw": 79824
+        },
+        "nap_failed": [],
+        "nap_matched": {
+          "matched_evse": 1144,
+          "matched_geo": 47193,
+          "matched_ref": 4467,
+          "new": 146023
+        },
+        "stations": 526353
+      },
+      "sources": {
+        "nap": {
+          "fetched": "2026-11-25T00:04:52Z",
+          "registries": {
+            "CH-bfe": {
+              "bytes": 1048805,
+              "error": null,
+              "last_modified": "Wed, 25 Nov 2026 00:06:07 GMT",
+              "ok": true,
+              "sha256": "f0576cc4d7cb6eba9a73f421cc8750c47d0ec57050a24c747bd88432dff86fd1",
+              "url": "https://data.geo.admin.ch/ch.bfe.ladestellen-elektromobilitaet/data/oicp/ch.bfe.ladestellen-elektromobilitaet.json"
+            },
+            "DE-bnetza": {
+              "bytes": 57980040,
+              "error": null,
+              "last_modified": "Fri, 13 Nov 2026 08:40:02 GMT",
+              "ok": true,
+              "sha256": "865b2cc1059edfc5d1cb5a5cc5d9d56bf768ee99d0721cd16bfa72ce0f44224d",
+              "url": "https://data.bundesnetzagentur.de/Bundesnetzagentur/DE/Fachthemen/ElektrizitaetundGas/E-Mobilitaet/Ladesaeulenregister_BNetzA_2026-11-12.csv"
+            },
+            "FI-digitraffic": {
+              "bytes": 25939725,
+              "error": null,
+              "last_modified": "Wed, 25 Nov 2026 00:05:41 GMT",
+              "ok": true,
+              "sha256": "1c1736e99644ddaaa1c121f2d366e179dc7748a73291ff0198e496161751f251",
+              "url": "https://afir.digitraffic.fi/api/charging-network/v1/locations/all"
+            },
+            "FR-irve": {
+              "bytes": 130078150,
+              "error": null,
+              "last_modified": null,
+              "ok": true,
+              "sha256": "6556dea1a9237640fca0c9c50ca380ea46f8044031a13d2c684f53b9837d094f",
+              "url": "https://transport.data.gouv.fr/resources/84013/download"
+            },
+            "LT-viali": {
+              "bytes": 424390,
+              "error": null,
+              "last_modified": null,
+              "ok": true,
+              "sha256": "5c03ff3b53346c9e9b5a9c5ec6177e253d7deb869139b94d8c7a36ae8a507607",
+              "url": "https://ev.vialietuva.lt/publicdata/EnergyInfrastructureTablePublication"
+            },
+            "NL-ndw": {
+              "bytes": 18049416,
+              "error": null,
+              "last_modified": "Wed, 25 Nov 2026 00:06:00 GMT",
+              "ok": true,
+              "sha256": "d62f7884aed444bb6f0bac3a1f1a9de6c58f2fa38e2519cd82ab4242dc7c9eeb",
+              "url": "https://opendata.ndw.nu/charging_point_locations_ocpi.json.gz"
+            }
+          }
+        }
+      },
+      "url": "https://github.com/slavonip/wedrive-maps/releases/download/charging-2026-11-25/charging-v2.sqlite.gz"
+    }
   }
 }
