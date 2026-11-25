@@ -232,7 +232,7 @@ def main():
     b = sub.add_parser("build")
     b.add_argument("--manifest", required=True, help="the regional manifest.json (search databases)")
     b.add_argument("--out", required=True)
-    b.add_argument("--previous", help="the current europe-lite.json: its places.counts are the 90 % gate")
+    b.add_argument("--previous", help="the current europe-lite.json: its places.counts are the 90 %% gate")
     b.add_argument("--local", help="a directory of <CC>.sqlite already downloaded (used when the sha256 matches)")
     b.add_argument("--exclude", default="RU", help="comma-separated countries left out (default RU: no Lite graph)")
     b.add_argument("--min-rows", type=int, default=300_000)
