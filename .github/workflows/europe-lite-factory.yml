@@ -3,7 +3,7 @@
 # revision in tools/europe-lite/PIPELINE_REV), checked by the existing gates, then published.
 #
 #   precheck -> build -> baseline -> gates -> package -> publish (only with publish=true)
-#                  \________ report (opens an issue when anything fails) ________/
+#                  \__ report (opens an issue when anything fails OR is cancelled) __/
 #
 # Nothing is published unless all three gates PASS. Publication is draft -> upload -> download and
 # verify -> publish -> check public URLs -> commit europe-lite.json (the Android pointer); a failure
@@ -98,6 +98,11 @@ jobs:
       LITE_IMAGE: ${{ needs.precheck.outputs.lite_image }}
     steps:
       - uses: actions/checkout@v4
+      # Can this runner do the job at all? (scripts/runner-preflight.sh: BAD RUNNER within a
+      # minute.) Disk: the build takes +52 GB at its peak, measured on the production runs.
+      # Network: the source's md5 and, when the mirror is not used, the source itself are Geofabrik's.
+      - name: preflight
+        run: bash scripts/runner-preflight.sh 55 https://download.geofabrik.de/
       - name: tools and disk
         run: |
           set -euo pipefail
@@ -117,7 +122,13 @@ jobs:
         run: |
           docker pull -q "$LITE_IMAGE"
           bash "$LITE/valhalla/check-image.sh" "$LITE_IMAGE"
+      # 2026-11-03 (run 41622971817): one connection to Geofabrik averaged 1.5 MB/s, the download
+      # reached 91 % in 5 h 50 min and the JOB was cancelled by its timeout — a cancellation, which
+      # the report job did not see. fetch-source.sh now takes the mirror first and Geofabrik in
+      # parallel ranges, with its own deadlines; this step's timeout is the last line of defence
+      # and ends the step as a FAILURE while the job still has time to say so.
       - name: source (the dated Geofabrik file the precheck pinned, MD5-checked)
+        timeout-minutes: 200
         env:
           SOURCE_URL: ${{ needs.precheck.outputs.source_url }}
           SOURCE_MD5: ${{ needs.precheck.outputs.source_md5 }}
@@ -329,9 +340,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash "$LITE/factory/publish.sh" "$RUNNER_TEMP/release" "$GITHUB_REPOSITORY" "$GITHUB_WORKSPACE"
 
+  # always(): a run that was CANCELLED (a job timeout, a manual cancel) reports too. failure()
+  # alone is false for a cancelled run, and the November run ended without an issue.
   report:
     needs: [precheck, build, baseline, gates, package, publish]
-    if: failure()
+    if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -352,7 +365,7 @@ jobs:
           set -euo pipefail
           body=$(mktemp)
           {
-            echo "The Europe Lite factory run failed and **nothing new was published**."
+            echo "The Europe Lite factory run failed or was cancelled and **nothing new was published**."
             echo "The pointer \`europe-lite.json\` still names the previous release; the car keeps it."
             echo
             echo "Run: $RUN_URL"

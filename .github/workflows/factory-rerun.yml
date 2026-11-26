@@ -1,0 +1,176 @@
+name: factory rerun
+
+# Rerun the failed jobs of a regional factory run — only when they failed because of the RUNNER or
+# the DOWNLOAD, and at most until the run has had MAX_ATTEMPTS attempts.
+#
+# WHY. A GitHub-hosted runner is not one machine: on 2026-11-04 five of 103 jobs of run 41818389322
+# landed on AWS-hosted runners with ~13 GB of free disk and no route to download.geofabrik.de, and
+# the same hour Geofabrik served France at 0.53 MB/s and Russia at 17.8. Neither says anything
+# about the data or the code, and a second attempt is usually another machine and another
+# connection. Everything else — a build that failed, a gate, the regression — would fail again
+# the same way, so it is NOT rerun.
+#
+# THE RULE (the same text, word for word, in regional-factory.yml's `hold for rerun` — to know
+# whether to hold — and in its `report` job — to know whether to open the issue now or leave it
+# to the last attempt):
+#   the run ended in failure, has had fewer than MAX_ATTEMPTS attempts, no job was cancelled, and at
+#   least one failed job stopped in a step named `preflight`, `source` or `hold for rerun`.
+# `hold for rerun` is the factory job refusing to carry and publish while such a country can still
+# be retried; it fails only for that reason.
+#
+# `--failed` reruns EVERY failed job of the attempt, so a country whose build genuinely failed is
+# built again too whenever another job gives the reason for a rerun. That costs runner time and
+# changes nothing else: it fails the same way and is carried on the last attempt.
+#
+# If this workflow does not run at all for an attempt (GitHub does not deliver workflow_run for an
+# attempt that a bot started), a held run stays held: nothing is published and no issue is
+# opened by anybody. The control run of this mechanism is what shows whether that can happen.
+#
+# `gh run rerun --failed` reruns the failed jobs and everything that depends on them (factory,
+# publish, report); countries that were built keep their artifacts.
+#
+# A workflow_run trigger is read from the DEFAULT BRANCH only: this file does nothing until it is
+# on main, whatever branch the factory run itself was started from.
+on:
+  workflow_run:
+    workflows: ["regional factory"]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write       # only for the case below: a rerun that was decided and could not be started
+
+env:
+  # Attempts of one run, the first included. The same number lives in regional-factory.yml.
+  MAX_ATTEMPTS: 4
+
+jobs:
+  rerun:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: did it fail on a runner or a download?
+        id: decide
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          API: ${{ github.api_url }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, time, urllib.request
+
+          RERUN = ("preflight", "source", "hold for rerun")
+
+
+          def jobs_of(attempt):
+              """Every job of this attempt. PAGE SIZE 30, with retries: for a rerun attempt of a full-size
+              run the API answers 502 to per_page=100 and to 80 (measured on run 45725573924, attempt 2:
+              7 of 7 tries), while 60, 50 and 30 are served."""
+              backoff = [int(x) for x in os.environ.get("API_BACKOFF", "5,15,30").split(",") if x]
+              jobs, page = [], 1
+              while True:
+                  url = "%s/repos/%s/actions/runs/%s/attempts/%d/jobs?per_page=30&page=%d" % (
+                      os.environ["API"], os.environ["GITHUB_REPOSITORY"], os.environ["RUN_ID"], attempt, page)
+                  for wait in backoff + [None]:
+                      try:
+                          req = urllib.request.Request(url, headers={
+                              "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
+                              "Accept": "application/vnd.github+json"})
+                          got = json.load(urllib.request.urlopen(req, timeout=60))["jobs"]
+                          break
+                      except Exception as e:
+                          if wait is None:
+                              raise
+                          print("   jobs API, page %d: %s - again in %d s" % (page, e, wait))
+                          time.sleep(wait)
+                  jobs += got
+                  if len(got) < 30:
+                      return jobs
+                  page += 1
+
+
+          def rerun_is_coming(jobs, attempt, last):
+              """THE ONE RULE, the same text in `hold for rerun`, in `report` and in factory-rerun.yml:
+              factory-rerun reruns an attempt that is not the last, has no cancelled job, and has a failed
+              job that stopped in a step named `preflight`, `source` or `hold for rerun`. -> (bool, why)"""
+              if attempt >= last:
+                  return False, "attempt %d of %d is the last" % (attempt, last)
+              if any(j.get("conclusion") == "cancelled" for j in jobs):
+                  return False, "a job was cancelled (a run with a cancelled job is not rerun)"
+              hits = sorted((j["name"], s["name"]) for j in jobs if j.get("conclusion") == "failure"
+                            for s in j.get("steps") or [] if s.get("conclusion") == "failure" and s.get("name") in RERUN)
+              if not hits:
+                  return False, "no failed job stopped in `preflight`, `source` or `hold for rerun`"
+              return True, "; ".join("%s in `%s`" % h for h in hits[:10]) + (" ..." if len(hits) > 10 else "")
+
+
+          attempt, last = int(os.environ["ATTEMPT"]), int(os.environ["MAX_ATTEMPTS"])
+          print("%s: attempt %d of %d" % (os.environ["RUN_URL"], attempt, last))
+          try:
+              jobs = jobs_of(attempt) if attempt < last else []
+              for j in jobs:
+                  if j.get("conclusion") in ("failure", "cancelled"):
+                      steps = [s["name"] for s in j.get("steps") or [] if s.get("conclusion") == "failure"]
+                      print("   %-9s %s%s" % (j["conclusion"], j["name"], (" - in `%s`" % "`, `".join(steps)) if steps else ""))
+              go, why = rerun_is_coming(jobs, attempt, last)
+          except Exception as e:
+              # The run itself may have read its jobs a minute earlier, HELD, and left its issue to a
+              # rerun ("no issue yet"). Whether it did cannot be known here, so nothing may be
+              # assumed: no rerun is requested blind, and the step below opens the issue and turns
+              # this workflow run red. (On the last attempt nothing is read at all: the run's own
+              # `report` has opened the issue.)
+              go, why, unreadable = False, "the jobs of that attempt cannot be read (%s)" % e, True
+          else:
+              unreadable = False
+          print("%s: %s" % ("RERUN" if go else "no rerun", why))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("rerun=%s\n" % ("true" if go else "false"))
+              f.write("unreadable=%s\n" % ("true" if unreadable else "false"))
+          PY
+      - name: rerun the failed jobs
+        id: rerun
+        if: steps.decide.outputs.rerun == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: gh run rerun "$RUN_ID" --repo "$GITHUB_REPOSITORY" --failed
+      # THE SAFETY NET. The run may be waiting for this rerun: its `hold for rerun` carried and
+      # published nothing, and its `report` opened no issue because a rerun was coming. Somebody
+      # has to be told in both cases in which the rerun does not start:
+      #   - it was decided and could not be started (the token refused, the API down);
+      #   - it could not even be decided, because the jobs of the attempt cannot be read.
+      # One issue, and this workflow run ends red.
+      - name: the rerun could not be started - open an issue
+        if: always() && ((failure() && steps.decide.outputs.rerun == 'true') || steps.decide.outputs.unreadable == 'true')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          UNREADABLE: ${{ steps.decide.outputs.unreadable }}
+        run: |
+          set -euo pipefail
+          body=$(mktemp)
+          {
+            if [ "$UNREADABLE" = true ]; then
+              echo "A regional factory run failed, and the workflow that reruns runner and download failures"
+              echo "**could not read its jobs**, so it could not tell whether a rerun is due. If the run was"
+              echo "**held for a rerun**, nothing was carried, nothing was published and the run itself opened"
+              echo "no issue. No rerun was requested. manifest.json still names the previous release."
+            else
+              echo "A regional factory run failed on its runner or its download and was **held for a rerun**"
+              echo "(nothing carried, nothing published, no issue from the run itself) — and the automatic"
+              echo "rerun **could not be started**. manifest.json still names the previous release."
+            fi
+            echo
+            echo "Run: $RUN_URL (attempt $ATTEMPT of $MAX_ATTEMPTS)"
+            echo
+            echo "By hand: \`gh run rerun $RUN_ID --repo $GITHUB_REPOSITORY --failed\`"
+          } > "$body"
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Regional factory: the automatic rerun did not start ($(date -u +%F))" --body-file "$body"
+          # red also when the only thing that went wrong is the reading
+          [ "$UNREADABLE" != true ] || { echo "::error::the jobs of attempt $ATTEMPT could not be read; no rerun was requested"; exit 1; }

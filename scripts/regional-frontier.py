@@ -470,6 +470,62 @@ def backfill(work, installed):
     return made
 
 
+# AMBIGUOUS ENTRIES ARE REPORTED, NOT FATAL — up to a limit (owner, 2026-11-26).
+# An ambiguous entry is a frontier node that D1 could not join (match(), unchanged): the device
+# builds no portal there and routes through the other crossings of that border (the app's
+# Frontier.kt does exactly this, silently). The factory used to fail the whole run on the first
+# one, and on 2026-11-04 refused to publish 49 fresh countries because a forest track on the CZ-DE
+# border had its barrier node replaced in OSM between two extracts. So a few are a WARNING, in the
+# log, in the portals report and in the manifest. A pair fails only when the ambiguity is large on
+# BOTH counts — more than AMBIGUOUS_MAX entries AND more than AMBIGUOUS_MAX_SHARE of that pair's
+# portals — which is what a broken frontier looks like, as opposed to one edited crossing. A
+# required border left with no portal at all still fails, whatever the reason.
+AMBIGUOUS_MAX = 3
+AMBIGUOUS_MAX_SHARE = 0.01
+
+
+def portal_count(stats):
+    """Portals D1 really made for a pair (one per joined crossing)."""
+    return stats["osm"] + stats["coord"] + stats["near"]
+
+
+def judge_ambiguity(by_pair):
+    """-> (problems, warnings). Marks every ambiguous pair of by_pair with "warning" (the report)."""
+    problems, warnings = [], []
+    for name, s in sorted(by_pair.items()):
+        n = s["ambiguous"]
+        if not n:
+            continue
+        made = portal_count(s)
+        text = "%s: %d ambiguous frontier entries beside %d portals (no portal is built there)" % (name, n, made)
+        if n > AMBIGUOUS_MAX and n > AMBIGUOUS_MAX_SHARE * made:
+            problems.append("%s: over the limit (more than %d entries and more than %g %% of the pair's portals)"
+                            % (text, AMBIGUOUS_MAX, AMBIGUOUS_MAX_SHARE * 100))
+        else:
+            s["warning"] = text
+            warnings.append(text)
+    return problems, warnings
+
+
+def unjoined_borders(cfg, frontiers, by_pair):
+    """-> (problems, notes): borders of regional.json with both countries present and no portal.
+    A pair that has only ambiguous entries is in by_pair and still has no portal."""
+    problems, notes = [], []
+    for border in cfg["borders"]:
+        a, b = border["between"]
+        if a not in frontiers or b not in frontiers:
+            continue
+        s = by_pair.get("%s-%s" % tuple(sorted((a, b))))
+        if s and portal_count(s):
+            continue
+        if border.get("required", True):
+            problems.append("%s-%s: both countries present, no portal joins them" % (a, b))
+        else:
+            # polygons of Geofabrik also overlap at sea (FR-GB, GB-IE): not every pair is a road
+            notes.append("%s-%s: neighbours by polygon, no portal (not required)" % (a, b))
+    return problems, notes
+
+
 def set_portals(cfg, work, out, report_path=None):
     """The table the APP would build from this set's frontiers (D1). -> problems."""
     frontiers = {}
@@ -484,21 +540,17 @@ def set_portals(cfg, work, out, report_path=None):
     rows, by_pair = build_portals(cfg, frontiers)
     with open(out, "w", encoding="ascii", newline="\n") as f:
         f.write("\n".join(rows) + ("\n" if rows else ""))
-    problems = []
     for name, s in sorted(by_pair.items()):
         print("   %-6s %-23s osm %4d  coord %3d  near %d  ambiguous %d  | unmatched %d/%d"
               % (name, "/".join(s["versions"]), s["osm"], s["coord"], s["near"], s["ambiguous"],
                  s["unmatched_a"], s["unmatched_b"]))
-        if s["ambiguous"]:
-            problems.append("%s: %d ambiguous frontier entries" % (name, s["ambiguous"]))
-    for border in cfg["borders"]:
-        a, b = border["between"]
-        if a in frontiers and b in frontiers and "%s-%s" % tuple(sorted((a, b))) not in by_pair:
-            if border.get("required", True):
-                problems.append("%s-%s: both countries present, no portal joins them" % (a, b))
-            else:
-                # polygons of Geofabrik also overlap at sea (FR-GB, GB-IE): not every pair is a road
-                print("   note %s-%s: neighbours by polygon, no portal (not required)" % (a, b))
+    problems, warnings = judge_ambiguity(by_pair)
+    for w in warnings:
+        print("   WARNING " + w)
+    missing, notes = unjoined_borders(cfg, frontiers, by_pair)
+    problems += missing
+    for n in notes:
+        print("   note " + n)
     if report_path:
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(by_pair, f, indent=2, sort_keys=True)
@@ -584,17 +636,19 @@ def main(argv):
             rows, by_pair = build_portals(cfg, frontiers)
             with open(out, "w", encoding="ascii", newline="\n") as f:
                 f.write("\n".join(rows) + ("\n" if rows else ""))
-            problems = []
             for name, s in sorted(by_pair.items()):
                 print("   %-6s %s  osm %d  coord %d  near %d  ambiguous %d  | unmatched %d/%d"
                       % (name, "/".join(s["versions"]), s["osm"], s["coord"], s["near"], s["ambiguous"],
                          s["unmatched_a"], s["unmatched_b"]))
-                if s["ambiguous"]:
-                    problems.append("%s: %d ambiguous frontier entries" % (name, s["ambiguous"]))
+            problems, warnings = judge_ambiguity(by_pair)
+            for w in warnings:
+                print("   WARNING " + w)
             if "--require-borders" in rest:
+                # (this command has always treated every border of regional.json as required)
                 for border in cfg["borders"]:
                     a, b = border["between"]
-                    if a in frontiers and b in frontiers and "%s-%s" % tuple(sorted((a, b))) not in by_pair:
+                    s = by_pair.get("%s-%s" % tuple(sorted((a, b))))
+                    if a in frontiers and b in frontiers and not (s and portal_count(s)):
                         problems.append("%s-%s: both countries present, no portal joins them" % (a, b))
             if report_path:
                 with open(report_path, "w", encoding="utf-8") as f:

@@ -16,6 +16,21 @@ name: regional factory
 #
 # Порядок не случаен. Манифест — это обещание устройству; переключать его до регрессии и до
 # проверки выложенного значит обещать то, что не проверено.
+#
+# THE RUNNER IS NOT A GIVEN (2026-11-26). GitHub guarantees a hosted runner 14 GB of disk and
+# nothing about its network; this factory was sized on Azure-hosted ones (145 GB, ~85 GB free). On
+# 2026-11-04 five of 103 jobs landed on AWS-hosted runners (72 GB, ~13 GB free, no route to
+# download.geofabrik.de): Germany's graph died with a Bus error, and the run published nothing. So:
+#   preflight       first step of graph, basemap, factory, publish (scripts/runner-preflight.sh):
+#                   a runner that cannot do the job says BAD RUNNER within a minute;
+#   source          the country extract is downloaded in its own step (scripts/fetch-pbf.sh,
+#                   resumable, with a speed floor), so "Geofabrik was slow" is not "the build failed";
+#   hold for rerun  in the factory job: while a country failed in `preflight` or `source` and this
+#                   is not the last attempt, nothing is carried and nothing is published — the run
+#                   fails here, and factory-rerun.yml reruns the failed jobs (usually on other
+#                   machines). On attempt MAX_ATTEMPTS the country is carried as before.
+# A failure anywhere else (a build, a gate, the regression) is NOT rerun: a second machine would
+# not change it. The issue is opened once, when no further attempt is coming.
 
 on:
   workflow_dispatch:
@@ -37,6 +52,10 @@ on:
         description: "Порог разрезания пакета, байт. Пусто = 1.9 ГиБ (предел актива GitHub). Меньше — проверить механику на небольшой стране."
         required: false
         default: ""
+      test_fail_preflight:
+        description: "CONTROL RUNS ONLY: fail the preflight of every graph job on attempts 1..N (0 = never). Proves hold for rerun / factory-rerun without a bad runner."
+        required: false
+        default: "0"
   # Monthly, enabled 2026-09-26 after control runs MD, MD+RO, all five (verify) and the first
   # production run 36200018901 (regional-2026-09-26-13). The 4th at 03:17 UTC: a day after Europe
   # Lite (3rd, 03:17) so the two heavy factories never share an evening, and outside Geofabrik's
@@ -52,9 +71,12 @@ concurrency:
 permissions:
   contents: read
   packages: read
+  actions: read       # `hold for rerun` and `report` read which step each failed job stopped in
 
 env:
   WORK: /data/regional
+  # Attempts of one run, the first included. The same number lives in factory-rerun.yml.
+  MAX_ATTEMPTS: 4
 
 jobs:
   precheck:
@@ -96,10 +118,21 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           INPUT_MODE: ${{ inputs.mode }}
+          TEST_FAIL: ${{ inputs.test_fail_preflight }}
         run: |
           set -euo pipefail
           mode="$INPUT_MODE"; [ "$EVENT" = schedule ] && mode=publish
           echo "mode=${mode:-dry}" >> "$GITHUB_OUTPUT"; echo "mode: ${mode:-dry}"
+          # test_fail_preflight makes every rebuilt country fail on purpose; on its last attempt
+          # they are all CARRIED. In verify or publish that would upload, or publish, a release of
+          # nothing but carried countries — so it is a dry-run switch and nothing else.
+          case "${TEST_FAIL:-0}" in
+            ''|0) ;;
+            *[!0-9]*) echo "::error::test_fail_preflight must be a number of attempts, got '$TEST_FAIL'"; exit 1 ;;
+            *) if [ "${mode:-dry}" != dry ]; then
+                 echo "::error::test_fail_preflight=$TEST_FAIL is allowed with mode=dry only (this run is mode=$mode)"; exit 1
+               fi ;;
+          esac
       - name: what to rebuild, and why
         id: plan
         env:
@@ -141,12 +174,46 @@ jobs:
         code: ${{ fromJSON(needs.precheck.outputs.rebuild_json) }}
     steps:
       - uses: actions/checkout@v4
-      - name: disk
+      # Disk: the map (two pmtiles extracts), the country PBF and the address scratch, sized like
+      # the graph job: 6.5 x the PBF + 3 GB. The toolcaches are removed first — they are part of
+      # what this runner can offer.
+      - name: preflight
+        env:
+          SRC_URL: ${{ fromJSON(needs.precheck.outputs.sources_json)[matrix.code].url }}
         run: |
+          set -u
           sudo rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android || true
-          df -h / | tail -1
+          bytes=$(curl -sIL --connect-timeout 10 --max-time 15 "$SRC_URL" | tr -d '\r' | awk 'tolower($1)=="content-length:"{v=$2} END{print v+0}') || bytes=0
+          need=$(awk -v b="${bytes:-0}" 'BEGIN{printf "%.1f", 6.5 * b / 1e9 + 3}')
+          if [ "${bytes:-0}" -gt 0 ] 2>/dev/null; then
+            echo "extract: $bytes bytes -> this job needs $need GB"
+          else
+            # No size was given (no Content-Length, or no answer at all). 3 GB would wave any
+            # runner through, so ask for what the largest country needs (DE: 34.8 GB) and a margin.
+            need=40
+            echo "::warning::the size of $SRC_URL is unknown -> assuming the largest: this job needs $need GB"
+          fi
+          bash scripts/runner-preflight.sh "$need" "$SRC_URL"
+      - name: resource sampler
+        run: nohup bash scripts/sample-resources.sh "$RUNNER_TEMP/samples.csv" "$RUNNER_TEMP" >/dev/null 2>&1 &
       - name: osmium (address extraction)
         run: sudo apt-get -qq update && sudo apt-get -qq install -y osmium-tool >/dev/null && osmium --version | head -1
+      # The country PBF (house numbers), in its own step: the same dated, md5-pinned file the graph
+      # job builds from. A failure here is Geofabrik or the network, and is rerun.
+      # FETCH_DEADLINE 190 min here, not the script's 240: the rest of this job takes ~126 min for
+      # France, and the job is cancelled at 330. A download that "succeeded" after 240 min would be
+      # followed by a cancellation — and a cancelled job switches the rerun off for the whole run.
+      # At 190 min the step FAILS instead, in `source`, which is rerun.
+      - name: source
+        env:
+          CODE: ${{ matrix.code }}
+          SRC_URL: ${{ fromJSON(needs.precheck.outputs.sources_json)[matrix.code].url }}
+          SRC_MD5: ${{ fromJSON(needs.precheck.outputs.sources_json)[matrix.code].md5 }}
+          FETCH_DEADLINE: 11400
+        run: |
+          set -euo pipefail
+          geo=$(python3 -c 'import json,sys;print(json.load(open("regional.json"))["countries"][sys.argv[1]]["geofabrik"])' "$CODE")
+          bash scripts/fetch-pbf.sh "$geo" "$RUNNER_TEMP/src.osm.pbf"
       - name: map and search index
         env:
           CODE: ${{ matrix.code }}
@@ -167,8 +234,7 @@ jobs:
           # address at all, so they come from the country's Geofabrik PBF — the same extract the
           # graph is built from, md5-verified, its md5 recorded in the asset. Streamed through an
           # on-disk scratch table (Germany ~20.7 M addresses). Fails the job if nothing is indexed.
-          geo=$(python3 -c 'import json,sys;print(json.load(open("regional.json"))["countries"][sys.argv[1]]["geofabrik"])' "$CODE")
-          bash scripts/fetch-pbf.sh "$geo" "$RUNNER_TEMP/src.osm.pbf"
+          # (the PBF is already here: the `source` step above)
           /usr/bin/time -v python3 scripts/search_addresses.py "$RUNNER_TEMP/src.osm.pbf" \
             "$RUNNER_TEMP/out/$low-index.sqlite" --work "$RUNNER_TEMP" \
             --source-md5 "$(cat "$RUNNER_TEMP/src.osm.pbf.md5")" \
@@ -186,12 +252,20 @@ jobs:
           mv "$RUNNER_TEMP/out/$low.search.sqlite" "$RUNNER_TEMP/files/"
           mv "$RUNNER_TEMP/out/$low.pmtiles"* "$RUNNER_TEMP/files/"
           ls -la "$RUNNER_TEMP/files"
+      - name: resources
+        if: always()
+        run: |
+          pkill -f sample-resources.sh || true
+          python3 scripts/peak-from-samples.py "$RUNNER_TEMP/samples.csv" --label "basemap ${{ matrix.code }}" || true
+          df -h / | tail -1
+      # overwrite: a rerun of this job (factory-rerun.yml) uploads under the same name
       - uses: actions/upload-artifact@v4
         with:
           name: basemap-desc-${{ matrix.code }}
           path: ${{ runner.temp }}/desc/
           retention-days: 7
           if-no-files-found: error
+          overwrite: true
       - uses: actions/upload-artifact@v4
         with:
           name: basemap-files-${{ matrix.code }}
@@ -199,6 +273,7 @@ jobs:
           retention-days: 7
           compression-level: 0
           if-no-files-found: error
+          overwrite: true
 
   # ── GRAPH of every rebuilt country, in parallel: regional-build.sh unchanged (graph, frontier,
   # features from the country's full Geofabrik extract), then gzip -n + parts. Each country is its
@@ -232,6 +307,27 @@ jobs:
       SRC_MD5: ${{ fromJSON(needs.precheck.outputs.sources_json)[matrix.code].md5 }}
     steps:
       - uses: actions/checkout@v4
+      # Disk: 6.5 x the PBF + 3 GB. Measured on germany-261124 (4.9 GB): the working directory
+      # passed 13 GB after 426 s and reached 24.4 GB before the first tile was written; the whole
+      # peak is estimated at ~30 GB. An AWS-hosted runner has ~13 GB free.
+      - name: preflight
+        env:
+          TEST_FAIL_UNTIL: ${{ inputs.test_fail_preflight }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -u
+          if [ "${TEST_FAIL_UNTIL:-0}" -ge "$RUN_ATTEMPT" ] 2>/dev/null; then export PREFLIGHT_TEST_FAIL=1; fi
+          bytes=$(curl -sIL --connect-timeout 10 --max-time 15 "$SRC_URL" | tr -d '\r' | awk 'tolower($1)=="content-length:"{v=$2} END{print v+0}') || bytes=0
+          need=$(awk -v b="${bytes:-0}" 'BEGIN{printf "%.1f", 6.5 * b / 1e9 + 3}')
+          if [ "${bytes:-0}" -gt 0 ] 2>/dev/null; then
+            echo "extract: $bytes bytes -> this job needs $need GB"
+          else
+            # No size was given (no Content-Length, or no answer at all). 3 GB would wave any
+            # runner through, so ask for what the largest country needs (DE: 34.8 GB) and a margin.
+            need=40
+            echo "::warning::the size of $SRC_URL is unknown -> assuming the largest: this job needs $need GB"
+          fi
+          bash scripts/runner-preflight.sh "$need" "$SRC_URL"
       - name: the engine is the one in regional-engine.lock
         run: |
           set -u
@@ -241,6 +337,11 @@ jobs:
           fi
           command -v frontier_dump >/dev/null || { echo "::error::no frontier_dump in the image"; exit 1; }
           df -h / | tail -1
+      - name: resource sampler
+        run: |
+          mkdir -p "$WORK"
+          setsid nohup bash scripts/sample-resources.sh "$WORK/samples.csv" "$WORK" >/dev/null 2>&1 < /dev/null &
+          echo $! > "$WORK/sampler.pid"
       - name: timezone database (pinned, sha-checked)
         run: |
           set -u
@@ -249,6 +350,14 @@ jobs:
           [ "$(sha256sum "$WORK/timezones.sqlite.part" | cut -d' ' -f1)" = "$TIMEZONES_SHA256" ] \
             || { echo "::error::timezones.sqlite does not match regional-engine.lock"; exit 1; }
           mv "$WORK/timezones.sqlite.part" "$WORK/timezones.sqlite"
+      # The extract, in its own step, exactly where regional-build.sh expects to find it (it then
+      # downloads nothing). A failure here is Geofabrik or the network, and is rerun.
+      - name: source
+        run: |
+          set -u
+          geo=$(python3 -c "import json,sys;print(json.load(open('regional.json'))['countries'][sys.argv[1]]['geofabrik'])" "$CODE")
+          mkdir -p "$WORK/src"
+          bash scripts/fetch-pbf.sh "$geo" "$WORK/src/$(basename "$geo")-latest.osm.pbf"
       - name: build
         run: |
           set -u
@@ -264,6 +373,13 @@ jobs:
           echo "$CODE built in $(( $(date +%s)-t )) s"
           rm -rf "$WORK/src" "$WORK"/work_*
           df -h / | tail -1
+      # The disk and memory this country really took — also when the build died.
+      - name: resources
+        if: always()
+        run: |
+          kill "$(cat "$WORK/sampler.pid" 2>/dev/null)" 2>/dev/null || true
+          python3 scripts/peak-from-samples.py "$WORK/samples.csv" --label "graph $CODE" || true
+          df -h / | tail -1
       - name: package (gzip -n, parts over the asset limit)
         run: |
           python3 scripts/regional-package.py "$WORK"
@@ -276,6 +392,7 @@ jobs:
           retention-days: 7
           compression-level: 0
           if-no-files-found: error
+          overwrite: true     # a rerun of this job uploads under the same name
 
   factory:
     needs: [precheck, graph, basemap]
@@ -303,6 +420,13 @@ jobs:
       COMPLETE: ${{ needs.precheck.outputs.complete }}
     steps:
       - uses: actions/checkout@v4
+      # Disk only: the whole set unpacked beside its packages, +50.3…50.5 GB measured on 50
+      # countries. No network check: this job takes its inputs from GitHub (artifacts, releases),
+      # and attempt 2 of run 45725573924 did its work on an AWS-hosted runner that cannot reach
+      # Geofabrik. (The migration backfill of a frontier does ask Geofabrik, and already goes on
+      # without OSM ids when it gets no answer.)
+      - name: preflight
+        run: bash scripts/runner-preflight.sh 60
       - name: the live manifest (not the one frozen when this run was dispatched)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -356,6 +480,92 @@ jobs:
           mkdir -p "$WORK/basemaps"
           python3 scripts/regional-effective.py "$WORK" "$WORK/basemaps" manifest.json \
             --rebuild "$REBUILD" --carry "$CARRY" --github-env "$GITHUB_ENV"
+
+      # A country that failed because of its RUNNER or its DOWNLOAD (its job stopped in `preflight`
+      # or `source`) is not carried yet: the run fails here, publishes nothing, and
+      # factory-rerun.yml reruns the failed jobs — usually on other machines.
+      # IT HOLDS ONLY WHEN THAT RERUN IS REALLY COMING — the rule is the one factory-rerun.yml
+      # applies, word for word. On the last attempt, with a cancelled job in the attempt (such a
+      # run is not rerun), for a country that failed anywhere else (a rerun would not change
+      # that), or when the jobs of the attempt cannot be read at all, the run goes on and the
+      # country is carried or left out, as before: held with no rerun coming would publish nothing.
+      - name: hold for rerun
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          API: ${{ github.api_url }}
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, time, urllib.request
+
+          RERUN = ("preflight", "source", "hold for rerun")
+
+
+          def jobs_of(attempt):
+              """Every job of this attempt. PAGE SIZE 30, with retries: for a rerun attempt of a full-size
+              run the API answers 502 to per_page=100 and to 80 (measured on run 45725573924, attempt 2:
+              7 of 7 tries), while 60, 50 and 30 are served."""
+              backoff = [int(x) for x in os.environ.get("API_BACKOFF", "5,15,30").split(",") if x]
+              jobs, page = [], 1
+              while True:
+                  url = "%s/repos/%s/actions/runs/%s/attempts/%d/jobs?per_page=30&page=%d" % (
+                      os.environ["API"], os.environ["GITHUB_REPOSITORY"], os.environ["RUN_ID"], attempt, page)
+                  for wait in backoff + [None]:
+                      try:
+                          req = urllib.request.Request(url, headers={
+                              "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
+                              "Accept": "application/vnd.github+json"})
+                          got = json.load(urllib.request.urlopen(req, timeout=60))["jobs"]
+                          break
+                      except Exception as e:
+                          if wait is None:
+                              raise
+                          print("   jobs API, page %d: %s - again in %d s" % (page, e, wait))
+                          time.sleep(wait)
+                  jobs += got
+                  if len(got) < 30:
+                      return jobs
+                  page += 1
+
+
+          def rerun_is_coming(jobs, attempt, last):
+              """THE ONE RULE, the same text in `hold for rerun`, in `report` and in factory-rerun.yml:
+              factory-rerun reruns an attempt that is not the last, has no cancelled job, and has a failed
+              job that stopped in a step named `preflight`, `source` or `hold for rerun`. -> (bool, why)"""
+              if attempt >= last:
+                  return False, "attempt %d of %d is the last" % (attempt, last)
+              if any(j.get("conclusion") == "cancelled" for j in jobs):
+                  return False, "a job was cancelled (a run with a cancelled job is not rerun)"
+              hits = sorted((j["name"], s["name"]) for j in jobs if j.get("conclusion") == "failure"
+                            for s in j.get("steps") or [] if s.get("conclusion") == "failure" and s.get("name") in RERUN)
+              if not hits:
+                  return False, "no failed job stopped in `preflight`, `source` or `hold for rerun`"
+              return True, "; ".join("%s in `%s`" % h for h in hits[:10]) + (" ..." if len(hits) > 10 else "")
+
+
+          planned = [c for c in os.environ.get("REBUILD", "").split(",") if c]
+          built = set(c for c in os.environ.get("EFF_REBUILD", "").split(",") if c)
+          failed = [c for c in planned if c not in built]
+          attempt, last = int(os.environ["ATTEMPT"]), int(os.environ["MAX_ATTEMPTS"])
+          if not failed:
+              print("every planned country was built: nothing to hold"); sys.exit(0)
+          print("not built in this attempt: %s" % ", ".join(failed))
+          try:
+              jobs = jobs_of(attempt)
+          except Exception as e:
+              # Holding is only right when a rerun is really coming, and that cannot be known now. Not
+              # holding is what this factory always did: the failed countries are carried, the rest goes on.
+              print("::warning::hold for rerun: the jobs of this attempt cannot be read (%s) - NOT holding: "
+                    "the failed countries are carried or left out and the run goes on" % e)
+              sys.exit(0)
+          coming, why = rerun_is_coming(jobs, attempt, last)
+          if coming:
+              print("::error::hold for rerun (attempt %d of %d): %s. Nothing is carried and nothing is published; "
+                    "factory-rerun reruns the failed jobs." % (attempt, last, why))
+              sys.exit(1)
+          print("no hold: %s. The failed countries are carried or left out; the rest goes on" % why)
+          PY
 
       # Страны, которые НЕ пересобирали, берутся из уже опубликованного — иначе «обновить одну
       # страну» превращается в «собрать все». Каждый байт сверяется с манифестом.
@@ -418,8 +628,11 @@ jobs:
           python3 scripts/regional-buslanes.py gates "$WORK" | tee "$WORK/buslanes-report.txt"
 
       # THE TABLE THE APP BUILDS: D1 over the set's frontiers. It is what the regression below runs
-      # on, because it is what the car runs on. Ambiguity, or a border of regional.json with both
-      # countries present and no portal, fails the run.
+      # on, because it is what the car runs on. A few ambiguous entries are a WARNING (the device
+      # builds no portal there, exactly like the app's Frontier.kt): in this log, in
+      # frontier-portals.json and in the manifest ("frontier_warnings"). Ambiguity over the limit
+      # (more than 3 entries AND more than 1 % of the pair's portals), or a required border of
+      # regional.json with both countries present and no portal, fails the run.
       - name: portals from frontiers (D1)
         run: python3 scripts/regional-frontier.py set regional.json "$WORK" "$WORK/set.d1" --report "$WORK/frontier-portals.json"
 
@@ -462,13 +675,37 @@ jobs:
         id: manifest
         run: |
           set -u
+          # ONE TAG PER ATTEMPT. A tag is immutable (regional-publish.sh refuses an existing one),
+          # and the run number alone made every later attempt of a run that had already published
+          # unable to publish at all: attempt 2 of run 45725573924 built seven fresh countries and
+          # dropped them. Attempt 1 keeps the plain name; nothing in this repository or in the app
+          # parses the tag — it is read back from the manifest and from asset URLs.
           TAG="regional-$(date -u +%Y-%m-%d)-${{ github.run_number }}"
+          if [ "${{ github.run_attempt }}" -gt 1 ]; then TAG="$TAG-a${{ github.run_attempt }}"; fi
           BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
           python3 scripts/regional-manifest.py build regional.json "$WORK" "$BASE" \
             --previous manifest.json --tag "$TAG" --engine-lock regional-engine.lock \
             --pipeline-rev "${{ github.sha }}" --run-id "${{ github.run_id }}" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --basemaps "$WORK/basemaps" > "$WORK/manifest.json"
+          # The frontier WARNINGS of this set (pairs with a few ambiguous entries, see the portals
+          # step) travel with the manifest: an extra top-level key, which the app does not read.
+          python3 - "$WORK/manifest.json" "$WORK/frontier-portals.json" <<'PY'
+          import json, sys
+          m = json.load(open(sys.argv[1], encoding="utf-8"))
+          pairs = json.load(open(sys.argv[2], encoding="utf-8"))
+          w = {k: {"ambiguous": v["ambiguous"], "portals": v["osm"] + v["coord"] + v["near"],
+                   "versions": v["versions"], "text": v["warning"]}
+               for k, v in sorted(pairs.items()) if v.get("warning")}
+          if w:
+              # a new LAST key; written the way regional-manifest.py writes (key order kept)
+              m["frontier_warnings"] = w
+              with open(sys.argv[1], "w", encoding="utf-8", newline="\n") as f:
+                  f.write(json.dumps(m, ensure_ascii=False, indent=2) + "\n")
+              for k, v in w.items():
+                  print("::warning::frontier %s" % v["text"])
+          print("frontier warnings in the manifest: %d" % len(w))
+          PY
           # HARD GATE (owner 2026-09-27): graph, frontier, features and search house numbers of a
           # country come from ONE Geofabrik PBF. The basemap job downloads it separately, so the
           # md5s are compared here; any mismatch fails the run and nothing is published.
@@ -504,12 +741,14 @@ jobs:
           retention-days: 7
           compression-level: 0
           if-no-files-found: error
+          overwrite: true     # every attempt of this run uploads under the same name
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: regional-logs-${{ github.run_number }}
           retention-days: 30
+          overwrite: true
           path: |
             /data/regional/regress.txt
             /data/regional/frontier-report.txt
@@ -536,10 +775,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
-      - name: disk (the whole of Europe passes through this runner once)
+      # Disk: the whole of Europe passes through this runner once (~75 GB in dist, and one asset
+      # at a time comes back from the draft for comparison). The toolcaches are removed first.
+      - name: preflight
         run: |
           sudo rm -rf /opt/hostedtoolcache /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
-          df -h / | tail -1
+          bash scripts/runner-preflight.sh 85
       - uses: actions/download-artifact@v4
         with:
           name: regional-release-${{ github.run_number }}
@@ -555,28 +796,116 @@ jobs:
           MODE: ${{ needs.precheck.outputs.mode }}
         run: bash scripts/regional-publish.sh dist "$GITHUB_REPOSITORY" "$GITHUB_WORKSPACE" "$MODE"
 
+  # ── ISSUE: once per run, when no further attempt is coming ─────────────────────────────────────
+  # Runs after a failure AND after a cancellation (a job cancelled by its timeout used to end the
+  # run without a word). While factory-rerun.yml is going to rerun this run, nothing is opened:
+  # the rule below is the same one that workflow applies.
   report:
-    needs: [precheck, factory, publish]
-    if: failure() && (github.event_name == 'schedule' || needs.precheck.outputs.mode == 'publish')
+    needs: [precheck, graph, basemap, factory, publish]
+    if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (github.event_name == 'schedule' || needs.precheck.outputs.mode == 'publish')
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
+      actions: read
     steps:
+      - name: is another attempt coming?
+        id: final
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          API: ${{ github.api_url }}
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, time, urllib.request
+
+          RERUN = ("preflight", "source", "hold for rerun")
+
+
+          def jobs_of(attempt):
+              """Every job of this attempt. PAGE SIZE 30, with retries: for a rerun attempt of a full-size
+              run the API answers 502 to per_page=100 and to 80 (measured on run 45725573924, attempt 2:
+              7 of 7 tries), while 60, 50 and 30 are served."""
+              backoff = [int(x) for x in os.environ.get("API_BACKOFF", "5,15,30").split(",") if x]
+              jobs, page = [], 1
+              while True:
+                  url = "%s/repos/%s/actions/runs/%s/attempts/%d/jobs?per_page=30&page=%d" % (
+                      os.environ["API"], os.environ["GITHUB_REPOSITORY"], os.environ["RUN_ID"], attempt, page)
+                  for wait in backoff + [None]:
+                      try:
+                          req = urllib.request.Request(url, headers={
+                              "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
+                              "Accept": "application/vnd.github+json"})
+                          got = json.load(urllib.request.urlopen(req, timeout=60))["jobs"]
+                          break
+                      except Exception as e:
+                          if wait is None:
+                              raise
+                          print("   jobs API, page %d: %s - again in %d s" % (page, e, wait))
+                          time.sleep(wait)
+                  jobs += got
+                  if len(got) < 30:
+                      return jobs
+                  page += 1
+
+
+          def rerun_is_coming(jobs, attempt, last):
+              """THE ONE RULE, the same text in `hold for rerun`, in `report` and in factory-rerun.yml:
+              factory-rerun reruns an attempt that is not the last, has no cancelled job, and has a failed
+              job that stopped in a step named `preflight`, `source` or `hold for rerun`. -> (bool, why)"""
+              if attempt >= last:
+                  return False, "attempt %d of %d is the last" % (attempt, last)
+              if any(j.get("conclusion") == "cancelled" for j in jobs):
+                  return False, "a job was cancelled (a run with a cancelled job is not rerun)"
+              hits = sorted((j["name"], s["name"]) for j in jobs if j.get("conclusion") == "failure"
+                            for s in j.get("steps") or [] if s.get("conclusion") == "failure" and s.get("name") in RERUN)
+              if not hits:
+                  return False, "no failed job stopped in `preflight`, `source` or `hold for rerun`"
+              return True, "; ".join("%s in `%s`" % h for h in hits[:10]) + (" ..." if len(hits) > 10 else "")
+
+
+          attempt, last = int(os.environ["ATTEMPT"]), int(os.environ["MAX_ATTEMPTS"])
+          results = [v["result"] for v in json.loads(os.environ["RESULTS"]).values()]
+          if attempt >= last:
+              final, why = True, "attempt %d of %d was the last" % (attempt, last)
+          elif "cancelled" in results:
+              final, why = True, "a job was cancelled (a run with a cancelled job is not rerun)"
+          else:
+              try:
+                  coming, why = rerun_is_coming(jobs_of(attempt), attempt, last)
+                  final = not coming
+                  if coming:
+                      why = "factory-rerun starts attempt %d: %s" % (attempt + 1, why)
+              except Exception as e:
+                  final, why = True, "the jobs of this attempt cannot be read (%s)" % e
+          print("%s: %s" % ("issue" if final else "no issue yet", why))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("final=%s\n" % ("true" if final else "false"))
+          PY
       - name: open an issue
+        if: steps.final.outputs.final == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RESULTS: ${{ toJSON(needs) }}
+          PUBLISHED: ${{ needs.publish.result }}
+          ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
           body=$(mktemp)
           {
-            echo "The regional factory run failed and **nothing new was published**."
-            echo "manifest.json still names the previous release; every car keeps it."
+            if [ "$PUBLISHED" = success ]; then
+              echo "The regional factory run **published**, but not every job succeeded:"
+              echo "a country that failed was carried from its previous release (or left out if it never had one)."
+            else
+              echo "The regional factory run failed and **nothing new was published**."
+              echo "manifest.json still names the previous release; every car keeps it."
+            fi
             echo
-            echo "Run: $RUN_URL"
+            echo "Run: $RUN_URL (attempt $ATTEMPT of $MAX_ATTEMPTS)"
             echo
             echo '```'
             echo "$RESULTS" | python3 -c 'import json,sys;[print("%-9s %s"%(k,v["result"])) for k,v in json.load(sys.stdin).items()]'

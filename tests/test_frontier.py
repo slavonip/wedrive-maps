@@ -150,6 +150,122 @@ class FactorySet(unittest.TestCase):
             problems = F.set_portals(CFG, d, out)
             self.assertTrue(any("RO-HU" in p for p in problems), problems)
 
+    # --- ambiguous entries: a warning up to a limit, a failure beyond it (owner, 2026-11-26) ---
+
+    @staticmethod
+    def crossings(joined, ambiguous):
+        """-> (rows A, rows B): `joined` crossings D1 joins by OSM id, then `ambiguous` nodes of A
+        that each have TWO nodes of B within 5 m and no id in common (so D1 joins none of them)."""
+        A, B, k = [], [], 0
+        for i in range(joined):
+            A.append((2, 470000000 + i * 100000, 280000000, 8 * k + 2, 1000 + i))
+            B.append((2, 470000000 + i * 100000, 280000000, 8 * k + 2, 1000 + i)); k += 1
+        for i in range(ambiguous):
+            lat = 480000000 + i * 100000
+            A.append((2, lat, 280000000, 8 * k + 2, None)); k += 1
+            B.append((2, lat + 100, 280000000, 8 * k + 2, None)); k += 1      # ~1.1 m north
+            B.append((2, lat - 100, 280000000, 8 * k + 2, None)); k += 1      # ~1.1 m south
+        return A, B
+
+    def pair(self, d, joined, ambiguous):
+        A, B = self.crossings(joined, ambiguous)
+        self.make(d, "MD", A, "2026-11-02")
+        self.make(d, "RO", B, "2026-10-03")
+
+    def test_the_synthetic_crossings_are_what_they_claim(self):
+        A, B = self.crossings(5, 2)
+        pairs, stats = F.match(A, B)
+        self.assertEqual((len(pairs), stats["osm"], stats["ambiguous"]), (5, 5, 2))
+
+    def test_one_ambiguous_entry_is_a_warning_not_a_failure(self):
+        # 2026-11-04: CZ-DE "osm 617, near 3, ambiguous 1" refused 49 fresh countries.
+        with tempfile.TemporaryDirectory() as d:
+            self.pair(d, 617, 1)
+            out, rep = os.path.join(d, "set.d1"), os.path.join(d, "r.json")
+            self.assertEqual(F.set_portals(CFG, d, out, rep), [])
+            with open(out) as f:
+                self.assertEqual(len(f.read().splitlines()), 2 * 617)     # no portal at the ambiguous node
+            with open(rep) as f:
+                report = json.load(f)
+            self.assertEqual(report["MD-RO"]["ambiguous"], 1)
+            self.assertIn("1 ambiguous", report["MD-RO"]["warning"])
+            self.assertEqual(F.main(["x", "set", os.path.join(ROOT, "regional.json"), d, out]), 0)
+
+    def test_a_pair_without_ambiguity_carries_no_warning(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.pair(d, 4, 0)
+            rep = os.path.join(d, "r.json")
+            self.assertEqual(F.set_portals(CFG, d, os.path.join(d, "set.d1"), rep), [])
+            with open(rep) as f:
+                self.assertNotIn("warning", json.load(f)["MD-RO"])
+
+    def test_the_limit_needs_both_counts(self):
+        for joined, ambiguous, fails in ((100, 3, False),      # 3 %: but not MORE than 3 entries
+                                         (1000, 4, False),     # 4 entries: but not more than 1 %
+                                         (400, 4, False),      # exactly 1 % is not more than 1 %
+                                         (399, 4, True),       # more than 3 AND more than 1 %
+                                         (100, 4, True),
+                                         (617, 7, True)):
+            with self.subTest(joined=joined, ambiguous=ambiguous), tempfile.TemporaryDirectory() as d:
+                self.pair(d, joined, ambiguous)
+                out = os.path.join(d, "set.d1")
+                problems = F.set_portals(CFG, d, out)
+                self.assertEqual(bool(problems), fails, problems)
+                self.assertEqual(F.main(["x", "set", os.path.join(ROOT, "regional.json"), d, out]), 1 if fails else 0)
+                if fails:
+                    self.assertTrue(any("MD-RO" in p and "over the limit" in p for p in problems), problems)
+
+    def test_portals_joined_by_coordinate_or_by_nearness_are_portals_too(self):
+        # A pair with no OSM ids at all (a carried country backfilled without its extract) is
+        # joined by exact coordinate, or by the 5 m rule. Those are the pair's portals as well:
+        # counted as none, 4 ambiguous entries would be "more than 1 %" of nothing.
+        for method, shift in (("coord", 0), ("near", 100)):
+            with self.subTest(method=method), tempfile.TemporaryDirectory() as d:
+                A = [(2, 470000000 + i * 100000, 280000000, 8 * i + 2, None) for i in range(400)]
+                B = [(2, 470000000 + i * 100000 + shift, 280000000, 8 * i + 2, None) for i in range(400)]
+                for i in range(4):                                   # 4 ambiguous = exactly 1 %
+                    lat = 560000000 + i * 100000                     # clear of the 400 above
+                    A.append((2, lat, 280000000, 8 * (400 + i) + 2, None))
+                    B.append((2, lat + 100, 280000000, 8 * (400 + 2 * i) + 2, None))
+                    B.append((2, lat - 100, 280000000, 8 * (401 + 2 * i) + 2, None))
+                _pairs, stats = F.match(A, B)
+                self.assertEqual((stats["osm"], stats[method], stats["ambiguous"]), (0, 400, 4))
+                self.assertEqual(F.portal_count(stats), 400)
+                self.make(d, "MD", A); self.make(d, "RO", B)
+                rep = os.path.join(d, "r.json")
+                self.assertEqual(F.set_portals(CFG, d, os.path.join(d, "set.d1"), rep), [])
+                with open(rep) as f:
+                    self.assertIn("beside 400 portals", json.load(f)["MD-RO"]["warning"])
+
+    def test_judge_ambiguity_marks_only_the_warned_pairs(self):
+        def st(osm, amb):
+            return {"osm": osm, "coord": 0, "near": 0, "ambiguous": amb, "unmatched_a": 0, "unmatched_b": 0}
+        by_pair = {"A-B": st(617, 1), "C-D": st(10, 0), "E-F": st(20, 5)}
+        problems, warnings = F.judge_ambiguity(by_pair)
+        self.assertEqual(len(warnings), 1); self.assertIn("A-B", warnings[0])
+        self.assertEqual(len(problems), 1); self.assertIn("E-F", problems[0])
+        self.assertEqual([k for k, s in sorted(by_pair.items()) if "warning" in s], ["A-B"])
+
+    def test_a_required_border_with_only_ambiguous_entries_has_no_portal_and_fails(self):
+        # Under the limit, so ambiguity alone would only warn — but MD-RO is left with no portal.
+        with tempfile.TemporaryDirectory() as d:
+            self.pair(d, 0, 2)
+            out = os.path.join(d, "set.d1")
+            problems = F.set_portals(CFG, d, out)
+            self.assertTrue(any("MD-RO" in p and "no portal joins them" in p for p in problems), problems)
+            self.assertEqual(os.path.getsize(out), 0)
+            self.assertEqual(F.main(["x", "set", os.path.join(ROOT, "regional.json"), d, out]), 1)
+
+    def test_the_portals_command_follows_the_same_rule(self):
+        cfg = os.path.join(ROOT, "regional.json")
+        for joined, ambiguous, require, code in ((617, 1, True, 0), (100, 4, False, 1),
+                                                 (0, 2, False, 0), (0, 2, True, 1)):
+            with self.subTest(joined=joined, ambiguous=ambiguous, require=require), tempfile.TemporaryDirectory() as d:
+                self.pair(d, joined, ambiguous)
+                argv = ["x", "portals", cfg, os.path.join(d, "p.portals"),
+                        "MD=" + os.path.join(d, "md.frontier"), "RO=" + os.path.join(d, "ro.frontier")]
+                self.assertEqual(F.main(argv + (["--require-borders"] if require else [])), code)
+
     def test_frontier_not_matching_its_description_is_refused(self):
         with tempfile.TemporaryDirectory() as d:
             path = self.make(d, "MD", [(2, 470000000, 280000000, 18, 1)])

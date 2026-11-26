@@ -33,39 +33,20 @@ URL="https://download.geofabrik.de/${GEO}-latest.osm.pbf"
 # hungary-latest.osm.pbf.md5 still named yesterday's file, twice in a row. Retrying at once cannot
 # outrun that, so a mismatch waits MD5_WAIT seconds and tries again, MD5_ATTEMPTS times (default
 # one hour), and only then fails the run — never builds from a file that does not match.
-MD5_ATTEMPTS="${MD5_ATTEMPTS:-7}"; MD5_WAIT="${MD5_WAIT:-600}"
+#
 # PINNED BY THE PRECHECK (SRC_URL + SRC_MD5): the dated file this run resolved once, the SAME for
-# the graph and the map job of this country. A dated file never changes, so a mismatch here is a
-# broken download, retried a few times, never a rollover to wait out.
-if [ -n "${SRC_URL:-}" ] && [ -n "${SRC_MD5:-}" ] && [ ! -f "$PBF" ]; then
-  URL="$SRC_URL"
-  for attempt in 1 2 3; do
-    echo "==> качаю $URL (md5 $SRC_MD5)"
-    rm -f "$PBF.part"
-    if curl -fsSL --retry 3 -o "$PBF.part" "$URL" \
-       && [ "$(md5sum "$PBF.part" | cut -d' ' -f1)" = "$SRC_MD5" ]; then
-      mv "$PBF.part" "$PBF"; echo "$SRC_MD5" > "$PBF.md5"; break
-    fi
-    echo "загрузка $URL не сошлась с md5 (попытка $attempt из 3)" >&2
-    [ "$attempt" = 3 ] && { echo "::error::$URL never matched $SRC_MD5" >&2; exit 1; }
-    sleep 30
-  done
-fi
+# the graph and the map job of this country. A dated file never changes, so a mismatch there is a
+# broken download, retried a few times, never a rollover to wait out. It is also what the package
+# records as its source.
+#
+# ONE DOWNLOADER: scripts/fetch-pbf.sh (both cases above; a resumable transfer with a speed
+# floor). In the factory the extract is already here — the job's own `source` step fetched it with
+# that same script, so that a slow or unreachable Geofabrik fails a step that is rerun on another
+# runner (factory-rerun.yml) instead of failing the build.
+if [ -n "${SRC_URL:-}" ] && [ -n "${SRC_MD5:-}" ]; then URL="$SRC_URL"; fi
 if [ ! -f "$PBF" ]; then
-  for attempt in $(seq 1 "$MD5_ATTEMPTS"); do
-    MD5_WANT="$(curl -fsSL "$URL.md5" | awk '{print $1}')"
-    [ "${#MD5_WANT}" = 32 ] || { echo "no MD5 published at $URL.md5" >&2; exit 1; }
-    echo "==> качаю $GEO (md5 $MD5_WANT)"
-    curl -fsSL -o "$PBF.part" "$URL"
-    if [ "$(md5sum "$PBF.part" | cut -d' ' -f1)" = "$MD5_WANT" ]; then
-      mv "$PBF.part" "$PBF"; echo "$MD5_WANT" > "$PBF.md5"; break
-    fi
-    rm -f "$PBF.part"; echo "md5 не сошлась (попытка $attempt из $MD5_ATTEMPTS)" >&2
-    if [ "$attempt" = "$MD5_ATTEMPTS" ]; then
-      echo "Geofabrik так и не дал согласованный экстракт $GEO — не собираю" >&2; exit 1
-    fi
-    sleep "$MD5_WAIT"
-  done
+  echo "==> качаю $URL"
+  bash "$(dirname "$0")/fetch-pbf.sh" "$GEO" "$PBF"
 fi
 MD5="$(cat "$PBF.md5" 2>/dev/null || md5sum "$PBF" | cut -d' ' -f1)"
 PBF_SHA="$(sha256sum "$PBF" | cut -d' ' -f1)"
